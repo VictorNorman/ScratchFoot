@@ -42,7 +42,7 @@ public class IntegerVar extends Actor
 
         String dispStr = text + value + 2;   // add 2 for padding.  Remove later...
         int stringLength = dispStr.length() * 10;
-        setImage(new GreenfootImage(stringLength, 16));
+        setImage(new GreenfootImage(stringLength, 16));      // TODO: remove this?
         updateImage();
     }
 

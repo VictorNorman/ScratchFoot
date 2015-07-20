@@ -7,7 +7,6 @@ import java.awt.Color;
 import java.lang.String;
 import java.lang.reflect.*;
 import javax.swing.JOptionPane;
-import java.awt.geom.RoundRectangle2D;
 
 /**
  * Write a description of class Scratch here.
@@ -102,6 +101,9 @@ public class Scratch extends Actor
     // loop of Scratch).  This needs to be noted so that if stopThisScript() is 
     // called it can check if the code is in the foreverloop.
     private boolean inActCb = false;
+
+    // Actor that is showing what is being said OR thought by this sprite.
+    SayActor sayActor = null;
 
     /*
      *  Turn the sprite to face the direction depending on the rotation style:
@@ -405,7 +407,7 @@ public class Scratch extends Actor
         currDirection = other.currDirection;
         lastMouseX = other.lastMouseX;
         lastMouseY = other.lastMouseY;
-        
+
         rotationStyle = other.rotationStyle;
 
         keyCbs = new ArrayList<KeypressCb>(other.keyCbs);
@@ -423,6 +425,8 @@ public class Scratch extends Actor
         isClone = true;
         // Record that this new clone is not operating inside a forever loop at this time.
         inActCb = false;
+        // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
+        sayActor = null;
         System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
     }
 
@@ -465,11 +469,12 @@ public class Scratch extends Actor
         }
 
         // Call all the registered act()-like methods.
-        /* REMOVE: for (ActCb actCb : actCbs) {
-        actCb.invoke();
-        } */
         for (Sequence seq : sequences) {
             seq.performSequence();
+        }
+
+        if (sayActor != null) {
+            sayActorUpdateLocation();
         }
     }
 
@@ -490,11 +495,6 @@ public class Scratch extends Actor
     public void registerForeverLoopMethod(String methodName)
     {
         addSequence(this, methodName);
-
-        /*
-        ActCb acb = new ActCb(this, methodName);
-        actCbs.add(acb);
-         */
     }
 
     public void registerSpriteClickedMethod(String methodName)
@@ -781,8 +781,7 @@ public class Scratch extends Actor
 
     /* 
      * TODO:
-     * 2. change pen shade by <n>, or set pen shade to <n>.  Need to find out what the
-     *    colors are that are defined in Scratch (there are 200 colors).
+     * 2. change pen shade by <n>, or set pen shade to <n>.
      */
 
     /*
@@ -825,7 +824,7 @@ public class Scratch extends Actor
             getWorld().getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
         }
     }
-    
+
     /**
      * glide the sprite to the given x, y coordinates over the given time period.
      */
@@ -852,7 +851,6 @@ public class Scratch extends Actor
             int newY = begY + (int) ((endY - begY) * diff);
             goToGF(newX, newY);
         }
-
     }
 
     /**
@@ -1138,40 +1136,56 @@ public class Scratch extends Actor
      * Commands from the Looks tab in Scratch.
      * ---------------------------------------------------------------------
      */
-    
-    /**
-     * display the given string for <n> seconds next to the sprite.
-     */
-    public void sayForNSeconds(String str, double duration)
-    {
-    }
-    
+
     /**
      * display the given string next to the sprite.
      */
     public void say(String str)
     {
+        if (sayActor != null) {
+            if (str == null) {
+                // saying nothing means remove the sayActor
+                getWorld().removeObject(sayActor);
+                sayActor = null;
+            } else {
+                sayActor.setString(str);
+            }
+            return;
+        }
+
         GreenfootImage mySprite = getImage();
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
-        GreenfootImage img = new GreenfootImage(str.length() * 7, 20);
-        img.setColor(Color.white);   // set background to white.
-        img.fill();   
-        img.setColor(Color.black);   // set text color to black.
+
+        sayActor = new SayActor(str);
+        getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+    }
+
+    /**
+     * display the given string for <n> seconds next to the sprite.
+     */
+    public void sayForNSeconds(Sequence s, String str, double duration)
+    {
+        GreenfootImage mySprite = getImage();
+        int width = mySprite.getWidth();
+        int height = mySprite.getHeight();
+
+        sayActor = new SayActor(str);
+        getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
         
-        // Draw a rounded rectangle around the edge of the image.
+        wait(s, duration);
         
-        RoundRectangle2D.Float rect = 
-            new RoundRectangle2D.Float(0, 0, 
-                                       str.length() * 7 - 1, 19, 
-                                       10, 10);  // these are arc widths.
-        img.drawShape(rect);
-        
-        
-        img.drawString(str, 1, 15);
-        GreenfootImage bgrnd = getWorld().getBackground();
-        bgrnd.drawImage(img, super.getX() + (width / 2) + 10, super.getY() - (height / 2) - 10);
-        // getWorld().setBackground(bgrnd);
+        getWorld().removeObject(sayActor);
+        sayActor = null;
+    }
+
+    // called from act() above to update the location of the say/think actor.
+    private void sayActorUpdateLocation()
+    {
+        GreenfootImage mySprite = getImage();
+        int width = mySprite.getWidth();
+        int height = mySprite.getHeight();
+        sayActor.updateLocation(super.getX() + width + 10, super.getY() - height - 5);
     }
 
     /**
@@ -1684,8 +1698,7 @@ public class Scratch extends Actor
     /*
      * Miscellaneous stuff.
      */
-    
-    
+
     /**
      * delay execution for "duration" seconds.
      * 
@@ -1706,9 +1719,10 @@ public class Scratch extends Actor
             }
         }
     }
+
     public void wait(Sequence s, int duration) {  wait(s, (double) duration); }
+
     public void wait(Sequence s, float duration) {  wait(s, (double) duration); }
-    
 
     /*
      * --------------------------------------------------------------
