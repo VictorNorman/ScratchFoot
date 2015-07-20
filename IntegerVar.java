@@ -27,9 +27,9 @@ public class IntegerVar extends Actor
     private int value;
     private String text;
     private boolean valChanged = true;
-    private boolean display = true;    // is the variable supposed to be displayed or hidden?
+    private boolean display = true;           // is the variable supposed to be displayed or hidden?
     private boolean addedToWorldYet = false;  // has this object been added to the world yet?
-    private int xLoc, yLoc;            // initial location of the image.
+    private int xLoc, yLoc;                   // initial location of the image.
     
     /**
      * Create a variable with the given name and given initial value.
@@ -74,7 +74,12 @@ public class IntegerVar extends Actor
      */
     private void updateImage()
     {
-        if (display && valChanged) {
+        if (! display) {
+            System.out.println("IV.updateImage: calling clear");
+            getImage().clear();
+            return;
+        }
+        if (valChanged) {
             String dispStr = text + value;
             int stringLength = (dispStr.length() + 1) * 7;
             GreenfootImage image = new GreenfootImage(stringLength, 20);
@@ -83,7 +88,7 @@ public class IntegerVar extends Actor
             image.setColor(Color.decode("#EE7D16"));
             image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
             image.setColor(textColor);
-            // System.out.println("IV.updateImage: creating with value " + text + " " + value);
+            System.out.println("IV.updateImage: creating with value " + text + " " + value);
             image.drawString(text + " " + value, 1, 15);
             setImage(image);
             
@@ -94,10 +99,7 @@ public class IntegerVar extends Actor
             // each image, each time.
             setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
             valChanged = false;
-        } else {
-            // System.out.println("IV.updateImage: calling clear");
-            getImage().clear();
-        }
+        } 
     }
 
     /**
