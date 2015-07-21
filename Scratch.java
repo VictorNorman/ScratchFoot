@@ -7,9 +7,10 @@ import java.awt.Color;
 import java.lang.String;
 import java.lang.reflect.*;
 import javax.swing.JOptionPane;
+import java.awt.geom.RoundRectangle2D;
 
 /**
- * Write a description of class Scratch here.
+ * class Scratch
  * 
  * @author Victor Norman 
  * @version 0.1
@@ -103,7 +104,7 @@ public class Scratch extends Actor
     private boolean inActCb = false;
 
     // Actor that is showing what is being said OR thought by this sprite.
-    SayActor sayActor = null;
+    Sayer sayActor = null;
 
     /*
      *  Turn the sprite to face the direction depending on the rotation style:
@@ -366,22 +367,51 @@ public class Scratch extends Actor
         s.start();
     }
 
-    public class IntVar extends Actor
+    private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
+    public IntVar createIntVariable(String varName, int initVal)
+    {
+        IntVar newVar = new IntVar(varName, initVal);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+
+    public StringVar createStringVariable(String varName, String val)
+    {
+        StringVar newVar = new StringVar(varName, val);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+
+    public DoubleVar createDoubleVariable(String varName, double val)
+    {
+        DoubleVar newVar = new DoubleVar(varName, val);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+
+    public BooleanVar createBooleanVariable(String varName, boolean val)
+    {
+        BooleanVar newVar = new BooleanVar(varName, val);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+
+    public class Variable extends Actor 
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
 
-        private int value;
+        private Object value;
         private String text;
         private boolean valChanged = true;
         private boolean display = true;           // is the variable supposed to be displayed or hidden?
         private boolean addedToWorldYet = false;  // has this object been added to the world yet?
         private int xLoc, yLoc;                   // initial location of the image.
-        
-        public IntVar(String varName, int initVal)
+
+        public Variable(String varName, Object val)
         {
             text = varName;
-            value = initVal;
+            value = val;
             valChanged = true;
 
             String dispStr = text + value + 2;   // add 2 for padding.  Remove later...
@@ -399,7 +429,7 @@ public class Scratch extends Actor
          * Update the value.  The value on the screen will be updated next time act()
          * is called for this object.
          */
-        public void set(int newVal)
+        public void set(Object newVal)
         {
             value = newVal;
             valChanged = true;
@@ -408,7 +438,7 @@ public class Scratch extends Actor
         /**
          * @return the value.
          */
-        public int get()
+        public Object get()
         {
             return value;
         }
@@ -426,11 +456,14 @@ public class Scratch extends Actor
             if (valChanged) {
                 String dispStr = text + value;
                 int stringLength = (dispStr.length() + 1) * 7;
+                // Create a gray background until the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength, 20);
                 image.setColor(bgColor);
                 image.fill();
+                // Create orange background under the variable's value.
                 image.setColor(Color.decode("#EE7D16"));
                 image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
+
                 image.setColor(textColor);
                 System.out.println("IV.updateImage: creating with value " + text + " " + value);
                 image.drawString(text + " " + value, 1, 15);
@@ -489,7 +522,40 @@ public class Scratch extends Actor
             valChanged = true;  // make sure we don't display the value in next act() iteration.
         }
     }
+    public class IntVar extends Variable {
 
+        public IntVar(String name, int initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public Integer get() { return (Integer) super.get(); }
+    }
+    public class StringVar extends Variable {
+
+        public StringVar(String name, String initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public String get() { return (String) super.get(); }
+    }
+    public class DoubleVar extends Variable {
+
+        public DoubleVar(String name, double initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public Double get() { return (Double) super.get(); }
+    }
+    public class BooleanVar extends Variable {
+
+        public BooleanVar(String name, boolean initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public Boolean get() { return (Boolean) super.get(); }
+    }
+
+    
     /*
      * Start of code!
      */
@@ -562,6 +628,11 @@ public class Scratch extends Actor
     public void addedToWorld(World w)
     {
         ((ScratchWorld) w).addToPaintOrder(this.getClass());
+
+        // Add variables to be displayed to the world automatically so that code doesn't have to do it.
+        for (Variable iv : varsToDisplay) {
+            iv.addToWorld(((ScratchWorld) w));
+        }
     }
 
     /**
@@ -1281,7 +1352,7 @@ public class Scratch extends Actor
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
-        sayActor = new SayActor(str);
+        sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
     }
 
@@ -1294,7 +1365,7 @@ public class Scratch extends Actor
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
-        sayActor = new SayActor(str);
+        sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
 
         wait(s, duration);
@@ -1979,4 +2050,63 @@ public class Scratch extends Actor
         return getWorld().getHeight() / 2 - y;
     }
 
+    /*
+     * Sayer: a bubble that follows a Scratch actor around, displaying what
+     * they are saying or thinking.
+     */
+    public class Sayer extends Scratch
+    {
+        private String str;
+        int x, y;             // in Greenfoot coordinates.
+
+        public Sayer(String str)
+        {
+            this.str = str;
+            // this.x = x;
+            // this.y = y;
+            update();
+        }
+
+        public void setString(String newStr)
+        {
+            if (newStr.equals(str)) {
+                return;
+            }
+            str = newStr;
+            update();
+        }
+
+        private void update() 
+        {
+            // use this image just to get the extents of the string.
+            GreenfootImage junk = new GreenfootImage(str, 14, null, null);
+            int imgW = junk.getWidth() + 4;
+            int imgH = junk.getHeight() + 4;
+            junk = null;    // release the image.
+
+            GreenfootImage img = new GreenfootImage(imgW, imgH);
+            img.setColor(Color.white);   // set background to white.
+            img.fill();   
+            img.setColor(Color.black);   // set text color to black.
+
+            // Draw a rounded rectangle around the edge of the image.
+            RoundRectangle2D.Float rect = 
+                new RoundRectangle2D.Float(0, 0, imgW - 1, imgH - 1, 
+                    10, 10);  // these are arc widths.
+            img.drawShape(rect);
+
+            img.drawString(str, 2, 13);
+            setImage(img);
+        }
+
+        /**
+         * update the location of the box that shows what is being said.
+         * x and y are in Greenfoot coordinates.  Should not be called explicitly.
+         */
+        public void updateLocation(int x, int y)
+        {
+            setLocation(x, y);
+        }
+
+    }
 }
