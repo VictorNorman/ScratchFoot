@@ -98,10 +98,10 @@ public class Scratch extends Actor
     // Remember if this object is a clone or not.  It is not, by default.
     private boolean isClone = false;
 
-    // Note if the code being run is from an actCb (i.e., simulating the forever
-    // loop of Scratch).  This needs to be noted so that if stopThisScript() is 
+    // Note if the code being run is in a "foreverLoop" -- i.e., being
+    // run in a Sequence. This needs to be noted so that if stopThisScript() is 
     // called it can check if the code is in the foreverloop.
-    private boolean inActCb = false;
+    private boolean inForeverLoop = false;
 
     // Actor that is showing what is being said OR thought by this sprite.
     Sayer sayActor = null;
@@ -175,7 +175,7 @@ public class Scratch extends Actor
             try {
                 Method m = obj.getClass().getMethod(method);
                 // System.out.println("ActCb.invoke(): setting inActCb to true");
-                inActCb = true;
+                // inActCb = true;
                 isRunning = true;
                 m.invoke(obj);
             } catch (InvocationTargetException i) {
@@ -193,10 +193,10 @@ public class Scratch extends Actor
             }
             // System.out.println("ActCb.invoke(): setting inActCb to false");
             isRunning = false;
-            inActCb = false;
+            // inActCb = false;
         }
     }
-    private ArrayList<ActCb> actCbs = new ArrayList<ActCb>();
+    // private ArrayList<ActCb> actCbs = new ArrayList<ActCb>();
     private ArrayList<ActCb> actorClickedCbs = new ArrayList<ActCb>();
 
     private class CloneStartCb {
@@ -261,6 +261,13 @@ public class Scratch extends Actor
         private Object sequenceLock;
         private boolean doneSequence;
         private boolean terminated;
+        // active records if the registered sequence should continue to be run in the future.
+        // It is set to fals when stopThisScript() or stopOtherScriptsForSprite() has been called.
+        private boolean active;
+        // isRunning records if this sequence is being run now.  It is used only in stopOtherScriptsForSprite.
+        // This is similar to the variable above called inForeverloop, which is set to true if *any* sequence is
+        // being run at the time.
+        private boolean isRunning;
         private Object objToCall;
         private String methodToCall;
 
@@ -271,6 +278,8 @@ public class Scratch extends Actor
         {
             this.sequenceLock = this;
             doneSequence = true;
+            active = true;
+            isRunning = false;
             this.objToCall = obj;
             this.methodToCall = method;
             // System.out.println("Sequence ctor: obj " + obj + " method " + method);
@@ -294,18 +303,31 @@ public class Scratch extends Actor
                         java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
                                 this.getClass());
                         // System.out.println(methodToCall + ": run(): invoking callback");
+                        inForeverLoop = true;
+                        isRunning = true;
                         m.invoke(objToCall, this);
+                        
                         // System.out.println(methodToCall + ": run(): done invoking callback");
                         waitForNextSequence();
                     }
                 }
-            }
-            catch (InterruptedException ie) {}
-            catch (Throwable t) {
+            } catch (InvocationTargetException i) {
+                if (i.getCause() instanceof StopScriptException) {
+                    System.out.println("Sequence.invoke: got StopScriptException: making script inactive");
+                    active = false;
+                } else {
+                    // We had a problem with invoke(), but it wasn't the StopScript exception, so
+                    // just print out the info.
+                    i.printStackTrace();
+                }
+            } catch (InterruptedException ie) {
+            } catch (Throwable t) {
                 t.printStackTrace();
             }
             // System.out.println(methodToCall + ": run(): done");
-
+            inForeverLoop = false;
+            isRunning = false;
+            
             terminated = true;
             doneSequence = true;
         }
@@ -601,7 +623,6 @@ public class Scratch extends Actor
         rotationStyle = other.rotationStyle;
 
         keyCbs = new ArrayList<KeypressCb>(other.keyCbs);
-        actCbs = new ArrayList<ActCb>(other.actCbs);
         actorClickedCbs = new ArrayList<ActCb>(other.actorClickedCbs);
         cloneStartCbs = new ArrayList<CloneStartCb>(other.cloneStartCbs);
         mesgCbs = new LinkedList<MessageCb>(other.mesgCbs);
@@ -614,7 +635,7 @@ public class Scratch extends Actor
         // NOTE: we are assuming that when this copy constructor is called, it is to make a clone.
         isClone = true;
         // Record that this new clone is not operating inside a forever loop at this time.
-        inActCb = false;
+        inForeverLoop = false;
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
         System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
@@ -828,11 +849,11 @@ public class Scratch extends Actor
      */
     public void stopThisScript() throws StopScriptException
     {
-        if (! inActCb) {
-            // System.out.println("stopThisScript: returning because not in ActCb.");
+        if (! inForeverLoop) {
+            System.out.println("stopThisScript: returning because not in foreverLoop.");
             return;
         }
-        // System.out.println("stopThisScript: throwing StopScriptException");
+        System.out.println("stopThisScript: throwing StopScriptException");
         throw new StopScriptException();
     }
 
@@ -843,15 +864,15 @@ public class Scratch extends Actor
     public void stopOtherScriptsInSprite()
     {
 
-        if (! inActCb) {
+        if (! inForeverLoop) {
             // Just make all foreverLoop methods inactive.
-            for (ActCb actCb : actCbs) {
-                actCb.active = false;
+            for (Sequence seq : sequences) {
+                seq.active = false;
             }
         } else {
-            for (ActCb actCb : actCbs) {
-                if (! actCb.isRunning) {
-                    actCb.active = false;
+            for (Sequence seq : sequences) {
+                if (! seq.isRunning) {
+                    seq.active = false;
                 }
             }
         }
