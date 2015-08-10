@@ -141,7 +141,7 @@ public class Scratch extends Actor
                 Method m = obj.getClass().getMethod(method);
                 m.invoke(obj);
             } catch (Exception e) {
-                System.err.println("Scratch.act: exception when invoking keypress callback method '" + 
+                System.err.println("Scratch.keyPressCb: exception when invoking keypress callback method '" + 
                     method + "' for key '" + key + "': " + e);
                 e.printStackTrace(System.err);
             }
@@ -149,55 +149,29 @@ public class Scratch extends Actor
     }
     private ArrayList<KeypressCb> keyCbs = new ArrayList<KeypressCb>();
 
-    private class ActCb {
+    private class ActorClickedCb {
         public Object obj;
         public String method;
-        // active records if the registered callback should continue to be run in the future.
-        // It is set to false when stopThisScript() or stopOtherScriptsForSprite() has been called.
-        public boolean active;
-        // isRunning records if this actCb is being run now.  It is used only in stopOtherScriptsForSprite.
-        // This is similar to the variable above called inActCb, which is set to true if any actCb is
-        // being run at the time.
-        public boolean isRunning;
 
-        public ActCb(Object obj, String method)
+        public ActorClickedCb(Object obj, String method)
         {
             this.obj = obj;
             this.method = method;
-            this.active = true;
         }
 
         public void invoke() 
         {
-            if (! active) {
-                return;
-            }
             try {
                 Method m = obj.getClass().getMethod(method);
-                // System.out.println("ActCb.invoke(): setting inActCb to true");
-                // inActCb = true;
-                isRunning = true;
+                // System.out.println("ActorClickedCb.invoke()");
                 m.invoke(obj);
-            } catch (InvocationTargetException i) {
-                if (i.getCause() instanceof StopScriptException) {
-                    // System.out.println("ActCb.invoke: got StopScriptException: making script inactive");
-                    active = false;
-                } else {
-                    // We had a problem with invoke(), but it wasn't the StopScript exception, so
-                    // just print out the info.
-                    i.printStackTrace();
-                }
             } catch (Exception e) {
-                System.err.println("Scratch.act: exception when invoking callback method '" + 
+                System.err.println("Scratch.actorClickedCb: exception when invoking callback method '" + 
                     method + "': " + e);
             }
-            // System.out.println("ActCb.invoke(): setting inActCb to false");
-            isRunning = false;
-            // inActCb = false;
         }
     }
-    // private ArrayList<ActCb> actCbs = new ArrayList<ActCb>();
-    private ArrayList<ActCb> actorClickedCbs = new ArrayList<ActCb>();
+    private ArrayList<ActorClickedCb> actorClickedCbs = new ArrayList<ActorClickedCb>();
 
     private class CloneStartCb {
         public String className;
@@ -245,7 +219,7 @@ public class Scratch extends Actor
                 Method m = obj.getClass().getMethod(method);
                 m.invoke(obj);
             } catch (Exception e) {
-                System.err.println("Scratch.act: exception when invoking broadcast callback method '" + 
+                System.err.println("Scratch.messageCb: exception when invoking broadcast callback method '" + 
                     method + "' for message '" + mesg + "': " + e);
             }
         }
@@ -623,7 +597,7 @@ public class Scratch extends Actor
         rotationStyle = other.rotationStyle;
 
         keyCbs = new ArrayList<KeypressCb>(other.keyCbs);
-        actorClickedCbs = new ArrayList<ActCb>(other.actorClickedCbs);
+        actorClickedCbs = new ArrayList<ActorClickedCb>(other.actorClickedCbs);
         cloneStartCbs = new ArrayList<CloneStartCb>(other.cloneStartCbs);
         mesgCbs = new LinkedList<MessageCb>(other.mesgCbs);
 
@@ -638,7 +612,7 @@ public class Scratch extends Actor
         inForeverLoop = false;
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
-        System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
+        // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
     }
 
     // This method is called by Greenfoot each time an actor is added to the world.
@@ -670,7 +644,7 @@ public class Scratch extends Actor
         }
 
         // Call all the methods registered to get notified when the sprite is clicked.
-        for (ActCb aCb : actorClickedCbs) {
+        for (ActorClickedCb aCb : actorClickedCbs) {
             if (Greenfoot.mouseClicked(this)) {
                 aCb.invoke();
             }
@@ -715,8 +689,7 @@ public class Scratch extends Actor
 
     public void registerSpriteClickedMethod(String methodName)
     {
-        // use ActCb as it holds the same info we need for actor clicked callbacks.
-        ActCb acb = new ActCb(this, methodName);
+        ActorClickedCb acb = new ActorClickedCb(this, methodName);
         actorClickedCbs.add(acb);
     }
 
