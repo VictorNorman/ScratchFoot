@@ -106,7 +106,7 @@ public class Scratch extends Actor
     // Actor that is showing what is being said OR thought by this sprite.
     Sayer sayActor = null;
 
-    /*
+    /**
      *  Turn the sprite to face the direction depending on the rotation style:
      *   o if ALL_AROUND: rotate to face the direction.
      *   o if LEFT_RIGHT: face left if direction is -1 to -179 or 181 - 359
@@ -149,11 +149,11 @@ public class Scratch extends Actor
     }
     private ArrayList<KeypressCb> keyCbs = new ArrayList<KeypressCb>();
 
-    private class ActorClickedCb {
+    private class ActorOrStageClickedCb {
         public Object obj;
         public String method;
 
-        public ActorClickedCb(Object obj, String method)
+        public ActorOrStageClickedCb(Object obj, String method)
         {
             this.obj = obj;
             this.method = method;
@@ -163,15 +163,16 @@ public class Scratch extends Actor
         {
             try {
                 Method m = obj.getClass().getMethod(method);
-                // System.out.println("ActorClickedCb.invoke()");
+                // System.out.println("ActorOrStageClickedCb.invoke()");
                 m.invoke(obj);
             } catch (Exception e) {
-                System.err.println("Scratch.actorClickedCb: exception when invoking callback method '" + 
+                System.err.println("Scratch.actorOrStageClickedCb: exception when invoking callback method '" + 
                     method + "': " + e);
             }
         }
     }
-    private ArrayList<ActorClickedCb> actorClickedCbs = new ArrayList<ActorClickedCb>();
+    private ArrayList<ActorOrStageClickedCb> actorClickedCbs = new ArrayList<ActorOrStageClickedCb>();
+    private ArrayList<ActorOrStageClickedCb> stageClickedCbs = new ArrayList<ActorOrStageClickedCb>();
 
     private class CloneStartCb {
         public String className;
@@ -225,8 +226,9 @@ public class Scratch extends Actor
         }
     }
     private LinkedList<MessageCb> mesgCbs = new LinkedList<MessageCb>();
+    
 
-    /*
+    /**
      * A Sequence is an executable thread of code that will be repeated run -- i.e., code in a Scratch
      * forever loop.  It can be paused via a wait() call, like in Scratch, etc.
      */
@@ -353,6 +355,7 @@ public class Scratch extends Actor
     }
 
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
+    
     /**
      * Add a sequence object to the list of sequences.
      */
@@ -364,27 +367,37 @@ public class Scratch extends Actor
     }
 
     private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
+    
+    /**
+     * Create an integer variable whose value will be displayed on the screen.
+     */
     public IntVar createIntVariable(String varName, int initVal)
     {
         IntVar newVar = new IntVar(varName, initVal);
         varsToDisplay.add(newVar);
         return newVar; 
     }
-
+    /**
+     * Create a String variable whose value will be displayed on the screen.
+     */
     public StringVar createStringVariable(String varName, String val)
     {
         StringVar newVar = new StringVar(varName, val);
         varsToDisplay.add(newVar);
         return newVar; 
     }
-
+    /**
+     * Create a double variable whose value will be displayed on the screen.
+     */
     public DoubleVar createDoubleVariable(String varName, double val)
     {
         DoubleVar newVar = new DoubleVar(varName, val);
         varsToDisplay.add(newVar);
         return newVar; 
     }
-
+    /**
+     * Create a boolean variable whose value will be displayed on the screen.
+     */
     public BooleanVar createBooleanVariable(String varName, boolean val)
     {
         BooleanVar newVar = new BooleanVar(varName, val);
@@ -392,7 +405,7 @@ public class Scratch extends Actor
         return newVar; 
     }
 
-    public class Variable extends Actor 
+    private class Variable extends Actor 
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
@@ -597,7 +610,8 @@ public class Scratch extends Actor
         rotationStyle = other.rotationStyle;
 
         keyCbs = new ArrayList<KeypressCb>(other.keyCbs);
-        actorClickedCbs = new ArrayList<ActorClickedCb>(other.actorClickedCbs);
+        actorClickedCbs = new ArrayList<ActorOrStageClickedCb>(other.actorClickedCbs);
+        stageClickedCbs = new ArrayList<ActorOrStageClickedCb>(other.stageClickedCbs);
         cloneStartCbs = new ArrayList<CloneStartCb>(other.cloneStartCbs);
         mesgCbs = new LinkedList<MessageCb>(other.mesgCbs);
 
@@ -615,11 +629,13 @@ public class Scratch extends Actor
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
     }
 
-    // This method is called by Greenfoot each time an actor is added to the world.
-    // In this method, we register this actor's Class in the world, so that paint order
-    // can be manipulated.
-    // Any subclass of Scratch Actor has to implement addedToWorld() and call this method 
-    // if the program needs to manipulate paint order.
+    /** 
+     * This method is called by Greenfoot each time an actor is added to the world.
+     * In this method, we register this actor's Class in the world, so that paint order
+     * can be manipulated.
+     * Any subclass of Scratch Actor has to implement addedToWorld() and call this method 
+     * if the program needs to manipulate paint order.
+     */
     public void addedToWorld(World w)
     {
         ((ScratchWorld) w).addToPaintOrder(this.getClass());
@@ -630,9 +646,10 @@ public class Scratch extends Actor
         }
     }
 
-    /**
+    /*
      * act - first look for keypresses and call any registered methods on them.  Then, call each 
      * method registered as an 'act' callback -- i.e., forever loop methods.
+     * Users do NOT override (and cannot override) act() in this system.
      */
     public final void act()
     {
@@ -644,14 +661,22 @@ public class Scratch extends Actor
         }
 
         // Call all the methods registered to get notified when the sprite is clicked.
-        for (ActorClickedCb aCb : actorClickedCbs) {
+        for (ActorOrStageClickedCb aCb : actorClickedCbs) {
             if (Greenfoot.mouseClicked(this)) {
                 aCb.invoke();
             }
         }
-
-        // Call the registered methods to get notified when a message has been broadcast.
+        
         ScratchWorld sw = (ScratchWorld) getWorld();
+        
+        // If the mouse was clicked on the World (i.e., background), called the registered callbacks.
+        if (Greenfoot.mouseClicked(sw)) {
+            for (ActorOrStageClickedCb sCb : stageClickedCbs) {
+                sCb.invoke();
+            }
+        }
+        
+        // Call the registered methods to get notified when a message has been broadcast.
         for (MessageCb mCb : mesgCbs) {
             if (sw.bcastPending(mCb.mesg)) {
                 mCb.invoke();
@@ -687,18 +712,38 @@ public class Scratch extends Actor
         addSequence(this, methodName);
     }
 
+    /**
+     * register a method to be called when a sprite is clicked.
+     */
     public void registerSpriteClickedMethod(String methodName)
     {
-        ActorClickedCb acb = new ActorClickedCb(this, methodName);
+        ActorOrStageClickedCb acb = new ActorOrStageClickedCb(this, methodName);
+        // Add to the array list of methods to be called when an actor is clicked.
         actorClickedCbs.add(acb);
     }
 
+    /**
+     * register a method to be called when a sprite is clicked.
+     */
+    public void registerStageClickedMethod(String methodName)
+    {
+        ActorOrStageClickedCb scb = new ActorOrStageClickedCb(this, methodName);
+        // add to the array list of methods to be called when the stage is clicked.
+        stageClickedCbs.add(scb);
+    }
+    
+    /**
+     * register a method to be called when a specific message is received.
+     */
     public void registerRecvMessageMethod(String messageName, String methodName)
     {
         MessageCb mcb = new MessageCb(messageName, this, methodName);
         mesgCbs.add(mcb);
     }
 
+    /**
+     * broadcast a message to all sprites.
+     */
     public void broadcast(String message)
     {
         ((ScratchWorld) getWorld()).registerBcast(message);
@@ -818,7 +863,6 @@ public class Scratch extends Actor
 
     /**
      * If this function is called from within a foreverLoop, unregister it (so that this isn't called again).
-     * 
      */
     public void stopThisScript() throws StopScriptException
     {
@@ -1631,7 +1675,7 @@ public class Scratch extends Actor
     }
 
     /**
-     * not implemented yet.
+     * return true if this sprite is touching the given color in the background.
      */
     public boolean isTouchingColor(Color color)
     {
@@ -1871,20 +1915,6 @@ public class Scratch extends Actor
     }
 
     /*
-     * TODO: implement these blocks yet:
-     * 1. touching color <color>
-     * 2. color <col> is touching <col> ?   This one is really hard, I think...
-     *    but, I've never seen any person use it.
-     * 3. xxx
-     * 4. xxx
-     * 5. xxx
-     * 6. loudness
-     * 7. is loud ? 
-     * 8. sensor stuff -- won't implement.
-     * 9. getVolumeOf()
-     */
-
-    /*
      * Miscellaneous stuff.
      */
 
@@ -2044,7 +2074,7 @@ public class Scratch extends Actor
         return getWorld().getHeight() / 2 - y;
     }
 
-    /*
+    /**
      * Sayer: a bubble that follows a Scratch actor around, displaying what
      * they are saying or thinking.
      */
@@ -2061,6 +2091,9 @@ public class Scratch extends Actor
             update();
         }
 
+        /**
+         * Set the string to display.
+         */
         public void setString(String newStr)
         {
             if (newStr.equals(str)) {
