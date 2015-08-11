@@ -32,8 +32,17 @@ public class ScratchWorld extends World
     
     // These variable manage the list of backgrounds.
     private int currBackdrop = 0;
-    private ArrayList<GreenfootImage> backdrops = new ArrayList<GreenfootImage>();
-    private ArrayList<String> backdropNames = new ArrayList<String>();
+    
+    private class Backdrop {
+        GreenfootImage img;
+        String name;
+        
+        public Backdrop(GreenfootImage img, String name) {
+            this.img = img;
+            this.name = name;
+        }
+    }
+    private ArrayList<Backdrop> backdrops = new ArrayList<Backdrop>();
     
     private class BcastMsg {
         public String message;
@@ -63,8 +72,7 @@ public class ScratchWorld extends World
         super(width, height, cellSize);
         
         // make a copy of the background image.
-        backdrops.add(new GreenfootImage(getBackground()));
-        backdropNames.add("backdrop1");    // this is what it is called in Scratch, by default.
+        backdrops.add(new Backdrop(getBackground(), "backdrop1"));   // backdrop1 is default Scratch name
     }
     
     /**
@@ -79,7 +87,7 @@ public class ScratchWorld extends World
         // System.out.println("Called default constructor ScratchWorld... shouldn't do this...");
     }
     
-    public void act() 
+    public final void act() 
     {
         // Record the time in milliseconds when the world is started, so that the "timer" variable
         // can get the correct time in seconds and 1/10th of seconds since the scenario started.
@@ -109,7 +117,9 @@ public class ScratchWorld extends World
 
     }
     
-    // Not to be called by users.
+    /**
+     * Not to be called by users.
+     */
     public boolean bcastPending(String message)
     {
         for (BcastMsg bcmsg : mesgs) {
@@ -122,7 +132,7 @@ public class ScratchWorld extends World
     }
     
     /**
-     * return the current number of times each Actor has had its registered callbacks called.
+     * return the current number of times each Scratch Actor has had its registered callbacks called.
      * (i.e., how many times each act() has been called.)
      */
     public long getFrameNumber() 
@@ -130,6 +140,9 @@ public class ScratchWorld extends World
         return frameNumber;
     }
     
+    /**
+     * Not to be called by users.
+     */
     public int getDisplayVarYLoc()
     {
         int t = varYloc;
@@ -137,63 +150,91 @@ public class ScratchWorld extends World
         return t;
     }
     
+    /**
+     * Not to be called by users.
+     */
     public int getDisplayVarXLoc()
     {
         return varXloc;
     }
     
-    // Not available in Scratch.
+    /**
+     * redisplay the backdrop, without any modifications to it.
+     * Not available in Scratch.
+     */
     public void clearBackdrop()
     {
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop)));
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
     
+    /**
+     * add a new backdrop, with the given name.
+     * Many backdrops come with Greenfoot, but can be tough to find.  On my Mac, they are at
+     * /Applications/Greenfoot\ 2.4.2/Greenfoot.app/Contents/Resources/Java/greenfoot/imagelib/backgrounds/
+     */
     public void addBackdrop(String backdropFile, String backdropName)
     {
-        backdrops.add(new GreenfootImage(backdropFile));
-        backdropNames.add(backdropName);
+        backdrops.add(new Backdrop(new GreenfootImage(backdropFile), backdropName));
     }
     
+    /**
+     * switch to the next backdrop.
+     */
     public void nextBackdrop()
     {
         currBackdrop = (currBackdrop + 1) % backdrops.size();
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop)));
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
     
+    /**
+     * switch to the previous backdrop.
+     */
     public void previousBackdrop()
     {
         currBackdrop--;
         if (currBackdrop < 0) {
             currBackdrop = backdrops.size() - 1;
         }
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop)));
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
     
+    /**
+     * return the index of the current backdrop.
+     */
     public int getBackdropNumber() 
     {
         return currBackdrop;
     }
     
+    /**
+     * return the name of the current backdrop
+     */
     public String getBackdropName()
     {
-        return backdropNames.get(currBackdrop);
+        return backdrops.get(currBackdrop).name;
     }
     
+    /**
+     * switch backdrop to the one with the given name.
+     */
     public void switchBackdropTo(String backdropName)
     {
-        // Do nothing if the given backdropName is not legal.  (Should perhaps issue a warning/error?)
-        int res = backdropNames.indexOf(backdropName);
-        if (res == -1) {
-            return;
+        for (int i = 0; i < backdrops.size(); i++) {
+            if (backdrops.get(i).name.equals(backdropName)) {
+                currBackdrop = i;
+                setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+                return;
+            }
         }
-        
-        currBackdrop = res;
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop)));
+        // Do nothing if the given backdropName is not found.  (Should perhaps issue a warning/error?)
     }
     
+    /**
+     * rename the default backdrop.  (Only available through the GUI in scratch.)
+     */
     public void renameDefaultBackdrop(String newName) 
     {
-        backdropNames.set(0, newName);
+        backdrops.get(0).name = newName;
     }
 
     /**
