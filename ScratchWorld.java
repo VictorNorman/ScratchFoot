@@ -3,6 +3,7 @@ import greenfoot.*;  // (World, Actor, GreenfootImage, Greenfoot and MouseInfo)
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.lang.Class;
+import java.awt.Color;
 
 /**
  * Write a description of class ScratchWorld here.
@@ -32,7 +33,10 @@ public class ScratchWorld extends World
     
     // These variable manage the list of backgrounds.
     private int currBackdrop = 0;
-    
+
+    /*
+     * this class is just a pairing of backdrop image with its name.
+     */
     private class Backdrop {
         GreenfootImage img;
         String name;
@@ -372,5 +376,209 @@ public class ScratchWorld extends World
     {
         startTime = 0;
     }    
+
+    /* -------------------  Global Variables ------------------------ */
+    /* This code is almost an exact copy from the Scratch.java class, but
+       I don't want to move it to a separate class because I want to keep only
+       two classes -- one a subclass of World and one a subclass of Actor. -- author */
+
+    private class Variable extends Actor 
+    {
+        private final Color textColor = Color.black;
+        private final Color bgColor = Color.gray;
+
+        private Object value;
+        private String text;
+        private boolean valChanged = true;
+        private boolean display = true;           // is the variable supposed to be displayed or hidden?
+        private boolean addedToWorldYet = false;  // has this object been added to the world yet?
+        private int xLoc, yLoc;                   // initial location of the image.
+
+        public Variable(String varName, Object val)
+        {
+            text = varName;
+            value = val;
+            valChanged = true;
+
+            String dispStr = text + value + 2;   // add 2 for padding.  Remove later...
+            int stringLength = dispStr.length() * 10;
+            setImage(new GreenfootImage(stringLength, 16));      // TODO: remove this?
+            updateImage();
+        }
+
+        public void act()
+        {
+            updateImage();
+        }
+
+        /**
+         * Update the value.  The value on the screen will be updated next time act()
+         * is called for this object.
+         */
+        public void set(Object newVal)
+        {
+            value = newVal;
+            valChanged = true;
+        }
+
+        /**
+         * @return the value.
+         */
+        public Object get()
+        {
+            return value;
+        }
+
+        /**
+         * Update the image being displayed.
+         */
+        private void updateImage()
+        {
+            if (! display) {
+                System.out.println("IV.updateImage: calling clear");
+                getImage().clear();
+                return;
+            }
+            if (valChanged) {
+                String dispStr = text + value;
+                int stringLength = (dispStr.length() + 1) * 7;
+                // Create a gray background until the variable's name.
+                GreenfootImage image = new GreenfootImage(stringLength, 20);
+                image.setColor(bgColor);
+                image.fill();
+                // Create orange background under the variable's value.
+                image.setColor(Color.decode("#EE7D16"));
+                image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
+
+                image.setColor(textColor);
+                System.out.println("IV.updateImage: creating with value " + text + " " + value);
+                image.drawString(text + " " + value, 1, 15);
+                setImage(image);
+
+                // Because the size of the image may have changed (to accommodate a longer
+                // or shorter string to display), and because we want all images tiled nicely
+                // along the left side of the screen, and because Greenfoot places images based
+                // on the center of the image, we have to calculate a new location for
+                // each image, each time.
+                setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
+                valChanged = false;
+            }
+        }
+
+        /**
+         * Add the Variable actor to the world so that it can be displayed.
+         */
+        public void addToWorld(ScratchWorld sw)
+        {
+	        super.addedToWorld(sw);
+            if (! addedToWorldYet) {
+                // Insert into the world.  Need to compute the width of the object because
+                // addObject() uses x, y as the center of the image, and we want all these
+                // displayed variable images to be lined up along the left side of the 
+                // screen.
+                int w = getImage().getWidth();
+                int h = getImage().getHeight();
+                // store the original x and y locations of the image.  These are used later
+                // when the image is resized, so that we can keep the image lined up along
+                // the left side of the screen.
+                xLoc = sw.getDisplayVarXLoc();
+                yLoc = sw.getDisplayVarYLoc();
+                sw.addObject(this, xLoc + (int) (w / 2.0), (int) (yLoc + (h / 2.0)));
+                addedToWorldYet = true;
+                show();
+            }
+        }
+
+        /**
+         * mark that this variable's value should be displayed on the Scratch screen.
+         */
+        public void show()
+        {
+            display = true;
+            valChanged = true;      // make sure we display the value in next act() iteration.
+        }
+
+        /**
+         * mark that this variable's value should not be displayed on the Scratch screen.
+         */
+        public void hide()
+        {
+            display = false;
+            valChanged = true;  // make sure we don't display the value in next act() iteration.
+        }
+    }
+    
+    public class IntVar extends Variable {
+
+        public IntVar(String name, int initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public Integer get() { return (Integer) super.get(); }
+    }
+    public class StringVar extends Variable {
+
+        public StringVar(String name, String initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public String get() { return (String) super.get(); }
+    }
+    public class DoubleVar extends Variable {
+
+        public DoubleVar(String name, double initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public Double get() { return (Double) super.get(); }
+    }
+    public class BooleanVar extends Variable {
+
+        public BooleanVar(String name, boolean initVal) {
+            super(name, (Object) initVal);
+        }
+
+        public Boolean get() { return (Boolean) super.get(); }
+    }
+
+    private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
+
+    
+    /**
+     * Create an integer variable whose value will be displayed on the screen.
+     */
+    public IntVar createIntVariable(String varName, int initVal)
+    {
+        IntVar newVar = new IntVar(varName, initVal);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+    /**
+     * Create a String variable whose value will be displayed on the screen.
+     */
+    public StringVar createStringVariable(String varName, String val)
+    {
+        StringVar newVar = new StringVar(varName, val);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+    /**
+     * Create a double variable whose value will be displayed on the screen.
+     */
+    public DoubleVar createDoubleVariable(String varName, double val)
+    {
+        DoubleVar newVar = new DoubleVar(varName, val);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
+    /**
+     * Create a boolean variable whose value will be displayed on the screen.
+     */
+    public BooleanVar createBooleanVariable(String varName, boolean val)
+    {
+        BooleanVar newVar = new BooleanVar(varName, val);
+        varsToDisplay.add(newVar);
+        return newVar; 
+    }
     
 }

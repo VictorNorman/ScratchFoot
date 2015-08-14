@@ -67,10 +67,13 @@ public class Scratch extends Actor
     private int penSize = 1;
     private int currCostume = 0;
     private ArrayList<GreenfootImage> costumes = new ArrayList<GreenfootImage>();
+    private ArrayList<String> costumeNames = new ArrayList<String>();
+
     // costumesCopy holds the original unaltered costume images.  So, if
     // the code alters the costume by, e.g., scaling it, the copy stays
     // unchanged.
     private ArrayList<GreenfootImage> costumesCopy = new ArrayList<GreenfootImage>();   
+
     private boolean isShowing = true;  // do we show the image or not?
     private int ghostEffect;           // image transparency.
 
@@ -98,10 +101,10 @@ public class Scratch extends Actor
     // Remember if this object is a clone or not.  It is not, by default.
     private boolean isClone = false;
 
-    // Note if the code being run is in a "foreverLoop" -- i.e., being
+    // Note if the code being run is in a callback script -- i.e., being
     // run in a Sequence. This needs to be noted so that if stopThisScript() is 
-    // called it can check if the code is in the foreverloop.
-    private boolean inForeverLoop = false;
+    // called it can check if the code is in the script.
+    private boolean inCbScript = false;
 
     // Actor that is showing what is being said OR thought by this sprite.
     Sayer sayActor = null;
@@ -226,11 +229,10 @@ public class Scratch extends Actor
         }
     }
     private LinkedList<MessageCb> mesgCbs = new LinkedList<MessageCb>();
-    
 
     /**
-     * A Sequence is an executable thread of code that will be repeated run -- i.e., code in a Scratch
-     * forever loop.  It can be paused via a wait() call, like in Scratch, etc.
+     * A Sequence is an executable thread of code that will be run.  
+     * It can be paused via a wait() call, like in Scratch, etc.
      */
     public class Sequence extends Thread
     {
@@ -269,23 +271,22 @@ public class Scratch extends Actor
         {
             try {
                 synchronized (sequenceLock) {
-                    while (true) {
-                        while (doneSequence) {
-                            // System.out.println(methodToCall + ": run(): Calling seqLock.wait");
-                            sequenceLock.wait();
-                            // System.out.println(methodToCall + ": run(): done with seqLock.wait");
-                        }
 
-                        java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
-                                this.getClass());
-                        // System.out.println(methodToCall + ": run(): invoking callback");
-                        inForeverLoop = true;
-                        isRunning = true;
-                        m.invoke(objToCall, this);
-                        
-                        // System.out.println(methodToCall + ": run(): done invoking callback");
-                        waitForNextSequence();
+                    while (doneSequence) {
+                        // System.out.println(methodToCall + ": run(): Calling seqLock.wait");
+                        sequenceLock.wait();
+                        // System.out.println(methodToCall + ": run(): done with seqLock.wait");
                     }
+
+                    java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
+                            this.getClass());
+                    // System.out.println(methodToCall + ": run(): invoking callback");
+                    inCbScript = true;
+                    isRunning = true;
+                    m.invoke(objToCall, this);
+
+                    // System.out.println(methodToCall + ": run(): done invoking callback");
+
                 }
             } catch (InvocationTargetException i) {
                 if (i.getCause() instanceof StopScriptException) {
@@ -301,9 +302,9 @@ public class Scratch extends Actor
                 t.printStackTrace();
             }
             // System.out.println(methodToCall + ": run(): done");
-            inForeverLoop = false;
+            inCbScript = false;
             isRunning = false;
-            
+
             terminated = true;
             doneSequence = true;
         }
@@ -355,7 +356,7 @@ public class Scratch extends Actor
     }
 
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
-    
+
     /**
      * Add a sequence object to the list of sequences.
      */
@@ -366,8 +367,9 @@ public class Scratch extends Actor
         s.start();
     }
 
+    /* -------------------  Variables ------------------------ */
     private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
-    
+
     /**
      * Create an integer variable whose value will be displayed on the screen.
      */
@@ -377,6 +379,7 @@ public class Scratch extends Actor
         varsToDisplay.add(newVar);
         return newVar; 
     }
+
     /**
      * Create a String variable whose value will be displayed on the screen.
      */
@@ -386,6 +389,7 @@ public class Scratch extends Actor
         varsToDisplay.add(newVar);
         return newVar; 
     }
+
     /**
      * Create a double variable whose value will be displayed on the screen.
      */
@@ -395,6 +399,7 @@ public class Scratch extends Actor
         varsToDisplay.add(newVar);
         return newVar; 
     }
+
     /**
      * Create a boolean variable whose value will be displayed on the screen.
      */
@@ -485,16 +490,15 @@ public class Scratch extends Actor
                 // each image, each time.
                 setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
                 valChanged = false;
-            } 
+            }
         }
 
         /**
-         * Add the IntegerVar actor to the world so that it can be displayed.
-         * This must be called after the ScratchWorld has been fully constructed -- e.g., 
-         * the first time from act() of the object that stores/updates this variable.
+         * Add the Variable actor to the world so that it can be displayed.
          */
         public void addToWorld(ScratchWorld sw)
         {
+            super.addedToWorld(sw);
             if (! addedToWorldYet) {
                 // Insert into the world.  Need to compute the width of the object because
                 // addObject() uses x, y as the center of the image, and we want all these
@@ -564,7 +568,6 @@ public class Scratch extends Actor
         public Boolean get() { return (Boolean) super.get(); }
     }
 
-    
     /*
      * Start of code!
      */
@@ -575,6 +578,7 @@ public class Scratch extends Actor
 
         // put the first costume in our array of costumes.
         costumes.add(getImage());
+        costumeNames.add("Sprite1");    // that is the default name in Scratch.
 
         // System.out.println("item from getImage is " + System.identityHashCode(getImage()));
         // System.out.println("item in costumes array is " + System.identityHashCode(costumes.get(0)));
@@ -622,8 +626,8 @@ public class Scratch extends Actor
 
         // NOTE: we are assuming that when this copy constructor is called, it is to make a clone.
         isClone = true;
-        // Record that this new clone is not operating inside a forever loop at this time.
-        inForeverLoop = false;
+        // Record that this new clone is not operating inside a cb script at this time.
+        inCbScript = false;
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
@@ -648,7 +652,7 @@ public class Scratch extends Actor
 
     /*
      * act - first look for keypresses and call any registered methods on them.  Then, call each 
-     * method registered as an 'act' callback -- i.e., forever loop methods.
+     * method registered as an 'act' callback -- e.g., a "whenFlagClicked" callback.
      * Users do NOT override (and cannot override) act() in this system.
      */
     public final void act()
@@ -666,16 +670,16 @@ public class Scratch extends Actor
                 aCb.invoke();
             }
         }
-        
+
         ScratchWorld sw = (ScratchWorld) getWorld();
-        
+
         // If the mouse was clicked on the World (i.e., background), called the registered callbacks.
         if (Greenfoot.mouseClicked(sw)) {
             for (ActorOrStageClickedCb sCb : stageClickedCbs) {
                 sCb.invoke();
             }
         }
-        
+
         // Call the registered methods to get notified when a message has been broadcast.
         for (MessageCb mCb : mesgCbs) {
             if (sw.bcastPending(mCb.mesg)) {
@@ -698,16 +702,16 @@ public class Scratch extends Actor
      * Note that Greenfoot runs very quickly so a key press is often noticed multiple 
      * times in a row.
      */
-    public void registerKeyPressMethod(String keyName, String methodName)
+    public void whenKeyPressed(String keyName, String methodName)
     {
         KeypressCb kcb = new KeypressCb(keyName, this, methodName);
         keyCbs.add(kcb);
     }
 
     /**
-     * register a method to be called in a Scratch forever loop.
+     * register a method to be called when the Scenario starts -- ala When Green Flag Clicked.
      */
-    public void registerForeverLoopMethod(String methodName)
+    public void whenFlagClicked(String methodName)
     {
         addSequence(this, methodName);
     }
@@ -715,7 +719,7 @@ public class Scratch extends Actor
     /**
      * register a method to be called when a sprite is clicked.
      */
-    public void registerSpriteClickedMethod(String methodName)
+    public void whenSpriteClicked(String methodName)
     {
         ActorOrStageClickedCb acb = new ActorOrStageClickedCb(this, methodName);
         // Add to the array list of methods to be called when an actor is clicked.
@@ -725,17 +729,17 @@ public class Scratch extends Actor
     /**
      * register a method to be called when a sprite is clicked.
      */
-    public void registerStageClickedMethod(String methodName)
+    public void whenStageClicked(String methodName)
     {
         ActorOrStageClickedCb scb = new ActorOrStageClickedCb(this, methodName);
         // add to the array list of methods to be called when the stage is clicked.
         stageClickedCbs.add(scb);
     }
-    
+
     /**
      * register a method to be called when a specific message is received.
      */
-    public void registerRecvMessageMethod(String messageName, String methodName)
+    public void whenRecvMessage(String messageName, String methodName)
     {
         MessageCb mcb = new MessageCb(messageName, this, methodName);
         mesgCbs.add(mcb);
@@ -833,7 +837,7 @@ public class Scratch extends Actor
      * register a method to be called when a new clone starts up.  The method
      * has no parameters.
      */
-    public void registerWhenStartAsCloneMethod(String methodName)
+    public void whenStartAsClone(String methodName)
     {
         // Save the method name, and also the name of the class of the new clone after it
         // is created.
@@ -853,7 +857,7 @@ public class Scratch extends Actor
 
     /**
      * Stop all scripts. In Scratch, event blocks like "when <keypress> pressed" still work 
-     * even after all scripts have been stopped.  So, what it really means is "stop all forever loops 
+     * even after all scripts have been stopped.  So, what it really means is "stop all scripts 
      * for all objects."  However, I am going to implement this by stopping Greenfoot.
      */
     public void stopAll()
@@ -862,12 +866,13 @@ public class Scratch extends Actor
     }
 
     /**
-     * If this function is called from within a foreverLoop, unregister it (so that this isn't called again).
+     * If this function is called from within a callback script, 
+     * unregister it (so that this isn't called again).
      */
     public void stopThisScript() throws StopScriptException
     {
-        if (! inForeverLoop) {
-            System.out.println("stopThisScript: returning because not in foreverLoop.");
+        if (! inCbScript) {
+            System.out.println("stopThisScript: returning because not in callback script.");
             return;
         }
         System.out.println("stopThisScript: throwing StopScriptException");
@@ -875,14 +880,15 @@ public class Scratch extends Actor
     }
 
     /**
-     * Stop all other foreverLoop methods from running anymore.  If this is called from NOT in a foreverLoop,
-     * then stop all foreverLoops.
+     * Stop all other callback script methods from running anymore.  
+     * If this is called from NOT in a callback script,
+     * then stop *all* callback scripts.
      */
     public void stopOtherScriptsInSprite()
     {
 
-        if (! inForeverLoop) {
-            // Just make all foreverLoop methods inactive.
+        if (! inCbScript) {
+            // Just make all callback scripts methods inactive.
             for (Sequence seq : sequences) {
                 seq.active = false;
             }
@@ -1917,6 +1923,18 @@ public class Scratch extends Actor
     /*
      * Miscellaneous stuff.
      */
+
+    /**
+     * offer the CPU to other Sequences.
+     */
+    public void yield(Sequence s)
+    {
+        try {
+            s.waitForNextSequence();
+        } catch (InterruptedException ie) {
+            ie.printStackTrace();
+        }
+    }
 
     /**
      * delay execution for "duration" seconds.
