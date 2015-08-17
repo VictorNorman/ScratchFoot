@@ -240,12 +240,17 @@ public class Scratch extends Actor
         private boolean doneSequence;
         private boolean terminated;
         // active records if the registered sequence should continue to be run in the future.
-        // It is set to fals when stopThisScript() or stopOtherScriptsForSprite() has been called.
+        // It is set to false when stopThisScript() or stopOtherScriptsForSprite() has been called.
         private boolean active;
         // isRunning records if this sequence is being run now.  It is used only in stopOtherScriptsForSprite.
         // This is similar to the variable above called inForeverloop, which is set to true if *any* sequence is
         // being run at the time.
         private boolean isRunning;
+        // triggered is true indicates if this sequence is running.  It is false when the condition to 
+        // run the sequence has not been met yet.  E.g., a key press sequence will have triggered false when
+        // the key has not by hit by the user yet.
+        protected boolean triggered; 
+        
         private Object objToCall;
         private String methodToCall;
 
@@ -256,16 +261,23 @@ public class Scratch extends Actor
         {
             this.sequenceLock = this;
             doneSequence = true;
+            terminated = false;
             active = true;
             isRunning = false;
+            triggered = true;      // override this in subclasses for non-automatically triggered sequences.
             this.objToCall = obj;
             this.methodToCall = method;
             // System.out.println("Sequence ctor: obj " + obj + " method " + method);
         }
-
+        
         public String toString() {
             return "Sequence: obj " + objToCall + " method " + methodToCall + " doneSeq " + doneSequence;
         }
+        
+        // These are needed only for copy constructors.
+        public Object getObj() { return objToCall; }
+        public String getMethod() { return methodToCall; }
+        public boolean isTerminated() { return terminated; }
 
         public void run()
         {
@@ -279,7 +291,7 @@ public class Scratch extends Actor
                     }
 
                     java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
-                            this.getClass());
+                            Class.forName("Scratch$Sequence"));
                     // System.out.println(methodToCall + ": run(): invoking callback");
                     inCbScript = true;
                     isRunning = true;
@@ -301,7 +313,7 @@ public class Scratch extends Actor
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-            // System.out.println(methodToCall + ": run(): done");
+            System.out.println(methodToCall + ": run(): done");
             inCbScript = false;
             isRunning = false;
 
@@ -334,6 +346,8 @@ public class Scratch extends Actor
             try {
                 synchronized (sequenceLock) {
                     if (terminated) {
+                        System.out.println(methodToCall + ": terminated already.");
+                        
                         return;
                     }
 
@@ -353,19 +367,47 @@ public class Scratch extends Actor
             // System.out.println(methodToCall + ": perfSeq: done");
         }
 
+        // This is a Template Method.  Each subclass returns true if the condition has
+        // been met for the sequence to be invoked.  E.g., for an act-like method, there
+        // is no condition -- it is run.  For a keypress method, it returns true if
+        // the user has typed the specified key.
+        protected boolean invoke()
+        {
+            return true;
+        }
     }
 
+    // Keep a list of all the sequences.
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 
-    /**
-     * Add a sequence object to the list of sequences.
-     */
-    public void addSequence(Object obj, String method)
-    {
-        Sequence s = new Sequence(obj, method);
-        sequences.add(s);
-        s.start();
+    /* -------- End of Sequence definition --------- */
+
+    public class KeyPressSeq extends Sequence {
+        private String key;
+
+        public KeyPressSeq(String key, Object obj, String method)
+        {
+            super(obj, method);
+            this.key = key;
+            // A key press sequence is not triggered until the key is hit.
+            this.triggered = false;
+        }
+        public KeyPressSeq(KeyPressSeq other) {
+            this(other.key, other.getObj(), other.getMethod());
+        }
+        
+        public boolean isTriggered() {
+            if (Greenfoot.isKeyDown(this.key)) {
+                if (! triggered) {
+                    System.out.println("keySeq: for key " + this.key + " changing from NOT triggered to triggered.");
+                }
+                triggered = true;
+            }
+            return triggered;
+        }
     }
+    private ArrayList<KeyPressSeq> keySeqs = new ArrayList<KeyPressSeq>();
+    
 
     /* -------------------  Variables ------------------------ */
     private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
@@ -657,13 +699,6 @@ public class Scratch extends Actor
      */
     public final void act()
     {
-        // Call all the methods registered to get notified when a key has been pressed.
-        for (KeypressCb keyCb : keyCbs) {
-            if (Greenfoot.isKeyDown(keyCb.key)) {
-                keyCb.invoke();
-            }
-        }
-
         // Call all the methods registered to get notified when the sprite is clicked.
         for (ActorOrStageClickedCb aCb : actorClickedCbs) {
             if (Greenfoot.mouseClicked(this)) {
@@ -687,10 +722,49 @@ public class Scratch extends Actor
             }
         }
 
-        // Call all the registered act()-like methods.
+        // Call all the registered "whenFlagClicked" scripts.
+        
+        // Remove all terminated sequences from the main "sequences" list.  Do this by
+        // copying the non-terminated ones to temp, then reassigning sequences to refer to temp.
+        ArrayList<Sequence> temp = new ArrayList<Sequence>();
+        for (Sequence seq : sequences) {
+            if (! seq.terminated) {
+                temp.add(seq);
+            }
+        }
+        // Now, sequences holds only active threads.
+        sequences = temp;
+
         for (Sequence seq : sequences) {
             seq.performSequence();
         }
+        
+        /* Now handle keyPress sequences.  They get restarted if they terminated. */
+        
+        // Create copies of terminated keyPress sequences and add to the end of the t2 list.
+        ArrayList<KeyPressSeq> t2 = new ArrayList<KeyPressSeq>();
+        for (KeyPressSeq seq : keySeqs) {
+            if (seq.isTerminated()) {
+                System.out.println("act(): adding copy of terminated keyPressSeq to new list.");
+                KeyPressSeq k = new KeyPressSeq(seq);
+                t2.add(k);
+                k.start();
+            } else {
+                System.out.println("adding non-terminated keyPressSeq to new list.");
+                t2.add(seq);
+            }
+        }
+        keySeqs = t2;
+        
+        /* Loop through key sequences that have been invoked already. */
+        for (KeyPressSeq seq: keySeqs) {
+            // isTriggered returns true if a sequence has seen its key press done already, or
+            // if the sequence is seeing its key press done right now.
+            if (seq.isTriggered()) {
+                seq.performSequence();
+            }
+        }
+        
 
         if (sayActor != null) {
             sayActorUpdateLocation();
@@ -704,8 +778,10 @@ public class Scratch extends Actor
      */
     public void whenKeyPressed(String keyName, String methodName)
     {
-        KeypressCb kcb = new KeypressCb(keyName, this, methodName);
-        keyCbs.add(kcb);
+        KeyPressSeq k = new KeyPressSeq(keyName, this, methodName);
+        keySeqs.add(k);
+	    k.start();
+	    System.out.println("whenKeyPressed: thread added for key " + keyName);
     }
 
     /**
@@ -713,7 +789,9 @@ public class Scratch extends Actor
      */
     public void whenFlagClicked(String methodName)
     {
-        addSequence(this, methodName);
+        Sequence s = new Sequence(this, methodName);
+        sequences.add(s);
+        s.start();   // call run() on the sequence's thread.
     }
 
     /**
