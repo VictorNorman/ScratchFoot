@@ -1,7 +1,7 @@
 import greenfoot.*;  // (getWorld(), Actor, GreenfootImage, Greenfoot and MouseInfo)
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Calendar;
 import java.awt.Color;
 import java.lang.String;
@@ -126,57 +126,6 @@ public class Scratch extends Actor
         }
     }
 
-    private class KeypressCb {
-        public String key;
-        public Object obj;
-        public String method;
-
-        public KeypressCb(String key, Object obj, String method)
-        {
-            this.key = key;
-            this.obj = obj;
-            this.method = method;
-        }
-
-        public void invoke() 
-        {
-            try {
-                Method m = obj.getClass().getMethod(method);
-                m.invoke(obj);
-            } catch (Exception e) {
-                System.err.println("Scratch.keyPressCb: exception when invoking keypress callback method '" + 
-                    method + "' for key '" + key + "': " + e);
-                e.printStackTrace(System.err);
-            }
-        }
-    }
-    private ArrayList<KeypressCb> keyCbs = new ArrayList<KeypressCb>();
-
-    private class ActorOrStageClickedCb {
-        public Object obj;
-        public String method;
-
-        public ActorOrStageClickedCb(Object obj, String method)
-        {
-            this.obj = obj;
-            this.method = method;
-        }
-
-        public void invoke() 
-        {
-            try {
-                Method m = obj.getClass().getMethod(method);
-                // System.out.println("ActorOrStageClickedCb.invoke()");
-                m.invoke(obj);
-            } catch (Exception e) {
-                System.err.println("Scratch.actorOrStageClickedCb: exception when invoking callback method '" + 
-                    method + "': " + e);
-            }
-        }
-    }
-    private ArrayList<ActorOrStageClickedCb> actorClickedCbs = new ArrayList<ActorOrStageClickedCb>();
-    private ArrayList<ActorOrStageClickedCb> stageClickedCbs = new ArrayList<ActorOrStageClickedCb>();
-
     private class CloneStartCb {
         public String className;
         public String method;
@@ -205,30 +154,7 @@ public class Scratch extends Actor
     }
     private ArrayList<CloneStartCb> cloneStartCbs = new ArrayList<CloneStartCb>();
 
-    private class MessageCb {
-        public String mesg;
-        public Object obj;
-        public String method;
-
-        public MessageCb(String mesg, Object obj, String method)
-        {
-            this.mesg = mesg;
-            this.obj = obj;
-            this.method = method;
-        }
-
-        public void invoke()
-        {
-            try {
-                Method m = obj.getClass().getMethod(method);
-                m.invoke(obj);
-            } catch (Exception e) {
-                System.err.println("Scratch.messageCb: exception when invoking broadcast callback method '" + 
-                    method + "' for message '" + mesg + "': " + e);
-            }
-        }
-    }
-    private LinkedList<MessageCb> mesgCbs = new LinkedList<MessageCb>();
+    
 
     /**
      * A Sequence is an executable thread of code that will be run.  
@@ -250,7 +176,7 @@ public class Scratch extends Actor
         // run the sequence has not been met yet.  E.g., a key press sequence will have triggered false when
         // the key has not by hit by the user yet.
         protected boolean triggered; 
-        
+
         private Object objToCall;
         private String methodToCall;
 
@@ -269,14 +195,16 @@ public class Scratch extends Actor
             this.methodToCall = method;
             // System.out.println("Sequence ctor: obj " + obj + " method " + method);
         }
-        
+
         public String toString() {
             return "Sequence: obj " + objToCall + " method " + methodToCall + " doneSeq " + doneSequence;
         }
-        
+
         // These are needed only for copy constructors.
         public Object getObj() { return objToCall; }
+
         public String getMethod() { return methodToCall; }
+
         public boolean isTerminated() { return terminated; }
 
         public void run()
@@ -347,7 +275,7 @@ public class Scratch extends Actor
                 synchronized (sequenceLock) {
                     if (terminated) {
                         System.out.println(methodToCall + ": terminated already.");
-                        
+
                         return;
                     }
 
@@ -392,10 +320,11 @@ public class Scratch extends Actor
             // A key press sequence is not triggered until the key is hit.
             this.triggered = false;
         }
+
         public KeyPressSeq(KeyPressSeq other) {
             this(other.key, other.getObj(), other.getMethod());
         }
-        
+
         public boolean isTriggered() {
             if (Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
@@ -407,6 +336,86 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<KeyPressSeq> keySeqs = new ArrayList<KeyPressSeq>();
+
+    private class ActorOrStageClickedSeq extends Sequence {
+
+        public ActorOrStageClickedSeq(Object obj, String method)
+        {
+            super(obj, method);
+            // A clicked sequence is not triggered until the sprite or backdrop is clicked.
+            this.triggered = false;
+        }
+
+        public ActorOrStageClickedSeq(ActorOrStageClickedSeq other) {
+            this(other.getObj(), other.getMethod());
+        }
+
+    }
+
+    private class ActorClickedSeq extends ActorOrStageClickedSeq {
+        ActorClickedSeq(Object obj, String method) {
+            super(obj, method);
+        }
+        public ActorClickedSeq(ActorClickedSeq other) {
+            this(other.getObj(), other.getMethod());
+        }
+
+        public boolean isTriggered() {
+            if (Greenfoot.mouseClicked(this.getObj())) {
+                if (! triggered) {
+                    System.out.println("ActorClickedSeq: for actor " + this.getObj() + " changing from NOT triggered to triggered.");
+                }
+                triggered = true;
+            }
+            return triggered;
+        }
+    }
+    private ArrayList<ActorClickedSeq> actorClickedSeqs = new ArrayList<ActorClickedSeq>();
+    
+    private class StageClickedSeq extends ActorOrStageClickedSeq {
+        StageClickedSeq(Object obj, String method) {
+            super(obj, method);
+        }        
+        public StageClickedSeq(StageClickedSeq other) {
+            this(other.getObj(), other.getMethod());
+        }
+        public boolean isTriggered() {
+            if (Greenfoot.mouseClicked(null)) {
+                if (! triggered) {
+                    System.out.println("stageClickedSeq: changing from NOT triggered to triggered.");
+                }
+                triggered = true;
+            }
+            return triggered;
+        }
+    }
+    private ArrayList<StageClickedSeq> stageClickedSeqs = new ArrayList<StageClickedSeq>();
+    
+    
+    private class MesgRecvdSeq extends Sequence {
+        private String mesg;
+
+        public MesgRecvdSeq(String mesg, Object obj, String method) {
+            super(obj, method);
+            this.mesg = mesg;
+            // A message received sequence is not triggered until the message is received.
+            this.triggered = false;
+        }
+        public MesgRecvdSeq(MesgRecvdSeq other) {
+            this(other.mesg, other.getObj(), other.getMethod());
+        }
+        public boolean isTriggered() {
+            if (((ScratchWorld) getWorld()).bcastPending(mesg)) {
+                if (! triggered) {
+                    System.out.println("mesgRecvdSeq: for mesg " + mesg + " changing from NOT triggered to triggered.");
+                }
+                triggered = true;
+            }
+            return triggered;
+        }
+    }
+    private ArrayList<MesgRecvdSeq> mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>();
+    
     
 
     /* -------------------  Variables ------------------------ */
@@ -655,11 +664,11 @@ public class Scratch extends Actor
 
         rotationStyle = other.rotationStyle;
 
-        keyCbs = new ArrayList<KeypressCb>(other.keyCbs);
-        actorClickedCbs = new ArrayList<ActorOrStageClickedCb>(other.actorClickedCbs);
-        stageClickedCbs = new ArrayList<ActorOrStageClickedCb>(other.stageClickedCbs);
+        keySeqs = new ArrayList<KeyPressSeq>(other.keySeqs);
+        actorClickedSeqs = new ArrayList<ActorClickedSeq>(other.actorClickedSeqs);
+        stageClickedSeqs = new ArrayList<StageClickedSeq>(other.stageClickedSeqs);
+        mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>(other.mesgRecvdSeqs);
         cloneStartCbs = new ArrayList<CloneStartCb>(other.cloneStartCbs);
-        mesgCbs = new LinkedList<MessageCb>(other.mesgCbs);
 
         // Initialize everything for this new Actor in Greenfoot.
         super.setLocation(x, y);
@@ -699,64 +708,50 @@ public class Scratch extends Actor
      */
     public final void act()
     {
-        // Call all the methods registered to get notified when the sprite is clicked.
-        for (ActorOrStageClickedCb aCb : actorClickedCbs) {
-            if (Greenfoot.mouseClicked(this)) {
-                aCb.invoke();
-            }
-        }
-
-        ScratchWorld sw = (ScratchWorld) getWorld();
-
-        // If the mouse was clicked on the World (i.e., background), called the registered callbacks.
-        if (Greenfoot.mouseClicked(sw)) {
-            for (ActorOrStageClickedCb sCb : stageClickedCbs) {
-                sCb.invoke();
-            }
-        }
-
-        // Call the registered methods to get notified when a message has been broadcast.
-        for (MessageCb mCb : mesgCbs) {
-            if (sw.bcastPending(mCb.mesg)) {
-                mCb.invoke();
-            }
-        }
-
         // Call all the registered "whenFlagClicked" scripts.
-        
-        // Remove all terminated sequences from the main "sequences" list.  Do this by
+
+        // Remove all terminated sequences from the main sequences list.  Do this by
         // copying the non-terminated ones to temp, then reassigning sequences to refer to temp.
-        ArrayList<Sequence> temp = new ArrayList<Sequence>();
-        for (Sequence seq : sequences) {
-            if (! seq.terminated) {
-                temp.add(seq);
+        for (ListIterator<Sequence> iter = sequences.listIterator(); iter.hasNext(); ) {
+            if (iter.next().isTerminated()) {
+                iter.remove();
             }
         }
-        // Now, sequences holds only active threads.
-        sequences = temp;
 
         for (Sequence seq : sequences) {
             seq.performSequence();
         }
-        
+
         /* Now handle keyPress sequences.  They get restarted if they terminated. */
         
+        for (ListIterator<KeyPressSeq> iter = keySeqs.listIterator(); iter.hasNext(); ) {
+            KeyPressSeq seq = iter.next();
+            if (seq.isTerminated()) {
+                KeyPressSeq n = new KeyPressSeq(seq);
+                iter.remove();   // remove old one
+                iter.add(n);     // add new one that is reset to the beginning.
+                n.start();
+            }
+        }
+
         // Create copies of terminated keyPress sequences and add to the end of the t2 list.
+        /*
         ArrayList<KeyPressSeq> t2 = new ArrayList<KeyPressSeq>();
         for (KeyPressSeq seq : keySeqs) {
             if (seq.isTerminated()) {
-                System.out.println("act(): adding copy of terminated keyPressSeq to new list.");
+                // System.out.println("act(): adding copy of terminated keyPressSeq to new list.");
                 KeyPressSeq k = new KeyPressSeq(seq);
                 t2.add(k);
                 k.start();
             } else {
-                System.out.println("adding non-terminated keyPressSeq to new list.");
+                // System.out.println("adding non-terminated keyPressSeq to new list.");
                 t2.add(seq);
             }
         }
         keySeqs = t2;
-        
-        /* Loop through key sequences that have been invoked already. */
+        */
+
+        /* Loop through sequences that have been invoked already. */
         for (KeyPressSeq seq: keySeqs) {
             // isTriggered returns true if a sequence has seen its key press done already, or
             // if the sequence is seeing its key press done right now.
@@ -764,24 +759,122 @@ public class Scratch extends Actor
                 seq.performSequence();
             }
         }
+
+        /* ---------- Repeat, but for Sprite being clicked. ------------- */
+
+        for (ListIterator<ActorClickedSeq> iter = actorClickedSeqs.listIterator(); iter.hasNext(); ) {
+            ActorClickedSeq seq = iter.next();
+            if (seq.isTerminated()) {
+                ActorClickedSeq n = new ActorClickedSeq(seq);
+                iter.remove();   // remove old one
+                iter.add(n);     // add new one that is reset to the beginning.
+                n.start();
+            }
+        }
+        /*
+        // Create copies of terminated sequences and add to the end of the t3 list.
+        ArrayList<ActorClickedSeq> t3 = new ArrayList<ActorClickedSeq>();
+        for (ActorClickedSeq seq : actorClickedSeqs) {
+            if (seq.isTerminated()) {
+                // System.out.println("act(): adding copy of terminated actorClickedSeq to new list.");
+                ActorClickedSeq a = new ActorClickedSeq(seq);
+                t3.add(a);
+                a.start();
+            } else {
+                // System.out.println("adding non-terminated keyPressSeq to new list.");
+                t3.add(seq);
+            }
+        }
+        actorClickedSeqs = t3;
+        */
+
+        /* Loop through sequences that have been invoked already. */
+        for (ActorClickedSeq seq : actorClickedSeqs) {
+            // isTriggered returns true if a sequence has seen its sprite clicked already, or
+            // if the sequence is seeing its sprite click done right now.
+            if (seq.isTriggered()) {
+                seq.performSequence();
+            }
+        }
         
+        /* ---------- Repeat, but for Stage being clicked. ------------- */
+
+        for (ListIterator<StageClickedSeq> iter = stageClickedSeqs.listIterator(); iter.hasNext(); ) {
+            StageClickedSeq seq = iter.next();
+            if (seq.isTerminated()) {
+                StageClickedSeq n = new StageClickedSeq(seq);
+                iter.remove();   // remove old one
+                iter.add(n);     // add new one that is reset to the beginning.
+                n.start();
+            }
+        }
+        
+        // Create copies of terminated sequences and add to the end of the t3 list.
+        /* ArrayList<StageClickedSeq> t4 = new ArrayList<StageClickedSeq>();
+        for (StageClickedSeq seq : stageClickedSeqs) {
+            if (seq.isTerminated()) {
+                // System.out.println("act(): adding copy of terminated actorClickedSeq to new list.");
+                StageClickedSeq a = new StageClickedSeq(seq);
+                t4.add(a);
+                a.start();
+            } else {
+                // System.out.println("adding non-terminated keyPressSeq to new list.");
+                t4.add(seq);
+            }
+        }
+        stageClickedSeqs = t4;
+        */
+
+        /* Loop through sequences that have been invoked already. */
+        for (StageClickedSeq seq : stageClickedSeqs) {
+            // isTriggered returns true if a sequence has seen the stage click done already, or
+            // if the sequence is seeing stage click done right now.
+            if (seq.isTriggered()) {
+                seq.performSequence();
+            }
+        }
+        
+        /* ---------- Repeat, but for message being received. ------------- */
+
+        for (ListIterator<MesgRecvdSeq> iter = mesgRecvdSeqs.listIterator(); iter.hasNext(); ) {
+            MesgRecvdSeq seq = iter.next();
+            if (seq.isTerminated()) {
+                MesgRecvdSeq n = new MesgRecvdSeq(seq);
+                iter.remove();   // remove old one
+                iter.add(n);     // add new one that is reset to the beginning.
+                n.start();
+            }
+        }        
+        
+        
+        // Create copies of terminated sequences and add to the end of the t3 list.
+        /* ArrayList<MesgRecvdSeq> t5 = new ArrayList<MesgRecvdSeq>();
+        for (MesgRecvdSeq seq : mesgRecvdSeqs) {
+            if (seq.isTerminated()) {
+                // System.out.println("act(): adding copy of terminated actorClickedSeq to new list.");
+                MesgRecvdSeq m = new MesgRecvdSeq(seq);
+                t5.add(m);
+                m.start();
+            } else {
+                // System.out.println("adding non-terminated keyPressSeq to new list.");
+                t5.add(seq);
+            }
+        }
+        mesgRecvdSeqs = t5;
+        */
+
+        /* Loop through sequences that have been invoked already. */
+        for (MesgRecvdSeq seq : mesgRecvdSeqs) {
+            // isTriggered returns true if a sequence has seen the stage click done already, or
+            // if the sequence is seeing stage click done right now.
+            if (seq.isTriggered()) {
+                seq.performSequence();
+            }
+        }        
 
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
-    }
-
-    /**
-     * register a method to be called each time a key press is noticed.
-     * Note that Greenfoot runs very quickly so a key press is often noticed multiple 
-     * times in a row.
-     */
-    public void whenKeyPressed(String keyName, String methodName)
-    {
-        KeyPressSeq k = new KeyPressSeq(keyName, this, methodName);
-        keySeqs.add(k);
-	    k.start();
-	    System.out.println("whenKeyPressed: thread added for key " + keyName);
     }
 
     /**
@@ -795,13 +888,27 @@ public class Scratch extends Actor
     }
 
     /**
+     * register a method to be called each time a key press is noticed.
+     * Note that Greenfoot runs very quickly so a key press is often noticed multiple 
+     * times in a row.
+     */
+    public void whenKeyPressed(String keyName, String methodName)
+    {
+        KeyPressSeq k = new KeyPressSeq(keyName, this, methodName);
+        keySeqs.add(k);
+        k.start();
+        // System.out.println("whenKeyPressed: thread added for key " + keyName);
+    }
+
+    /**
      * register a method to be called when a sprite is clicked.
      */
     public void whenSpriteClicked(String methodName)
     {
-        ActorOrStageClickedCb acb = new ActorOrStageClickedCb(this, methodName);
+        ActorClickedSeq a = new ActorClickedSeq(this, methodName);
         // Add to the array list of methods to be called when an actor is clicked.
-        actorClickedCbs.add(acb);
+        actorClickedSeqs.add(a);
+        a.start();
     }
 
     /**
@@ -809,9 +916,10 @@ public class Scratch extends Actor
      */
     public void whenStageClicked(String methodName)
     {
-        ActorOrStageClickedCb scb = new ActorOrStageClickedCb(this, methodName);
+        StageClickedSeq s = new StageClickedSeq(this, methodName);
         // add to the array list of methods to be called when the stage is clicked.
-        stageClickedCbs.add(scb);
+        stageClickedSeqs.add(s);
+        s.start();
     }
 
     /**
@@ -819,10 +927,12 @@ public class Scratch extends Actor
      */
     public void whenRecvMessage(String messageName, String methodName)
     {
-        MessageCb mcb = new MessageCb(messageName, this, methodName);
-        mesgCbs.add(mcb);
+        MesgRecvdSeq m = new MesgRecvdSeq(messageName, this, methodName);
+        mesgRecvdSeqs.add(m);
+        m.start();
     }
 
+    
     /**
      * broadcast a message to all sprites.
      */
