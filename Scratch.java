@@ -710,8 +710,7 @@ public class Scratch extends Actor
     {
         // Call all the registered "whenFlagClicked" scripts.
 
-        // Remove all terminated sequences from the main sequences list.  Do this by
-        // copying the non-terminated ones to temp, then reassigning sequences to refer to temp.
+        // Remove all terminated sequences from the main sequences list.
         for (ListIterator<Sequence> iter = sequences.listIterator(); iter.hasNext(); ) {
             if (iter.next().isTerminated()) {
                 iter.remove();
@@ -734,23 +733,6 @@ public class Scratch extends Actor
             }
         }
 
-        // Create copies of terminated keyPress sequences and add to the end of the t2 list.
-        /*
-        ArrayList<KeyPressSeq> t2 = new ArrayList<KeyPressSeq>();
-        for (KeyPressSeq seq : keySeqs) {
-            if (seq.isTerminated()) {
-                // System.out.println("act(): adding copy of terminated keyPressSeq to new list.");
-                KeyPressSeq k = new KeyPressSeq(seq);
-                t2.add(k);
-                k.start();
-            } else {
-                // System.out.println("adding non-terminated keyPressSeq to new list.");
-                t2.add(seq);
-            }
-        }
-        keySeqs = t2;
-        */
-
         /* Loop through sequences that have been invoked already. */
         for (KeyPressSeq seq: keySeqs) {
             // isTriggered returns true if a sequence has seen its key press done already, or
@@ -771,22 +753,7 @@ public class Scratch extends Actor
                 n.start();
             }
         }
-        /*
-        // Create copies of terminated sequences and add to the end of the t3 list.
-        ArrayList<ActorClickedSeq> t3 = new ArrayList<ActorClickedSeq>();
-        for (ActorClickedSeq seq : actorClickedSeqs) {
-            if (seq.isTerminated()) {
-                // System.out.println("act(): adding copy of terminated actorClickedSeq to new list.");
-                ActorClickedSeq a = new ActorClickedSeq(seq);
-                t3.add(a);
-                a.start();
-            } else {
-                // System.out.println("adding non-terminated keyPressSeq to new list.");
-                t3.add(seq);
-            }
-        }
-        actorClickedSeqs = t3;
-        */
+
 
         /* Loop through sequences that have been invoked already. */
         for (ActorClickedSeq seq : actorClickedSeqs) {
@@ -809,22 +776,6 @@ public class Scratch extends Actor
             }
         }
         
-        // Create copies of terminated sequences and add to the end of the t3 list.
-        /* ArrayList<StageClickedSeq> t4 = new ArrayList<StageClickedSeq>();
-        for (StageClickedSeq seq : stageClickedSeqs) {
-            if (seq.isTerminated()) {
-                // System.out.println("act(): adding copy of terminated actorClickedSeq to new list.");
-                StageClickedSeq a = new StageClickedSeq(seq);
-                t4.add(a);
-                a.start();
-            } else {
-                // System.out.println("adding non-terminated keyPressSeq to new list.");
-                t4.add(seq);
-            }
-        }
-        stageClickedSeqs = t4;
-        */
-
         /* Loop through sequences that have been invoked already. */
         for (StageClickedSeq seq : stageClickedSeqs) {
             // isTriggered returns true if a sequence has seen the stage click done already, or
@@ -846,27 +797,10 @@ public class Scratch extends Actor
             }
         }        
         
-        
-        // Create copies of terminated sequences and add to the end of the t3 list.
-        /* ArrayList<MesgRecvdSeq> t5 = new ArrayList<MesgRecvdSeq>();
-        for (MesgRecvdSeq seq : mesgRecvdSeqs) {
-            if (seq.isTerminated()) {
-                // System.out.println("act(): adding copy of terminated actorClickedSeq to new list.");
-                MesgRecvdSeq m = new MesgRecvdSeq(seq);
-                t5.add(m);
-                m.start();
-            } else {
-                // System.out.println("adding non-terminated keyPressSeq to new list.");
-                t5.add(seq);
-            }
-        }
-        mesgRecvdSeqs = t5;
-        */
-
         /* Loop through sequences that have been invoked already. */
         for (MesgRecvdSeq seq : mesgRecvdSeqs) {
-            // isTriggered returns true if a sequence has seen the stage click done already, or
-            // if the sequence is seeing stage click done right now.
+            // isTriggered returns true if a sequence has seen the message sent already, or
+            // if the sequence is seeing the message sent right now.
             if (seq.isTriggered()) {
                 seq.performSequence();
             }
