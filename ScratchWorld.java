@@ -2,8 +2,10 @@ import greenfoot.*;  // (World, Actor, GreenfootImage, Greenfoot and MouseInfo)
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.HashMap;
 import java.lang.Class;
 import java.awt.Color;
+import java.lang.reflect.*;
 
 /**
  * Write a description of class ScratchWorld here.
@@ -33,6 +35,10 @@ public class ScratchWorld extends World
     
     // These variable manage the list of backgrounds.
     private int currBackdrop = 0;
+    
+    // Maintain a mapping from spriteName (a String) to the sprite object.
+    // TODO: need to test whether this works or should work with clones.
+    HashMap<String, Scratch> sprites = new HashMap();
 
     /*
      * this class is just a pairing of backdrop image with its name.
@@ -579,6 +585,62 @@ public class ScratchWorld extends World
         BooleanVar newVar = new BooleanVar(varName, val);
         varsToDisplay.add(newVar);
         return newVar; 
+    }
+    
+    private int translateToGreenfootX(int x) 
+    {
+        return x + getWidth() / 2;
+    }
+
+    /*
+     * Scratch's (0, 0) is in the middle, with y increasing y up, while greenfoot's 0, 0 is in 
+     * the upper-left corner with y increasing downward.
+     */
+    private int translateToGreenfootY(int y) 
+    {
+        return getHeight() / 2 - y;
+    }
+
+    public void addSprite(String spriteClass) 
+    {
+        /*
+         * 1. convert classname to class instance.
+         * 2. call addObject() on the new instance at 0, 0.
+         * 3. record mapping of class name -> object, so that sprites can do stuff like
+         *    isTouching(objectName), not having ot have a reference to the actual object.
+         */
+        Class clazz;
+        
+        try {
+            clazz = Class.forName(spriteClass);
+        } catch (ClassNotFoundException x) {
+            x.printStackTrace();
+            return;
+        }
+        Scratch sprite;
+        try {
+            Constructor ctor = clazz.getDeclaredConstructor();
+            ctor.setAccessible(true);
+            sprite = (Scratch) ctor.newInstance();
+        } catch (InstantiationException x) {
+            x.printStackTrace();
+            return;
+        } catch (InvocationTargetException x) {
+            x.printStackTrace();
+            return;
+        } catch (IllegalAccessException x) {
+            x.printStackTrace();
+            return;
+        } catch (java.lang.NoSuchMethodException x) {
+            x.printStackTrace();
+            return;
+        }
+        
+        // Tell the Greenfoot world about this new sprite.  Put it in the middle of the canvas.
+        addObject(sprite, translateToGreenfootX(0), translateToGreenfootY(0));
+        
+        // Add to the hashmap.
+        sprites.put(spriteClass, sprite);
     }
     
 }
