@@ -153,7 +153,6 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<CloneStartCb> cloneStartCbs = new ArrayList<CloneStartCb>();
-
     
 
     /**
@@ -304,8 +303,7 @@ public class Scratch extends Actor
             return true;
         }
     }
-
-    // Keep a list of all the sequences.
+    // Keep a list of all the "plain" sequences.
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 
     /* -------- End of Sequence definition --------- */
@@ -391,7 +389,6 @@ public class Scratch extends Actor
     }
     private ArrayList<StageClickedSeq> stageClickedSeqs = new ArrayList<StageClickedSeq>();
     
-    
     private class MesgRecvdSeq extends Sequence {
         private String mesg;
 
@@ -415,8 +412,6 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<MesgRecvdSeq> mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>();
-    
-    
 
     /* -------------------  Variables ------------------------ */
     private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
@@ -710,7 +705,8 @@ public class Scratch extends Actor
     {
         // Call all the registered "whenFlagClicked" scripts.
 
-        // Remove all terminated sequences from the main sequences list.
+        // Remove all terminated sequences from the main sequences list.  Do this by
+        // copying the non-terminated ones to temp, then reassigning sequences to refer to temp.
         for (ListIterator<Sequence> iter = sequences.listIterator(); iter.hasNext(); ) {
             if (iter.next().isTerminated()) {
                 iter.remove();
@@ -754,7 +750,6 @@ public class Scratch extends Actor
             }
         }
 
-
         /* Loop through sequences that have been invoked already. */
         for (ActorClickedSeq seq : actorClickedSeqs) {
             // isTriggered returns true if a sequence has seen its sprite clicked already, or
@@ -775,7 +770,7 @@ public class Scratch extends Actor
                 n.start();
             }
         }
-        
+
         /* Loop through sequences that have been invoked already. */
         for (StageClickedSeq seq : stageClickedSeqs) {
             // isTriggered returns true if a sequence has seen the stage click done already, or
@@ -795,12 +790,12 @@ public class Scratch extends Actor
                 iter.add(n);     // add new one that is reset to the beginning.
                 n.start();
             }
-        }        
-        
+        }
+
         /* Loop through sequences that have been invoked already. */
         for (MesgRecvdSeq seq : mesgRecvdSeqs) {
-            // isTriggered returns true if a sequence has seen the message sent already, or
-            // if the sequence is seeing the message sent right now.
+            // isTriggered returns true if a sequence has seen the stage click done already, or
+            // if the sequence is seeing stage click done right now.
             if (seq.isTriggered()) {
                 seq.performSequence();
             }
@@ -1140,11 +1135,6 @@ public class Scratch extends Actor
         //     " y " + (super.getY() - newDim / 2));
     }
 
-    /* 
-     * TODO:
-     * 2. change pen shade by <n>, or set pen shade to <n>.
-     */
-
     /*
      * ---------------------------------------------------------------------
      * Motion commands.
@@ -1196,7 +1186,7 @@ public class Scratch extends Actor
         int begY = super.getY();
         int endX = translateToGreenfootX(x);   // get end destination in GF coordinates.
         int endY = translateToGreenfootY(y);
-        System.out.println("glideTo: beg " + begX + ", " + begY + " end " + endX + ", " + endY);
+        // System.out.println("glideTo: beg " + begX + ", " + begY + " end " + endX + ", " + endY);
         double begTime = System.currentTimeMillis();
         double endTime = begTime + duration;
         double currTime;
@@ -1633,7 +1623,6 @@ public class Scratch extends Actor
         }
         ghostEffect = amount;
         displayCostume();
-
     }
 
     /**
@@ -1738,12 +1727,12 @@ public class Scratch extends Actor
             // Greenfoot transparency is from 0 to 255, with 0 being fully visible and 255 being
             // fully transparent.  So, we need to do a transformation: (0, 100) -> (255, 0)
             int transparency = (int) (((-1 * ghostEffect)   // now from -100 to 0
-                        + 100)            // now from 0 to 100
-                    * 2.55);         // now from 0 to 255.
+                                          + 100)            // now from 0 to 100
+                                           * 2.55);         // now from 0 to 255.
             img.setTransparency(transparency);
             setImage(img);
         } else {
-            System.out.println("displayCostume: changing image to null");
+            // System.out.println("displayCostume: changing image to null");
             setImage((GreenfootImage) null);
         }
     }
@@ -1755,11 +1744,6 @@ public class Scratch extends Actor
     {
         return ((ScratchWorld) getWorld()).getBackdropName();
     }
-
-    /*
-     * TODO: blocks to implement
-     * 3. graphic effects blocks
-     */
 
     /*
      * ---------------------------------------------------------------------
@@ -1774,6 +1758,15 @@ public class Scratch extends Actor
     public boolean isTouching(Scratch other)
     {
         return intersects((Actor) other);
+    }
+    
+    /**
+     * return true if this sprite is touching another sprite, with the given name.
+     */
+    public boolean isTouching(String spriteName) 
+    {
+        Scratch other = ((ScratchWorld) getWorld()).getActorByName(spriteName);
+        return isTouching(other);
     }
 
     /**
@@ -1807,17 +1800,6 @@ public class Scratch extends Actor
      */
     public boolean isTouchingColor(Color color)
     {
-        /*
-         * Not sure how to implement this.  I could just ask if the one pixel under 
-         * (x, y) center of this sprite is the given color.  Or I could get the width
-         * and height of the sprite image and check if any pixel under it is that color.
-         * And/or I could check if the pixels that just border the image (or the one pixel)
-         * are the given color...
-         * 
-         * I do know that I've seen kids use this function for detecting when a sprite 
-         * touches a wall or reaches the goal, etc., so this is a function that does seem to be 
-         * needed. 
-         */
         GreenfootImage im = getImage();
         int height = im.getHeight();
         int width = im.getWidth();

@@ -643,4 +643,15 @@ public class ScratchWorld extends World
         sprites.put(spriteClass, sprite);
     }
     
+    // TODO: override remove() to remove objects from the sprites hashmap.
+    
+    /**
+     * return the Scratch object identified by the given name, or null if 
+     * it does not exist.
+     */
+    public Scratch getActorByName(String name) 
+    {
+        return sprites.get(name);
+    }
+    
 }
