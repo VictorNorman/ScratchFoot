@@ -19,7 +19,7 @@ public class ScratchWorld extends World
     // Keep track of the number of times act() is called here and in all the Actors.
     // This "frameNumber" is used for handling broadcast messages.
     private long frameNumber = 0L;
-    
+
     // Record the time, in milliseconds, when the scenario was started, so that 
     // we can return the correct value when the built-in "timer" variable is referenced.
     private long startTime;
@@ -32,10 +32,10 @@ public class ScratchWorld extends World
     private int varXloc = 5;
     private int varYloc = 10;
     private final static int VAR_Y_OFFSET = 25;
-    
+
     // These variable manage the list of backgrounds.
     private int currBackdrop = 0;
-    
+
     // Maintain a mapping from spriteName (a String) to the sprite object.
     // TODO: need to test whether this works or should work with clones.
     HashMap<String, Scratch> sprites = new HashMap();
@@ -46,25 +46,25 @@ public class ScratchWorld extends World
     private class Backdrop {
         GreenfootImage img;
         String name;
-        
+
         public Backdrop(GreenfootImage img, String name) {
             this.img = img;
             this.name = name;
         }
     }
     private ArrayList<Backdrop> backdrops = new ArrayList<Backdrop>();
-    
+
     private class BcastMsg {
         public String message;
         public long frameNum;   // the frame # this message should be sent in.
-        
+
         public BcastMsg(String msg, long frame) {
             this.message = msg;
             this.frameNum = frame;
         }
     }
     private LinkedList<BcastMsg> mesgs = new LinkedList<BcastMsg>();
-    
+
     // Keep an array of the classes in this world in order to support changing of the 
     // "paint order" -- which objects are painted on top of others.  In Greenfoot, you can
     // only specify this by class, not by individual objects in a class.
@@ -80,11 +80,11 @@ public class ScratchWorld extends World
     public ScratchWorld(int width, int height, int cellSize)
     {    
         super(width, height, cellSize);
-        
+
         // make a copy of the background image.
         backdrops.add(new Backdrop(getBackground(), "backdrop1"));   // backdrop1 is default Scratch name
     }
-    
+
     /**
      * Greenfoot requires that a default constructor exist.  However, 
      * users of Scratchfoot should call the 3-parameter constructor, which
@@ -96,7 +96,7 @@ public class ScratchWorld extends World
         this(600, 400, 1);
         // System.out.println("Called default constructor ScratchWorld... shouldn't do this...");
     }
-    
+
     public final void act() 
     {
         // Record the time in milliseconds when the world is started, so that the "timer" variable
@@ -104,11 +104,11 @@ public class ScratchWorld extends World
         if (frameNumber == 0) {
             startTime = System.currentTimeMillis();
         }
-        
+
         System.out.println("-------------------------------------");
         frameNumber++;
         System.out.println("ScratchWorld: starting frame " + frameNumber);
-        
+
         if (mesgs.size() != 0) {
             // Go through the messages in the bcast message list and remove the
             // first ones that are old -- with frameNumber in the past.
@@ -124,7 +124,7 @@ public class ScratchWorld extends World
             }
         }
     }
-    
+
     /**
      * Override World's started() method to add variables to be displayed.
      */
@@ -135,7 +135,7 @@ public class ScratchWorld extends World
             v.addToWorld(this);
         }
     }
-    
+
     /**
      * Not to be called by users.
      */
@@ -149,7 +149,7 @@ public class ScratchWorld extends World
         }
         return false;
     }
-    
+
     /**
      * return the current number of times each Scratch Actor has had its registered callbacks called.
      * (i.e., how many times each act() has been called.)
@@ -158,7 +158,7 @@ public class ScratchWorld extends World
     {
         return frameNumber;
     }
-    
+
     /**
      * Not to be called by users.
      */
@@ -168,7 +168,7 @@ public class ScratchWorld extends World
         varYloc += VAR_Y_OFFSET;
         return t;
     }
-    
+
     /**
      * Not to be called by users.
      */
@@ -176,7 +176,7 @@ public class ScratchWorld extends World
     {
         return varXloc;
     }
-    
+
     /**
      * redisplay the backdrop, without any modifications to it.
      * Not available in Scratch.
@@ -185,7 +185,7 @@ public class ScratchWorld extends World
     {
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
-    
+
     /**
      * add a new backdrop, with the given name.
      * Many backdrops come with Greenfoot, but can be tough to find.  On my Mac, they are at
@@ -195,7 +195,7 @@ public class ScratchWorld extends World
     {
         backdrops.add(new Backdrop(new GreenfootImage(backdropFile), backdropName));
     }
-    
+
     /**
      * switch to the next backdrop.
      */
@@ -204,7 +204,7 @@ public class ScratchWorld extends World
         currBackdrop = (currBackdrop + 1) % backdrops.size();
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
-    
+
     /**
      * switch to the previous backdrop.
      */
@@ -216,7 +216,7 @@ public class ScratchWorld extends World
         }
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
-    
+
     /**
      * return the index of the current backdrop.
      */
@@ -224,7 +224,7 @@ public class ScratchWorld extends World
     {
         return currBackdrop;
     }
-    
+
     /**
      * return the name of the current backdrop
      */
@@ -232,7 +232,7 @@ public class ScratchWorld extends World
     {
         return backdrops.get(currBackdrop).name;
     }
-    
+
     /**
      * switch backdrop to the one with the given name.
      */
@@ -247,7 +247,7 @@ public class ScratchWorld extends World
         }
         // Do nothing if the given backdropName is not found.  (Should perhaps issue a warning/error?)
     }
-    
+
     /**
      * rename the default backdrop.  (Only available through the GUI in scratch.)
      */
@@ -269,11 +269,11 @@ public class ScratchWorld extends World
         BcastMsg msg = new BcastMsg(message, frameNumber + 1);
         mesgs.addLast(msg);
     }
-    
+
     /* 
      * Paint order stuff.
      */
-    
+
     // Convert ArrayList of classes into array and call setPaintOrder in Greenfoot.World.
     private void setPaintOrderInGF()
     {
@@ -283,29 +283,29 @@ public class ScratchWorld extends World
         }
         setPaintOrder(temp);
     }
-    
+
     //
     // Called by Scratch Actor from addedToWorld() to register the actor's class 
     // in the paint order.
     //
-    
+
     public int getLayer(Class cls)
     {
         return clses4PaintOrder.indexOf(cls);
     }
-    
+
     public void addToPaintOrder(Class cls)
     {
         System.out.println("addToClasses called with class " + cls);
         if (clses4PaintOrder.contains(cls)) {
             return;
         }
-        
+
         clses4PaintOrder.add(cls);
         System.out.println("addToClasses: clses list is now " + clses4PaintOrder);
         setPaintOrderInGF();
     }
-    
+
     public void moveClassToFront(Class cls)
     {
         if (! clses4PaintOrder.contains(cls)) {
@@ -316,7 +316,7 @@ public class ScratchWorld extends World
         clses4PaintOrder.add(0, cls);
         setPaintOrderInGF();
     }
-    
+
     public void moveClassBackNLayers(Class cls, int n)
     {
         int idx = clses4PaintOrder.indexOf(cls);
@@ -330,10 +330,10 @@ public class ScratchWorld extends World
         } else {
             clses4PaintOrder.add(cls);   // append it.
         }
-        
+
         setPaintOrderInGF();
     }
-    
+
     public void moveClassForwardNLayers(Class cls, int n)
     {
         int idx = clses4PaintOrder.indexOf(cls);
@@ -347,10 +347,10 @@ public class ScratchWorld extends World
         } else {
             clses4PaintOrder.add(0, cls);
         }
-        
+
         setPaintOrderInGF();
     }
-    
+
     public void moveClassToLayerN(Class cls, int n)
     {
         int idx = clses4PaintOrder.indexOf(cls);
@@ -369,10 +369,10 @@ public class ScratchWorld extends World
         } else {
             clses4PaintOrder.add(n, cls);         // insert it.
         }
-        
+
         setPaintOrderInGF();
     }
-    
+
     /**
      * Get the time, in seconds and tenths of seconds, from when the scenario started.
      */
@@ -383,7 +383,7 @@ public class ScratchWorld extends World
         // get floating point result in seconds.
         return (diff / 100) / 10.0;
     }
-    
+
     /**
      * Reset the timer to 0.0
      */
@@ -394,8 +394,8 @@ public class ScratchWorld extends World
 
     /* -------------------  Global Variables ------------------------ */
     /* This code is almost an exact copy from the Scratch.java class, but
-       I don't want to move it to a separate class because I want to keep only
-       two classes -- one a subclass of World and one a subclass of Actor. -- author */
+    I don't want to move it to a separate class because I want to keep only
+    two classes -- one a subclass of World and one a subclass of Actor. -- author */
 
     private class Variable extends Actor 
     {
@@ -418,7 +418,9 @@ public class ScratchWorld extends World
             String dispStr = text + value + 2;   // add 2 for padding.  Remove later...
             int stringLength = dispStr.length() * 10;
             setImage(new GreenfootImage(stringLength, 16));      // TODO: remove this?
-            updateImage();
+            // Doing the following causes an exception because updateImage() accesses the location of
+            // variables' x/y, which haven't been set yet in the world.
+            // updateImage();
         }
 
         public void act()
@@ -455,9 +457,16 @@ public class ScratchWorld extends World
                 return;
             }
             if (valChanged) {
+                // To support the user pausing the scenario and moving the Variable display box
+                // to a new location, we will read the actual xLoc and yLoc from the actor,
+                // but also subtract the current width/height.  (Note: this has to be done before
+                // recomputing a possible new width/height in the code below.)
+                xLoc = getX() - getImage().getWidth() / 2; 
+                yLoc = getY() - getImage().getHeight() / 2;
+                
                 String dispStr = text + value;
                 int stringLength = (dispStr.length() + 1) * 7;
-                // Create a gray background until the variable's name.
+                // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength, 20);
                 image.setColor(bgColor);
                 image.fill();
@@ -466,7 +475,7 @@ public class ScratchWorld extends World
                 image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
 
                 image.setColor(textColor);
-                System.out.println("Variable.updateImage: creating with value " + text + " " + value);
+                // System.out.println("Variable.updateImage: creating with value " + text + " " + value);
                 image.drawString(text + " " + value, 1, 15);
                 setImage(image);
 
@@ -476,6 +485,8 @@ public class ScratchWorld extends World
                 // on the center of the image, we have to calculate a new location for
                 // each image, each time.
                 setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
+                
+                // setLocation(getX(), getY());
                 valChanged = false;
             }
         }
@@ -485,7 +496,7 @@ public class ScratchWorld extends World
          */
         public void addToWorld(ScratchWorld sw)
         {
-	        super.addedToWorld(sw);
+            super.addedToWorld(sw);
             if (! addedToWorldYet) {
                 // Insert into the world.  Need to compute the width of the object because
                 // addObject() uses x, y as the center of the image, and we want all these
@@ -522,7 +533,7 @@ public class ScratchWorld extends World
             valChanged = true;  // make sure we don't display the value in next act() iteration.
         }
     }
-    
+
     public class IntVar extends Variable {
 
         public IntVar(String name, int initVal) {
@@ -558,7 +569,6 @@ public class ScratchWorld extends World
 
     private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
 
-    
     /**
      * Create an integer variable whose value will be displayed on the screen.
      */
@@ -568,6 +578,7 @@ public class ScratchWorld extends World
         varsToDisplay.add(newVar);
         return newVar; 
     }
+
     /**
      * Create a String variable whose value will be displayed on the screen.
      */
@@ -577,6 +588,7 @@ public class ScratchWorld extends World
         varsToDisplay.add(newVar);
         return newVar; 
     }
+
     /**
      * Create a double variable whose value will be displayed on the screen.
      */
@@ -586,6 +598,7 @@ public class ScratchWorld extends World
         varsToDisplay.add(newVar);
         return newVar; 
     }
+
     /**
      * Create a boolean variable whose value will be displayed on the screen.
      */
@@ -595,8 +608,7 @@ public class ScratchWorld extends World
         varsToDisplay.add(newVar);
         return newVar; 
     }
-    
-    
+
     private int translateToGreenfootX(int x) 
     {
         return x + getWidth() / 2;
@@ -611,6 +623,10 @@ public class ScratchWorld extends World
         return getHeight() / 2 - y;
     }
 
+    /**
+     * Add a new Sprite to the world, given the Sprite's class name.
+     * (This simplifies Greenfoot's standard addObject() call.)
+     */
     public void addSprite(String spriteClass) 
     {
         /*
@@ -620,7 +636,7 @@ public class ScratchWorld extends World
          *    isTouching(objectName), not having ot have a reference to the actual object.
          */
         Class clazz;
-        
+
         try {
             clazz = Class.forName(spriteClass);
         } catch (ClassNotFoundException x) {
@@ -645,16 +661,16 @@ public class ScratchWorld extends World
             x.printStackTrace();
             return;
         }
-        
+
         // Tell the Greenfoot world about this new sprite.  Put it in the middle of the canvas.
         addObject(sprite, translateToGreenfootX(0), translateToGreenfootY(0));
-        
+
         // Add to the hashmap.
         sprites.put(spriteClass, sprite);
     }
-    
+
     // TODO: override remove() to remove objects from the sprites hashmap.
-    
+
     /**
      * return the Scratch object identified by the given name, or null if 
      * it does not exist.
@@ -663,5 +679,5 @@ public class ScratchWorld extends World
     {
         return sprites.get(name);
     }
-    
+
 }
