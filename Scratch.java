@@ -684,15 +684,15 @@ public class Scratch extends Actor
      * In this method, we register this actor's Class in the world, so that paint order
      * can be manipulated.
      * Any subclass of Scratch Actor has to implement addedToWorld() and call this method 
-     * if the program needs to manipulate paint order.
+     * if the program needs to manipulate paint order and/or display variables.
      */
     public void addedToWorld(World w)
     {
         ((ScratchWorld) w).addToPaintOrder(this.getClass());
 
         // Add variables to be displayed to the world automatically so that code doesn't have to do it.
-        for (Variable iv : varsToDisplay) {
-            iv.addToWorld(((ScratchWorld) w));
+        for (Variable v : varsToDisplay) {
+            v.addToWorld(((ScratchWorld) w));
         }
     }
 

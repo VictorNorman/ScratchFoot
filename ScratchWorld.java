@@ -123,8 +123,17 @@ public class ScratchWorld extends World
                 }
             }
         }
-        
-
+    }
+    
+    /**
+     * Override World's started() method to add variables to be displayed.
+     */
+    public void started()
+    {
+        // Add variables to be displayed to the world automatically so that code doesn't have to do it.
+        for (Variable v : varsToDisplay) {
+            v.addToWorld(this);
+        }
     }
     
     /**
@@ -441,7 +450,7 @@ public class ScratchWorld extends World
         private void updateImage()
         {
             if (! display) {
-                System.out.println("IV.updateImage: calling clear");
+                // System.out.println("Variable.updateImage: calling clear");
                 getImage().clear();
                 return;
             }
@@ -457,7 +466,7 @@ public class ScratchWorld extends World
                 image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
 
                 image.setColor(textColor);
-                System.out.println("IV.updateImage: creating with value " + text + " " + value);
+                System.out.println("Variable.updateImage: creating with value " + text + " " + value);
                 image.drawString(text + " " + value, 1, 15);
                 setImage(image);
 
@@ -586,6 +595,7 @@ public class ScratchWorld extends World
         varsToDisplay.add(newVar);
         return newVar; 
     }
+    
     
     private int translateToGreenfootX(int x) 
     {
