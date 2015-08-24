@@ -66,12 +66,26 @@ public class Scratch extends Actor
     private int penColorNumber = 0;         // an integer that is mod 200 -- 0 to 199.
     private int penSize = 1;
     private int currCostume = 0;
-    private ArrayList<GreenfootImage> costumes = new ArrayList<GreenfootImage>();
-    private ArrayList<String> costumeNames = new ArrayList<String>();
+    
+    /*
+     * this class is just a pairing of costume image with its name.
+     */
+    private class Costume {
+        GreenfootImage img;
+        String name;
+
+        public Costume(GreenfootImage img, String name) {
+            this.img = img;
+            this.name = name;
+        }
+    }
+    private ArrayList<Costume> costumes = new ArrayList<Costume>();
 
     // costumesCopy holds the original unaltered costume images.  So, if
     // the code alters the costume by, e.g., scaling it, the copy stays
     // unchanged.
+    
+    // TODO TODO: need to figure out if this is really necessary.
     private ArrayList<GreenfootImage> costumesCopy = new ArrayList<GreenfootImage>();   
 
     private boolean isShowing = true;  // do we show the image or not?
@@ -623,8 +637,7 @@ public class Scratch extends Actor
         super();
 
         // put the first costume in our array of costumes.
-        costumes.add(getImage());
-        costumeNames.add("Sprite1");    // that is the default name in Scratch.
+        costumes.add(new Costume(getImage(), "Sprite1"));
 
         // System.out.println("item from getImage is " + System.identityHashCode(getImage()));
         // System.out.println("item in costumes array is " + System.identityHashCode(costumes.get(0)));
@@ -647,7 +660,7 @@ public class Scratch extends Actor
         penColorNumber = other.penColorNumber;
         penSize = other.penSize;
         currCostume = other.currCostume;
-        costumes = new ArrayList<GreenfootImage>(other.costumes);     
+        costumes = new ArrayList<Costume>(other.costumes);     
         costumesCopy = new ArrayList<GreenfootImage>(other.costumesCopy);
         isShowing = other.isShowing;
         ghostEffect = other.ghostEffect;
@@ -1421,7 +1434,7 @@ public class Scratch extends Actor
         GreenfootImage img = new GreenfootImage(costumesCopy.get(currCostume));
         // Now scale it.
         if (costumeSize != 100) {
-            img.scale((int) (img.getWidth() *  (costumeSize / 100.0F)),
+            img.scale((int) (img.getWidth() * (costumeSize / 100.0F)),
                 (int) (img.getHeight() * (costumeSize / 100.0F)));
         }
 
@@ -1439,7 +1452,7 @@ public class Scratch extends Actor
         // No need to rotate the image.  Rotation is a property of the Actor, not the image,
         // so when you switch images they are rotated automatically (just like Scratch as
         // it turns out).
-        costumes.set(currCostume, img);
+        costumes.set(currCostume, new Costume(img, costumes.get(currCostume).name));
         displayCostume();
     }
 
@@ -1540,13 +1553,25 @@ public class Scratch extends Actor
     }
 
     /**
-     * add new costumes to the list of costumes for a sprite.  
+     * add new costume to the list of costumes for a sprite, given the
+     * file name and the name of the costume.  Not available in Scratch.
+     */
+    public void addCostume(String costumeFile, String costumeName)
+    {
+        // Name the new costume with the # of items in the array: Sprite2, Sprite3, etc.
+        GreenfootImage img = new GreenfootImage(costumeFile);
+        costumes.add(new Costume(img, costumeName));
+        costumesCopy.add(new GreenfootImage(costumeFile));
+    }
+  
+    /**
+     * add new costume to the list of costumes for a sprite, with the
+     * name Sprite# (e.g., Sprite2, Sprite3, Sprite4, ...)
      * Not available in Scratch.
      */
     public void addCostume(String costumeFile) 
     {
-        costumes.add(new GreenfootImage(costumeFile));
-        costumesCopy.add(new GreenfootImage(costumeFile));
+        addCostume(costumeFile, "Sprite" + costumes.size()));
     }
 
     /**
@@ -1582,6 +1607,20 @@ public class Scratch extends Actor
         }
         currCostume = costumeNum;
         displayCostume();
+    }
+    
+    /**
+     * switch to the costume with the given name.  If the name is unknown,
+     * no switch will happen.
+     */
+    public void switchToCostume(String costumeName)
+    {
+        for (int i = 0; i < costumes.size(); i++) {
+            if (costumes.get(i).name.equals(costumeName)) {
+                switchToCostume(i);
+                return;
+            }
+        }
     }
 
     /**
@@ -1709,28 +1748,29 @@ public class Scratch extends Actor
         // No need to rotate the image.  Rotation is a property of the Actor, not the image, 
         // so when you switch images they are rotated automatically (just like Scratch as
         // it turns out).
-        costumes.set(currCostume, img);
+        Costume tempCost = new Costume(img, costumes.get(currCostume).name);
+        costumes.set(currCostume, tempCost);
         displayCostume();
         costumeSize = percent;
 
         /*System.out.println("sst: item from getImage is " + System.identityHashCode(getImage()));
         System.out.println("sst: item in costumes array is " + System.identityHashCode(costumes.get(currCostume)));
         System.out.println("sst: item in costumesCopy array is " + System.identityHashCode(costumesCopy.get(currCostume)));
-         */
+        */
     }
 
     // private helper function
     private void displayCostume()
     {
         if (isShowing) {
-            GreenfootImage img = costumes.get(currCostume);
+            Costume cost = costumes.get(currCostume);
             // Greenfoot transparency is from 0 to 255, with 0 being fully visible and 255 being
             // fully transparent.  So, we need to do a transformation: (0, 100) -> (255, 0)
             int transparency = (int) (((-1 * ghostEffect)   // now from -100 to 0
                                           + 100)            // now from 0 to 100
                                            * 2.55);         // now from 0 to 255.
-            img.setTransparency(transparency);
-            setImage(img);
+            cost.img.setTransparency(transparency);
+            setImage(cost.img);
         } else {
             // System.out.println("displayCostume: changing image to null");
             setImage((GreenfootImage) null);
