@@ -1,6 +1,8 @@
 #!/bin/env python3
 
 import json
+import sys
+from subprocess import call
 from pprint import pprint
 
 # TODO: make debug on/off a command-line arg
@@ -463,7 +465,7 @@ def motion1Arg(level, tokens):
             return resStr + "LEFT_RIGHT);\n"
         elif arg == "don't rotate":
             return resStr + "DONT_ROTATE);\n"
-        elif arg == "all around":
+        elif arg in ("all around", "normal"):
             return resStr + "ALL_AROUND);\n"
         else:
             raise ValueError(cmd)
@@ -536,8 +538,8 @@ def doWait(level, tokens):
 
 scratchStmt2genCode = {
     # 'whenGreenFlag': ["Generate greenFlag code", bogusFunc],
-    'doForever': ["Generate ForeverLoop code... calling genCode recursively",
-                  doForever], # rest of list is the code in the forever loop.
+    # 'doForever': ["Generate ForeverLoop code... calling genCode recursively",
+    #              doForever], # rest of list is the code in the forever loop.
     'doIf': ["Generate if clause code", doIf],
     'doIfElse': ["Generate if-else code", doIfElse],
     'setVar:to:': ["Generate variable creation or setting variable value", bogusFunc],
@@ -582,7 +584,6 @@ scratchStmt2genCode = {
 def convertSpriteToFileName(sprite):
     """Make the filename with all words from sprite capitalized and
     joined, with no spaces between."""
-    words = sprite.split()
     words = [w.capitalize() for w in sprite.split()]
     return ''.join(words) + ".java"
     
@@ -605,6 +606,7 @@ def genConstructorCode(outFile, spriteName, code):
 
     outFile.write(genIndent(1) + "public " + spriteName + "()\n")
     outFile.write(genIndent(1) + "{\n")
+    # Write out the code that registers the callbacks.
     outFile.write(code)
     outFile.write(genIndent(1) + "}\n");
 
@@ -613,12 +615,58 @@ def genCallbacks(outFile, codes):
     """
     for code in codes:
         outFile.write(code)
+
+def genLoadCostumesCode(costumes):
+    """Generate code to load costumes from files for a sprite.
+    """
+
+    print("genLoadCC: costumes ->" + str(costumes) + "<-")
+    resStr = ""
     
+    for cos in costumes:
+        # costume's filename is the baseLayerID (which is a small integer (1, 2, 3, etc.) plus ".svg" 
+        filename = str(cos['baseLayerID'])
+        # convert it with rsvg-convert -- TODO: fix this to work for Windoze, etc.
+        dest = filename + ".jpg"
+        cmd = "rsvg-convert " + PROJECT_DIR + "/" + filename + ".svg" + " -o " + PROJECT_DIR + "/" + dest
+        try:
+            retcode = call(cmd, shell=True)
+            if retcode < 0:
+                print("Command to convert svg file to jpg was terminated by signal", -retcode, file=sys.stderr)
+            else:
+                print("Command to convert svg file to jpg returned", retcode, file=sys.stderr)
+        except OSError as e:
+            print("Command to convert svg file to jpg: Execution failed:", e, file=sys.stderr)
+            
+        resStr += genIndent(2) + 'addCostume("' + dest + '", "' + cos['costumeName'] + '");\n'
+    return resStr
+
+def genInitialSettingsCode(spr):
+    """Generate code to set the sprite's initial settings, like its
+    location on the screen, the direction it is facing, whether shown
+    or hidden, etc.
+    """
+    resStr = ""
+
+    # Set the initial costume (TODO: could use the name of the costume instead of index...)
+    resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex']) + ');\n'
+    # Set the initial location.
+    resStr += genIndent(2) + 'goTo(' + str(spr['scratchX']) + ', ' + str(spr['scratchY']) + ');\n'
+    if not spr['visible']:
+        resStr += genIndent(2) + 'hide();\n';
+    resStr += genIndent(2) + 'pointInDirection(' + str(spr['direction']) + ');\n';
+    # TODO: need to test this!
+    resStr += motion1Arg(2, ['setRotationStyle', spr['rotationStyle']])
+    return resStr
+
 
 # ----------------- main -------------------
 
 # TODO: make file name a command-line arg
-with open("simple1/project.json") as data_file:
+
+PROJECT_DIR = "simple1"
+
+with open(PROJECT_DIR + "/" + "project.json") as data_file:
     data = json.load(data_file)
 
 sprites = data['children']
@@ -635,68 +683,79 @@ for spr in sprites:
         ctorCode = ""
         cbCode = []
 
+        costumeCode = genLoadCostumesCode(spr['costumes'])
+        print("CostumeCode is ", costumeCode)
+
+	# Like location, direction, shown or hidden, etc.
+        initSettingsCode = genInitialSettingsCode(spr)
+        print("Initial Settings Code is ", initSettingsCode)
+
+        ctorCode += costumeCode + initSettingsCode
+
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
-        for scrNum in range(len(spr['scripts'])):
-            # items 0 and 1 in the sublist are the location on the screen of the script.
-            # We don't care about that, obviously.  Item 2 is the actual code.
-            script = spr['scripts'][scrNum][2]
-            print("Script" + str(scrNum) + ":", script)
+        if 'scripts' in spr:
+            for scrNum in range(len(spr['scripts'])):
+                # items 0 and 1 in the sublist are the location on the screen of the script.
+                # We don't care about that, obviously.  Item 2 is the actual code.
+                script = spr['scripts'][scrNum][2]
+                print("Script" + str(scrNum) + ":", script)
 
-            codeObj = CodeAndCb()	# Holds all the code that is generated.
+                codeObj = CodeAndCb()	# Holds all the code that is generated.
 
-            # script is a list of these: [[cmd] [arg] [arg]...]
-            # If script starts with whenGreenFlag, generate code into
-            # whenFlagClicked callback.
-            if script[0] == ['whenGreenFlag']:
-                print("Calling stmts with ", script[1:])
+                # script is a list of these: [[cmd] [arg] [arg]...]
+                # If script starts with whenGreenFlag, generate code into
+                # whenFlagClicked callback.
+                if script[0] == ['whenGreenFlag']:
+                    print("Calling stmts with ", script[1:])
 
-                # Add a comment to each section of code indicating where
-                # the code came from.
-                codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
-                whenFlagClicked(codeObj, script[1:])
-                ctorCode += codeObj.code
-                if codeObj.cbCode != "":
-                    print("main: stmts() called generated this cb code:\n" +
-                          codeObj.cbCode)
-                    # the stmts() generated code to be put into a callback
-                    # in the java class.
-                    cbCode.append(codeObj.cbCode)
-            elif script[0] == ['whenClicked']:
-                # Add a comment to each section of code indicating where
-                # the code came from.
-                codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
-                whenSpriteClicked(codeObj, script[1:])
-                ctorCode += codeObj.code
-                if codeObj.cbCode != "":
-                    print("main: stmts() called generated this cb code:\n" +
-                          codeObj.cbCode)
-                    # the stmts() generated code to be put into a callback
-                    # in the java class.
-                    cbCode.append(codeObj.cbCode)
-            elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
-                # pass in the key that we are waiting for, and the code to run
-                # Add a comment to each section of code indicating where
-                # the code came from.
-                codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
-                whenKeyPressed(codeObj, script[0][1], script[1:])
-                ctorCode += codeObj.code
+                    # Add a comment to each section of code indicating where
+                    # the code came from.
+                    codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+                    whenFlagClicked(codeObj, script[1:])
+                    ctorCode += codeObj.code
+                    if codeObj.cbCode != "":
+                        print("main: stmts() called generated this cb code:\n" +
+                              codeObj.cbCode)
+                        # the stmts() generated code to be put into a callback
+                        # in the java class.
+                        cbCode.append(codeObj.cbCode)
+                elif script[0] == ['whenClicked']:
+                    # Add a comment to each section of code indicating where
+                    # the code came from.
+                    codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+                    whenSpriteClicked(codeObj, script[1:])
+                    ctorCode += codeObj.code
+                    if codeObj.cbCode != "":
+                        print("main: stmts() called generated this cb code:\n" +
+                              codeObj.cbCode)
+                        # the stmts() generated code to be put into a callback
+                        # in the java class.
+                        cbCode.append(codeObj.cbCode)
+                elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
+                    # pass in the key that we are waiting for, and the code to run
+                    # Add a comment to each section of code indicating where
+                    # the code came from.
+                    codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+                    whenKeyPressed(codeObj, script[0][1], script[1:])
+                    ctorCode += codeObj.code
 
-                if codeObj.cbCode != "":
-                    print("main: stmts() called generated this cb code:\n" +
-                          codeObj.cbCode)
-                    # the stmts() generated code to be put into a callback
-                    # in the java class.
-                    cbCode.append(codeObj.cbCode)
+                    if codeObj.cbCode != "":
+                        print("main: stmts() called generated this cb code:\n" +
+                              codeObj.cbCode)
+                        # the stmts() generated code to be put into a callback
+                        # in the java class.
+                        cbCode.append(codeObj.cbCode)
 
-            # TODO: filter out script that are "leftover" -- don't start
-            # with whenGreenFlag, etc. 
+                # TODO: filter out script that are "leftover" -- don't start
+                # with whenGreenFlag, etc. 
 
 
 	# Open file with correct name and generate code into there.
         filename = convertSpriteToFileName(spriteName)
         outFile = open(filename, "w")
         genHeaderCode(outFile, spriteName)
+
 
         genConstructorCode(outFile, spriteName, ctorCode)
         genCallbacks(outFile, cbCode)
