@@ -1571,7 +1571,7 @@ public class Scratch extends Actor
      */
     public void addCostume(String costumeFile) 
     {
-        addCostume(costumeFile, "Sprite" + costumes.size()));
+        addCostume(costumeFile, "Sprite" + costumes.size());
     }
 
     /**

@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import json
+import os, os.path
 import sys
 from subprocess import call
 from pprint import pprint
@@ -60,6 +61,22 @@ class CodeAndCb:
     # def addToInitCode(self, code):
     #     self.varInitCode += code
 
+
+def execOrDie(cmd, descr):
+    try:
+        print("Executing shell command: " + cmd)
+        retcode = call(cmd, shell=True)
+        if retcode < 0:
+            print("Command to " + descr + " was terminated by signal", -retcode, \
+                  file=sys.stderr)
+            sys.exit(1)
+        else:
+            print("Command to " + descr + " succeeded")
+    except OSError as e:
+        print("Command to " + descr + ": Execution failed:", e, \
+              file=sys.stderr)
+        sys.exit(1)
+            
 
 
 def genIndent(level):
@@ -462,11 +479,11 @@ def motion1Arg(level, tokens):
     elif cmd == "setRotationStyle":
         resStr = genIndent(level) + "setRotationStyle("
         if arg == "left-right":
-            return resStr + "LEFT_RIGHT);\n"
+            return resStr + "RotationStyle.LEFT_RIGHT);\n"
         elif arg == "don't rotate":
-            return resStr + "DONT_ROTATE);\n"
+            return resStr + "RotationStyle.DONT_ROTATE);\n"
         elif arg in ("all around", "normal"):
-            return resStr + "ALL_AROUND);\n"
+            return resStr + "RotationStyle.ALL_AROUND);\n"
         else:
             raise ValueError(cmd)
     else:
@@ -622,22 +639,15 @@ def genLoadCostumesCode(costumes):
 
     print("genLoadCC: costumes ->" + str(costumes) + "<-")
     resStr = ""
-    
+    imagesDir = os.path.join(PROJECT_DIR, "images")
     for cos in costumes:
         # costume's filename is the baseLayerID (which is a small integer (1, 2, 3, etc.) plus ".svg" 
         filename = str(cos['baseLayerID'])
         # convert it with rsvg-convert -- TODO: fix this to work for Windoze, etc.
         dest = filename + ".jpg"
-        cmd = "rsvg-convert " + PROJECT_DIR + "/" + filename + ".svg" + " -o " + PROJECT_DIR + "/" + dest
-        try:
-            retcode = call(cmd, shell=True)
-            if retcode < 0:
-                print("Command to convert svg file to jpg was terminated by signal", -retcode, file=sys.stderr)
-            else:
-                print("Command to convert svg file to jpg returned", retcode, file=sys.stderr)
-        except OSError as e:
-            print("Command to convert svg file to jpg: Execution failed:", e, file=sys.stderr)
-            
+        execOrDie("rsvg-convert " + os.path.join(imagesDir, filename + ".svg") + \
+                  " -o " + os.path.join(imagesDir, dest),
+                  "convert svg file to jpg")
         resStr += genIndent(2) + 'addCostume("' + dest + '", "' + cos['costumeName'] + '");\n'
     return resStr
 
@@ -648,7 +658,7 @@ def genInitialSettingsCode(spr):
     """
     resStr = ""
 
-    # Set the initial costume (TODO: could use the name of the costume instead of index...)
+    # Set the initial costume (NOTE: could use the name of the costume instead of index...)
     resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex']) + ');\n'
     # Set the initial location.
     resStr += genIndent(2) + 'goTo(' + str(spr['scratchX']) + ', ' + str(spr['scratchY']) + ');\n'
@@ -659,17 +669,84 @@ def genInitialSettingsCode(spr):
     resStr += motion1Arg(2, ['setRotationStyle', spr['rotationStyle']])
     return resStr
 
+def genWorldHeaderCode(classname):
+    """return code that goes into the World.java file, to define the class,
+    constructor, call super(), etc.
+    """
+    boilerplate = """
+import greenfoot.*;
+
+/**
+ * Write a description of class %s here.
+ * 
+ * @author (your name) 
+ * @version (a version number or a date)
+ */
+public class %s extends ScratchWorld
+{
+    public %s()
+    {
+        super();
+"""
+    # TODO: we could add parameters to the super() call above to make the
+    # size of the screen be 480x360, just like a Scratch screen, but I
+    # think one of the main limitations of Scratch is this small screen
+    # size. 
+    return boilerplate % (classname, classname, classname)
+
+
 
 # ----------------- main -------------------
 
 # TODO: make file name a command-line arg
 
-PROJECT_DIR = "simple1"
+usage = 'Usage: python3 s2g.py <scratchFile.sb2> <GreenfootProjDir>'
 
-with open(PROJECT_DIR + "/" + "project.json") as data_file:
+if len(sys.argv) != 3:
+    print(usage)
+    sys.exit(1)
+
+SCRATCH_FILE = sys.argv[1].strip()
+PROJECT_DIR = sys.argv[2].strip()
+
+SCRATCH_PROJ_DIR = "scratch_code"
+
+if not os.path.exists(SCRATCH_FILE):
+    print("Scratch download file " + SCRATCH_FILE + " not found.")
+    sys.exit(1)
+if not os.path.exists(PROJECT_DIR):
+    print("Greenfoot folder " + PROJECT_DIR + " not found.")
+    sys.exit(1)
+if not os.path.isdir(PROJECT_DIR):
+    print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
+    sys.exit(1)
+
+# Make a directory into which to unzip the scratch zip file.
+scratch_dir = os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR)
+try:
+    os.mkdir(scratch_dir)
+except FileExistsError as e:
+    pass    # If the directory exists already, no problem.
+execOrDie("unzip -ou " + SCRATCH_FILE + " -d " + scratch_dir,
+          "unzip scratch download file")
+
+# Copy image files to images dir.
+execOrDie("cp " + os.path.join(scratch_dir, "*.{svg,png}") + " " + \
+          os.path.join(PROJECT_DIR, "images"),
+          "move image files to Greenfoot images directory")
+      
+
+# TODO: move sounds files.  NOTE: this won't work on Windows.  Use os.rename().
+
+
+# Now, (finally!), open the project.json file and start processing it.
+with open(os.path.join(scratch_dir, "project.json")) as data_file:
     data = json.load(data_file)
 
 sprites = data['children']
+
+# Code to be written into the World.java file.
+worldCode = ""
 
 for spr in sprites:
     if 'objName' in spr:
@@ -680,15 +757,18 @@ for spr in sprites:
         
         print("\n----------- Sprite: {} ----------------".format(spriteName))
 
+
+        worldCode += genIndent(2) + 'addSprite("' + spriteName + '");\n'
+
         ctorCode = ""
         cbCode = []
 
         costumeCode = genLoadCostumesCode(spr['costumes'])
-        print("CostumeCode is ", costumeCode)
+        if debug: print("CostumeCode is ", costumeCode)
 
 	# Like location, direction, shown or hidden, etc.
         initSettingsCode = genInitialSettingsCode(spr)
-        print("Initial Settings Code is ", initSettingsCode)
+        if debug: print("Initial Settings Code is ", initSettingsCode)
 
         ctorCode += costumeCode + initSettingsCode
 
@@ -752,11 +832,10 @@ for spr in sprites:
 
 
 	# Open file with correct name and generate code into there.
-        filename = convertSpriteToFileName(spriteName)
+        filename = os.path.join(PROJECT_DIR, convertSpriteToFileName(spriteName))
+        print("Writing code to " + filename + ".")
         outFile = open(filename, "w")
         genHeaderCode(outFile, spriteName)
-
-
         genConstructorCode(outFile, spriteName, ctorCode)
         genCallbacks(outFile, cbCode)
 
@@ -772,11 +851,52 @@ for spr in sprites:
     else:
         print("\n----------- Not a sprite --------------");
         print(spr)
-        
-    
+
+#
+# Now, have to make the World file -- a subclass of ScratchWorld.
+#
+
+# Make first letter capitalized and remove all spaces, then add World.java
+# to end. 
+classname = PROJECT_DIR.capitalize().replace(" ", "") + "World"
+filename = os.path.join(PROJECT_DIR, classname + ".java")
+outFile = open(filename, "w")
+print("Writing code to " + filename + ".")
+worldCode = genWorldHeaderCode(classname) + worldCode + genIndent(1) + "}\n}\n"		# fix last part here.
+outFile.write(worldCode)
+outFile.close()
+
 
 
 # NOTES:
 # o Motion commands are done, except for glide.
 # o Operators commands are done.
 # 
+
+# If you create a new (empty) Scenario, then copy ScratchWorld.java and
+# Scratch.java to the folder and edit the project.greenfoot and add theses
+# lines to it (without the #s)
+# class.Scratch.superclass=greenfoot.Actor
+# class.ScratchWorld.superclass=greenfoot.World
+
+# then, if you restart Greenfoot and load the Scenario, the classes show
+# up.
+
+# Could probably run s2g.py
+
+
+# User downloads Scratch project to directory above where they want the
+# Greenfoot project to exist, say ~/snowman.sb2, and want to make a
+# grenfoot project in ~/Snowman/
+# Put scratchfoot.gfar in ~ and open it with Greenfoot:
+#  o it creates ~/scratchfoot/... with all the greenfoot stuff in it.
+# Exit Greenfoot.
+# change name of scratchfoot/ to Snowman/
+# Run s2g.py snowman.sb2 Snowman
+#  o s2g.py unzips snowman.sb2 into Snowman/scratch_code/
+#  o s2g.py then creates Greenfoot .java files in Snowman/
+#  o s2g.py then edits Snowman/project.greenfoot to add the new files to
+#    the project.
+# Restart Greenfoot and your project should be ready to compile and run.
+
+
