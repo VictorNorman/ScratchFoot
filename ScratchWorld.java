@@ -75,26 +75,22 @@ public class ScratchWorld extends World
 
     /**
      * Constructor for objects of class ScratchWorld.
-     * 
      */
     public ScratchWorld(int width, int height, int cellSize)
     {    
         super(width, height, cellSize);
+        System.out.println("ScratchWorld: called World constructor already.");
 
         // make a copy of the background image.
         backdrops.add(new Backdrop(getBackground(), "backdrop1"));   // backdrop1 is default Scratch name
     }
 
     /**
-     * Greenfoot requires that a default constructor exist.  However, 
-     * users of Scratchfoot should call the 3-parameter constructor, which
-     * takes care of some details, like recording the backdrop that was set
-     * via the GUI.
+     * Constructor that creates the default screen size for Scratch -- 480 by 360.
      */
     public ScratchWorld()
     {
-        this(600, 400, 1);
-        // System.out.println("Called default constructor ScratchWorld... shouldn't do this...");
+        this(480, 360, 1);
     }
 
     public final void act() 
@@ -105,9 +101,9 @@ public class ScratchWorld extends World
             startTime = System.currentTimeMillis();
         }
 
-        System.out.println("-------------------------------------");
+        // System.out.println("-------------------------------------");
         frameNumber++;
-        System.out.println("ScratchWorld: starting frame " + frameNumber);
+        // System.out.println("ScratchWorld: starting frame " + frameNumber);
 
         if (mesgs.size() != 0) {
             // Go through the messages in the bcast message list and remove the
@@ -626,14 +622,16 @@ public class ScratchWorld extends World
     /**
      * Add a new Sprite to the world, given the Sprite's class name.
      * (This simplifies Greenfoot's standard addObject() call.)
+     * Note that initX and initY are in the Scratch coordinate system
+     * (0, 0 = middle).
      */
-    public void addSprite(String spriteClass) 
+    public void addSprite(String spriteClass, int initX, int initY) 
     {
         /*
          * 1. convert classname to class instance.
          * 2. call addObject() on the new instance at 0, 0.
          * 3. record mapping of class name -> object, so that sprites can do stuff like
-         *    isTouching(objectName), not having ot have a reference to the actual object.
+         *    isTouching(objectName), not having to have a reference to the actual object.
          */
         Class clazz;
 
@@ -647,6 +645,8 @@ public class ScratchWorld extends World
         try {
             Constructor ctor = clazz.getDeclaredConstructor();
             ctor.setAccessible(true);
+            
+            // Call the Scratch constructor here.
             sprite = (Scratch) ctor.newInstance();
         } catch (InstantiationException x) {
             x.printStackTrace();
@@ -663,7 +663,7 @@ public class ScratchWorld extends World
         }
 
         // Tell the Greenfoot world about this new sprite.  Put it in the middle of the canvas.
-        addObject(sprite, translateToGreenfootX(0), translateToGreenfootY(0));
+        addObject(sprite, translateToGreenfootX(initX), translateToGreenfootY(initY));
 
         // Add to the hashmap.
         sprites.put(spriteClass, sprite);

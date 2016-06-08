@@ -660,8 +660,6 @@ def genInitialSettingsCode(spr):
 
     # Set the initial costume (NOTE: could use the name of the costume instead of index...)
     resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex']) + ');\n'
-    # Set the initial location.
-    resStr += genIndent(2) + 'goTo(' + str(spr['scratchX']) + ', ' + str(spr['scratchY']) + ');\n'
     if not spr['visible']:
         resStr += genIndent(2) + 'hide();\n';
     resStr += genIndent(2) + 'pointInDirection(' + str(spr['direction']) + ');\n';
@@ -758,7 +756,9 @@ for spr in sprites:
         print("\n----------- Sprite: {} ----------------".format(spriteName))
 
 
-        worldCode += genIndent(2) + 'addSprite("' + spriteName + '");\n'
+        # Extract the last position of the sprite and pass to addSprite() call.
+        worldCode += genIndent(2) + 'addSprite("' + spriteName + '", ' + \
+                     str(spr['scratchX']) + ', ' + str(spr['scratchY']) + ');\n'
 
         ctorCode = ""
         cbCode = []

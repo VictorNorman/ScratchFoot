@@ -122,7 +122,7 @@ public class Scratch extends Actor
 
     // Actor that is showing what is being said OR thought by this sprite.
     Sayer sayActor = null;
-
+    
     /**
      *  Turn the sprite to face the direction depending on the rotation style:
      *   o if ALL_AROUND: rotate to face the direction.
@@ -635,7 +635,7 @@ public class Scratch extends Actor
     public Scratch()
     {
         super();
-
+        
         // put the first costume in our array of costumes.
         costumes.add(new Costume(getImage(), "Sprite1"));
 
@@ -689,6 +689,7 @@ public class Scratch extends Actor
         inCbScript = false;
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
+        
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
     }
 
@@ -1407,13 +1408,11 @@ public class Scratch extends Actor
      */
     public void ifOnEdgeBounce()
     {
-        int worldW = getWorld().getWidth();
-        int worldH = getWorld().getHeight();
-        if (super.getX() >= worldW - 1 || super.getX() <= 0) {
+        if (super.getX() >= getWorld().getWidth() - 1 || super.getX() <= 0) {
             // hitting right edge or left edge
             setRotation(180 - getRotation());
         }
-        if (super.getY() >= worldH - 1 || super.getY() <= 0) {
+        if (super.getY() >= getWorld().getHeight() - 1 || super.getY() <= 0) {
             // hitting bottom or top
             setRotation(360 - getRotation());
         }
@@ -1641,7 +1640,7 @@ public class Scratch extends Actor
     }
 
     /**
-     * show this sprite in the getWorld().
+     * show this sprite in the world.
      */
     public void show()
     {
@@ -1762,6 +1761,7 @@ public class Scratch extends Actor
     // private helper function
     private void displayCostume()
     {
+        System.out.println("displayCostume(): isShowing " + isShowing);
         if (isShowing) {
             Costume cost = costumes.get(currCostume);
             // Greenfoot transparency is from 0 to 255, with 0 being fully visible and 255 being
@@ -1770,9 +1770,10 @@ public class Scratch extends Actor
                                           + 100)            // now from 0 to 100
                                            * 2.55);         // now from 0 to 255.
             cost.img.setTransparency(transparency);
+            System.out.println("displayCostume(): calling setImage");
             setImage(cost.img);
         } else {
-            // System.out.println("displayCostume: changing image to null");
+            System.out.println("displayCostume: changing image to null");
             setImage((GreenfootImage) null);
         }
     }
@@ -1826,7 +1827,7 @@ public class Scratch extends Actor
     }
 
     /**
-     * return true if this sprite is touching the edge of the getWorld(),
+     * return true if this sprite is touching the edge of the world,
      * false otherwise.
      */
     public boolean isTouchingEdge()
@@ -2193,7 +2194,7 @@ public class Scratch extends Actor
 
     public int getWorldMinY()
     {
-        // subtract 1 because the getWorld() goes from 0 to Height - 1.
+        // subtract 1 because the world goes from 0 to Height - 1.
         return translateGFtoScratchY(getWorld().getHeight() - 1);
     }
 
@@ -2204,7 +2205,7 @@ public class Scratch extends Actor
 
     /*
      * Scratch's (0, 0) is in the middle, with increase x to the right.  So, to translate
-     * from scratch to greenfoot, add half the width of the getWorld().
+     * from scratch to greenfoot, add half the width of the world.
      */
     public int translateToGreenfootX(int x) 
     {
@@ -2247,6 +2248,7 @@ public class Scratch extends Actor
 
         public Sayer(String str)
         {
+            super();
             this.str = str;
             // this.x = x;
             // this.y = y;
