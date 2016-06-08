@@ -627,12 +627,6 @@ def genConstructorCode(outFile, spriteName, code):
     outFile.write(code)
     outFile.write(genIndent(1) + "}\n");
 
-def genCallbacks(outFile, codes):
-    """Generate code for the callbacks.
-    """
-    for code in codes:
-        outFile.write(code)
-
 def genLoadCostumesCode(costumes):
     """Generate code to load costumes from files for a sprite.
     """
@@ -684,6 +678,7 @@ public class %s extends ScratchWorld
 {
     public %s()
     {
+        // To change world size, pass in width, height values to super() below.
         super();
 """
     # TODO: we could add parameters to the super() call above to make the
@@ -725,6 +720,7 @@ try:
     os.mkdir(scratch_dir)
 except FileExistsError as e:
     pass    # If the directory exists already, no problem.
+
 execOrDie("unzip -ou " + SCRATCH_FILE + " -d " + scratch_dir,
           "unzip scratch download file")
 
@@ -743,6 +739,10 @@ with open(os.path.join(scratch_dir, "project.json")) as data_file:
 
 sprites = data['children']
 
+# We'll need to write configuration "code" to the greenfoot.project file.  Store
+# the lines to write out in this variable.
+projectFileCode = ""
+
 # Code to be written into the World.java file.
 worldCode = ""
 
@@ -754,6 +754,10 @@ for spr in sprites:
         # E.g., the sprite could be called "1", but we cannot create a "class 1".
         
         print("\n----------- Sprite: {} ----------------".format(spriteName))
+
+        # Write out a line to the project.greenfoot file to indicate that this
+        # sprite is a subclass of the Scratch class.
+        projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
 
 
         # Extract the last position of the sprite and pass to addSprite() call.
@@ -769,6 +773,10 @@ for spr in sprites:
 	# Like location, direction, shown or hidden, etc.
         initSettingsCode = genInitialSettingsCode(spr)
         if debug: print("Initial Settings Code is ", initSettingsCode)
+
+	# Generate a line to the project.greenfoot file to set the image file, like this:
+        #     class.Sprite1.image=1.jpg
+        projectFileCode += "class." + spriteName + ".image=" + str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
 
         ctorCode += costumeCode + initSettingsCode
 
@@ -827,7 +835,7 @@ for spr in sprites:
                         # in the java class.
                         cbCode.append(codeObj.cbCode)
 
-                # TODO: filter out script that are "leftover" -- don't start
+                # TODO: filter out scripts that are "left over" -- don't start
                 # with whenGreenFlag, etc. 
 
 
@@ -837,14 +845,9 @@ for spr in sprites:
         outFile = open(filename, "w")
         genHeaderCode(outFile, spriteName)
         genConstructorCode(outFile, spriteName, ctorCode)
-        genCallbacks(outFile, cbCode)
+        for code in cbCode:
+            outFile.write(code)
 
-	# TODO: process the outer block different than other blocks, because it
-        # can contain "garbage" scripts that don't start with whenGreenFlag or
-        # onKeyPress, etc. -- just stuff left in the background -- that shouldn't
-        # be converted to Java -- or should be converted specially, e.g., put into
-        # comment blocks.
-        # outFile.write(block(0, script))
         outFile.write("}\n")
         outFile.close()
 
@@ -866,6 +869,21 @@ worldCode = genWorldHeaderCode(classname) + worldCode + genIndent(1) + "}\n}\n"	
 outFile.write(worldCode)
 outFile.close()
 
+projectFileCode += "class." + classname + "superclass=ScratchWorld\n"
+projectFileCode += "world.lastInstantiated=" + classname + "\n"
+
+# Now, add configuration information to the project.greenfoot file.
+
+# Open in append mode, since we'll be writing lines to the end.
+with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as projF:
+    projF.write("class.Scratch.superclass=greenfoot.Actor\n")
+    projF.write("class.ScratchWorld.superclass=greenfoot.World\n")
+    projF.write(projectFileCode)
+    
+# TODO: if a user runs s2g.py multiple times, it will add repeated lines to
+# the project.greenfoot file.  That's bad, I imagine.
+# One solution is to back up the project.greenfoot file before editing and
+# then always use that when editing.
 
 
 # NOTES:
@@ -874,7 +892,7 @@ outFile.close()
 # 
 
 # If you create a new (empty) Scenario, then copy ScratchWorld.java and
-# Scratch.java to the folder and edit the project.greenfoot and add theses
+# Scratch.java to the folder and edit the project.greenfoot and add these
 # lines to it (without the #s)
 # class.Scratch.superclass=greenfoot.Actor
 # class.ScratchWorld.superclass=greenfoot.World
