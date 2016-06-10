@@ -79,7 +79,6 @@ public class ScratchWorld extends World
     public ScratchWorld(int width, int height, int cellSize)
     {    
         super(width, height, cellSize);
-        System.out.println("ScratchWorld: called World constructor already.");
 
         // make a copy of the background image.
         backdrops.add(new Backdrop(getBackground(), "backdrop1"));   // backdrop1 is default Scratch name

@@ -82,26 +82,27 @@ def execOrDie(cmd, descr):
 def genIndent(level):
     return (" " * (level * NUM_SPACES_PER_LEVEL))
 
-def block(level, codeObj, stmtList):
+def block(level, stmtList):
     """Handle block: a list of statements wrapped in { }."""
 
     if debug:
         print("block: stmtList = ")
         pprint(stmtList)
-    codeObj.addToCode(genIndent(level) + "{\n")
-    stmts(level, codeObj, stmtList)
-    codeObj.addToCode(genIndent(level) + "}\n")
+    return genIndent(level) + "{\n" + stmts(level, stmtList) + \
+           genIndent(level) + "}\n"
 
-def stmts(level, codeObj, stmtList):
+def stmts(level, stmtList):
     """Generate code for the list of statements, by repeatedly calling stmt()"""
     if stmtList is None:
-        return	# nothing to add to codeObj
+        return ""
+    retStr = ""
     for aStmt in stmtList:
         # Call stmt to generate the statement, appending the result to the
         # overall resulting string.
-        stmt(level + 1, codeObj, aStmt)
+        retStr += stmt(level + 1, aStmt)
+    return retStr
 
-def stmt(level, codeObj, tokenList):
+def stmt(level, tokenList):
     """Handle a statement, which is a <cmd> followed by expressions.
     The stmt might be something like [doForever [<stmts>]].
     """
@@ -112,22 +113,11 @@ def stmt(level, codeObj, tokenList):
 
     cmd = tokenList[0]
 
-    # Handle special stmts that may need code generated into multiple
-    # outputs.
-    if cmd == 'doForever':
-        foreverCode = CodeAndCb()
-        doForever(level, foreverCode, tokenList)
-        codeObj.addToCode(foreverCode.code)
-        codeObj.addToCbCode(foreverCode.cbCode)
-        return
-    
     if cmd in scratchStmt2genCode:
         genCodeDescr, genCodeFunc = scratchStmt2genCode[cmd]
-        # Print out a description (for now).
-        # codeObj.addToCode(genIndent(level) + "// " + genCodeDescr + "\n")
         # Call the function to generate the code, passing in the rest of
         # the tokens. 
-        codeObj.addToCode(genCodeFunc(level, tokenList))
+        return genCodeFunc(level, tokenList)
     else:
         return "Unimplemented stmt\n"
 
@@ -220,8 +210,7 @@ def mathOp(tokenOrList):
     # It is a list, so it is a math expression.
 
     if len(tokenOrList) == 1:
-        # Handle cases of operations that take 0 arguments, which
-        # means it is a built-in command, like xpos:.
+        # Handle built-in variables.
         op = tokenOrList[0]
         if op == "xpos":
             return "getX()"
@@ -229,6 +218,16 @@ def mathOp(tokenOrList):
             return "getY()"
         elif op == "heading":
             return "getDirection()"
+        elif op == "costumeIndex":	# Looks menu's costume # block
+            # TODO: getCostumeNumber() and size() below are inconsistent names
+            # I think getCostumeNumber() should be changed to just costumeNumber()...
+            # This would be a change to Scratch.java.
+            return "getCostumeNumber()"
+        elif op == "scale": 		# Looks menu's size block
+            return "size()"
+        elif op == "sceneName":
+            return "backdropName()"	# returns a str.
+        				# TODO: Seems weird to have this in mathOp
         else:
             return "NOT IMPL"
             
@@ -275,8 +274,7 @@ def mathOp(tokenOrList):
             }
         return op2Func[tok1] + mathOp(tok2) + ")"
     else:
-        raise ValueError(op)
-        
+        assert op in ('+', '-', '*', '/', '%')
 
     resStr = "(" + mathOp(tok1)
     if op == '+':
@@ -325,14 +323,13 @@ def whenFlagClicked(codeObj, tokens):
 
     level = 1    # all callbacks are at level 1.
 
-    # Create a new cbObj, which block() will generate code into.  Then, we'll
-    # copy it out into the original codeObj's cbCode.
-    cbObj = CodeAndCb()
+    # Generate callback code, into the codeObj's cbCode string.
     # Add two blank lines before each method definition.
-    cbObj.addToCode("\n\n" + genIndent(level) + "public void " + cbName +
-                    "(Sequence s)\n")
-    block(level, cbObj, tokens)
-    codeObj.addToCbCode(cbObj.code)
+    cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+                    "(Sequence s)\n"
+    cbStr += block(level, tokens)
+    codeObj.addToCbCode(cbStr)
+
 
 def whenSpriteClicked(codeObj, tokens):
     """Generate code to handle the whenClicked block.
@@ -347,14 +344,32 @@ def whenSpriteClicked(codeObj, tokens):
 
     level = 1    # all callbacks are at level 1.
 
-    # Create a new cbObj, which block() will generate code into.  Then, we'll
-    # copy it out into the original codeObj's cbCode.
-    cbObj = CodeAndCb()
+    # Generate callback code, into the codeObj's cbCode string.
     # Add two blank lines before each method definition.
-    cbObj.addToCode("\n\n" + genIndent(level) + "public void " + cbName +
-                    "(Sequence s)\n")
-    block(level, cbObj, tokens)
-    codeObj.addToCbCode(cbObj.code)
+    cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+                    "(Sequence s)\n"
+    cbStr += block(level, tokens)
+    codeObj.addToCbCode(cbStr)
+
+
+def whenSpriteCloned(codeObj, tokens):
+    """Generate code to handle the whenCloned block.
+    All code in tokens goes into a callback.
+    """
+    scriptNum = codeObj.getNextScriptId()
+    cbName = 'whenIStartAsACloneCb' + str(scriptNum)
+
+    # Code in the constructor is always level 2.
+    codeObj.addToCode(genIndent(2) + 'whenStartAsClone("' + cbName + '");\n')
+
+    level = 1    # all callbacks are at level 1.
+
+    # Generate callback code, into the codeObj's cbCode string.
+    # Add two blank lines before each method definition.
+    cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+                    "(Sequence s)\n"
+    cbStr += block(level, tokens)
+    codeObj.addToCbCode(cbStr)
 
 
 def whenKeyPressed(codeObj, key, tokens):
@@ -374,29 +389,50 @@ def whenKeyPressed(codeObj, key, tokens):
 
     level = 1    # all callbacks are at level 1.
 
-    # Create a new cbObj, which block() will generate code into.  Then, we'll
-    # copy it out into the original codeObj's cbCode.
-    cbObj = CodeAndCb()
+    # Generate callback code, into the codeObj's cbCode string.
     # Add two blank lines before each method definition.
-    cbObj.addToCode("\n\n" + genIndent(level) + "public void " + cbName +
-                    "(Sequence s)\n")
-    block(level, cbObj, tokens)
+    cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+            "(Sequence s)\n"
+    cbStr += block(level, tokens)
 
-    # TODO: handle foreverloop in whenKeyPressed Cb code...
+    codeObj.addToCbCode(cbStr)
 
-    codeObj.addToCbCode(cbObj.code)
 
-    
-def doForever(level, codeObj, tokens):
+def whenIReceive(codeObj, message, tokens):
+    """Generate code to handle the whenIReceive block.  message is
+    the message to wait for, and tokens is the list of stmts to be put
+    into a callback to be called when that message is received.
+    """
+    scriptNum = codeObj.getNextScriptId()
+
+    # Build a name like whenIReceiveMessage1Cb0
+    # TODO: convert key to a legal java identifier: no spaces, etc.
+    message = message.capitalize()
+    cbName = 'whenIReceive' + message + 'Cb' + str(scriptNum)
+
+    # Code in the constructor is always level 2.
+    codeObj.addToCode(genIndent(2) + 'whenRecvMessage("' +
+                      message + '", "' + cbName + '");\n')
+
+    # Generate callback code, into the codeObj's cbCode string.
+    # Add two blank lines before each method definition.
+    # All cb code is at level 1
+    cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
+    cbStr += block(1, tokens)
+    codeObj.addToCbCode(cbStr)
+
+
+def doForever(level, tokens):
     """Generate doForever code.  tokens is a list of comments.
     forever loop is turned into a while (true) loop, with the last
     operation being a yield(s) call.
     """
-    codeObj.addToCode(genIndent(level) + "while (true)\n")
-    codeObj.addToCode(genIndent(level) + "{\n")
-    stmts(level, codeObj, tokens[1])
-    codeObj.addToCode(genIndent(level + 1) + "yield(s);\n")
-    codeObj.addToCode(genIndent(level) + "}\n")
+    retStr = genIndent(level) + "while (true)\n"
+    retStr += genIndent(level) + "{\n"
+    retStr += stmts(level, tokens[1])
+    retStr += genIndent(level + 1) + "yield(s);\n"
+    return retStr + genIndent(level) + "}\n"
+
 
 def doIf(level, tokens):
     """Generate code for if <test> : <block>.  Format of tokens is
@@ -438,7 +474,7 @@ def motion0Arg(level, tokens):
     cmd = tokens[0]
     if cmd == "bounceOffEdge":
         prindent(level)
-        print("ifOnEdgeBounce();")
+        return genIndent(level) + "ifOnEdgeBounce();\n"
     else:
         raise ValueError(cmd)
 
@@ -494,9 +530,93 @@ def motion2Arg(level, tokens):
     gotoX:y:, etc."""
     cmd, arg1, arg2 = tokens
     if cmd == "gotoX:y:":
-        return genIndent(level) + "goto((int) " + mathOp(arg1) + ", (int) " + mathOp(arg2) + ");\n"
+        return genIndent(level) + "goto((int) " + mathOp(arg1) + \
+               ", (int) " + mathOp(arg2) + ");\n"
     else:
         raise ValueError(cmd)
+
+def sayForSecs(level, tokens):
+    """Generate code to handle say <str> for <n> seconds.
+    """
+    cmd, arg1, arg2 = tokens
+    assert cmd == 'say:duration:elapsed:from:'
+    return genIndent(level) + "sayForNSeconds(s, " + strExpr(arg1) + ", (double)" + \
+           mathOp(arg2) + ");\n"
+
+def say(level, tokens):
+    """Generate code to handle say <str>.
+    """
+    cmd, arg1 = tokens
+    assert cmd == "say:"
+    return genIndent(level) + "say(" + strExpr(arg1) + ");\n"
+
+def show(level, tokens):
+    """Generate code for the show block.
+    """
+    assert tokens[0] == "show"
+    return genIndent(level) + "show();\n"
+
+def hide(level, tokens):
+    """Generate code for the show block.
+    """
+    assert tokens[0] == "hide"
+    return genIndent(level) + "hide();\n"
+
+def switchCostumeTo(level, tokens):
+    """Generate code for the switch costume block.
+    """
+    cmd, arg1 = tokens
+    assert cmd == "lookLike:"
+    # TODO:
+    # It seems like you can put a math expression as arg1 and scratch
+    # interprets that as the # of the costume to switch to...
+    # We aren't handling that now.
+    return genIndent(level) + "switchToCostume(" + strExpr(arg1) + ");\n"
+
+def nextCostume(level, tokens):
+    """Generate code for the next costume block.
+    """
+    assert tokens[0] == "nextCostume"
+    return genIndent(level) + "nextCostume();\n"
+
+def switchBackdropTo(level, tokens):
+    """Generate code to switch the backdrop.
+    """
+    global worldClassName	# I know: dependence on an external variable is bad.
+    cmd, arg1 = tokens
+    assert cmd == "startScene"
+    return genIndent(level) + "((" + worldClassName + \
+           ")getWorld()).switchBackdropTo(" + strExpr(arg1) + ");\n"
+
+def changeSizeBy(level, tokens):
+    """Generate code to change the size of the sprite
+    """
+    cmd, arg1 = tokens
+    assert cmd == "changeSizeBy"
+    return genIndent(level) + "changeSizeBy((int) " + mathOp(arg1) + ");\n"
+
+def setSizeTo(level, tokens):
+    """Generate code to change the size of the sprite to a certain percentage
+    """
+    cmd, arg1 = tokens
+    assert cmd == "setSizeTo:"
+    return genIndent(level) + "setSizeTo((int) " + mathOp(arg1) + ");\n"
+
+def goToFront(level, tokens):
+    """Generate code to move the sprite to the front
+    """
+    assert tokens[0] == "comeToFront"
+    return genIndent(level) + "goToFront();\n"
+
+def goBackNLayers(level, tokens):
+    """Generate code to move the sprite back 1 layer in the paint order
+    """
+    cmd, arg1 = tokens
+    assert cmd == "goBackByLayers:"
+    return genIndent(level) + "goBackNLayers((int) " + mathOp(arg1) + ");\n"
+
+
+    
 
 def pen0Arg(level, tokens):
     """Generate code to handle Pen blocks with 0 arguments"""
@@ -539,6 +659,24 @@ def pen1Arg(level, tokens):
     else:
         raise ValueError(cmd)
 
+
+def broadcast(level, tokens):
+    """Generate code to handle sending a broacast message.
+    """
+    cmd, arg1 = tokens
+    assert cmd == "broadcast:"
+    return genIndent(level) + "broadcast( " + strExpr(arg1) + ");\n"
+
+
+def broadcastAndWait(level, tokens):
+    """Generate code to handle sending a broacast message and
+    waiting until all the handlers have completed.
+    """
+    cmd, arg1 = tokens
+    assert cmd == "doBroadcastAndWait"
+    return genIndent(level) + "// TODO: broadcastAndWait() not implemented yet.);\n"
+
+
 def doAsk(level, tokens):
     """Generate code to ask the user for input.  Returns the resulting String."""
 
@@ -552,18 +690,87 @@ def doWait(level, tokens):
     assert len(tokens) == 2 and tokens[0] == "wait:elapsed:from:"
     return genIndent(level) + "wait(s, " + mathOp(tokens[1]) + ");\n"
 
+def doRepeat(level, tokens):
+    """Generate a repeat <n> times loop.
+    """
+    assert len(tokens) == 3 and tokens[0] == "doRepeat"
+
+    retStr = genIndent(level) + "for (int i = 0; i < " + \
+             mathOp(tokens[1]) + "; i++)\n"
+    retStr += genIndent(level) + "{\n"
+    retStr += stmts(level, tokens[2])
+    retStr += genIndent(level + 1) + "yield(s);\n"
+    return retStr + genIndent(level) + "}\n"
+
+def doWaitUntil(level, tokens):
+    """Generate doWaitUtil code: in java we'll do this:
+       while (true) {
+           if (condition)
+               break;
+           yield(s);
+       }
+    """
+    assert len(tokens) == 2 and tokens[0] == 'doWaitUntil'
+    retStr =  genIndent(level) + "// wait until code\n"
+    retStr += genIndent(level) + "while (true) {\n"
+    retStr += genIndent(level + 1) + "if (" + boolExpr(tokens[1]) + ")\n"
+    retStr += genIndent(level + 2) + "break;\n"
+    retStr += genIndent(level + 1) + "yield(s);\n"
+    return retStr + genIndent(level) + "}\n"
+
+def repeatUntil(level, tokens):
+    """Generate doUntil code, which translates to this:
+       while (! condition)
+       {
+           stmts
+           yield(s);
+       }
+    """
+    assert len(tokens) == 3 and tokens[0] == "doUntil"
+
+    retStr =  genIndent(level) + "// repeat until code\n"
+    retStr += genIndent(level) + "while (! " + boolExpr(tokens[1]) + ")\n"
+    retStr += genIndent(level) + "{\n"
+    retStr += stmts(level, tokens[2])
+    retStr += genIndent(level + 1) + "yield(s);\n"
+    return retStr + genIndent(level) + "}\n"
+
+def stopScripts(level, tokens):
+    """Generate code to stop all scripts.
+    """
+    assert len(tokens) == 2 and tokens[0] == "stopScripts"
+    if tokens[1] == "all":
+        return genIndent(level) + "stopAll();\n"
+    elif tokens[1] == "this script":
+        return genIndent(level) + "stopThisScript();\n"
+    elif tokens[1] == "other scripts in sprite":
+        return genIndent(level) + "stopOtherScriptsInSprite();\n"
+    else:
+        raise ValueError("stopScripts: unknown type")
+
+def createCloneOf(level, tokens):
+    """Create a clone of the sprite itself or of the given sprite.
+    """
+    assert len(tokens) == 2 and tokens[0] == "createCloneOf"
+    if tokens[1] == "_myself_":
+        return genIndent(level) + "createCloneOfMyself();\n"
+
+    return genIndent(level) + "createCloneOf(" + \
+           "((" + worldClassName + ")getWorld()).getActorByName(" + \
+           tokens[1] + "));\n"
+
+def deleteThisClone(level, tokens):
+    """Delete this sprite.
+    """
+    assert len(tokens) == 1 and tokens[0] == "deleteClone"
+    return genIndent(level) + "deleteThisClone();\n"
+    
 
 scratchStmt2genCode = {
-    # 'whenGreenFlag': ["Generate greenFlag code", bogusFunc],
-    # 'doForever': ["Generate ForeverLoop code... calling genCode recursively",
-    #              doForever], # rest of list is the code in the forever loop.
     'doIf': ["Generate if clause code", doIf],
     'doIfElse': ["Generate if-else code", doIfElse],
     'setVar:to:': ["Generate variable creation or setting variable value", bogusFunc],
-    'whenIReceive': ["Generate whenIreceive code", bogusFunc],
-    'hide': ["Generate hide() call", bogusFunc],
     'readVariable': ["Generate code to read variable", bogusFunc],
-    'show': ["Generate show() call", bogusFunc],
     'doUntil': ["Generate do-until call", bogusFunc],
 
     # Motion commands
@@ -580,6 +787,19 @@ scratchStmt2genCode = {
     'bounceOffEdge': ["Generate bounce off edge code", motion0Arg],    # TODO
     'setRotationStyle': ["Generate Set rotation style code", motion1Arg],
 
+    # Looks commands
+    'say:duration:elapsed:from:': ["", sayForSecs],
+    'say:': ["", say],
+    'show': ["Generate show() call", show],
+    'hide': ["Generate hide() call", hide],
+    'lookLike:': ["Generate switch costume code", switchCostumeTo],
+    'nextCostume': ['', nextCostume],
+    'startScene': ['', switchBackdropTo],
+    'changeSizeBy': ['', changeSizeBy],
+    'setSizeTo:': ['', setSizeTo],
+    'comeToFront': ['Generate "go to front" code', goToFront],
+    'goBackByLayers:': ['', goBackNLayers],
+    
     # Pen commands
     'clearPenTrails': ["Generate code to clear screen", pen0Arg],
     'stampCostume': ["Generate code to stamp", pen0Arg],
@@ -589,13 +809,24 @@ scratchStmt2genCode = {
     'changePenHueBy:': ["Generate code to change pen color", pen1Arg],
     'setPenHueTo:': ["Generate code to set pen color", pen1Arg],
 
+    # Events commands
+    'broadcast:': ['', broadcast],
+    'doBroadcastAndWait': ['', broadcastAndWait],
+
+    # Control commands
+    'doForever': ["Generate a forever loop", doForever],
+    'wait:elapsed:from:': ["Generate wait() call", doWait],
+    'doRepeat': ['', doRepeat],
+    'doWaitUntil': ['', doWaitUntil],
+    'doUntil': ['', repeatUntil],
+    'stopScripts': ['', stopScripts],
+    'createCloneOf': ['', createCloneOf],
+    'deleteClone': ['', deleteThisClone],
+
     # Sensing commands
     'doAsk': ['Generate code to ask for input', doAsk],
 
-    'lookLike:': ["Generate setCostume func call (I think)", bogusFunc],
     'changeVar:by:': ["Generate code to change variable value", bogusFunc],
-    'broadcast': ["Generate broadcast() call", bogusFunc],
-    'wait:elapsed:from:': ["Generate wait() call", doWait],
     }
 
 def convertSpriteToFileName(sprite):
@@ -700,7 +931,8 @@ if len(sys.argv) != 3:
     sys.exit(1)
 
 SCRATCH_FILE = sys.argv[1].strip()
-PROJECT_DIR = sys.argv[2].strip()
+# Take off spaces and a possible trailing "/"
+PROJECT_DIR = sys.argv[2].strip().rstrip("/")
 
 SCRATCH_PROJ_DIR = "scratch_code"
 
@@ -721,7 +953,7 @@ try:
 except FileExistsError as e:
     pass    # If the directory exists already, no problem.
 
-execOrDie("unzip -ou " + SCRATCH_FILE + " -d " + scratch_dir,
+execOrDie("unzip -ou '" + SCRATCH_FILE + "' -d " + scratch_dir,
           "unzip scratch download file")
 
 # Copy image files to images dir.
@@ -745,6 +977,14 @@ projectFileCode = ""
 
 # Code to be written into the World.java file.
 worldCode = ""
+
+# Determine the name of the ScratchWorld subclass.  This variable below
+# is used in some code above to generate casts.  I know this is a very bad
+# idea, but hey, what are you going to do...
+# Make first letter capitalized and remove all spaces, then add World.java
+# to end.
+worldClassName = PROJECT_DIR.capitalize().replace(" ", "") + "World"
+
 
 for spr in sprites:
     if 'objName' in spr:
@@ -792,8 +1032,8 @@ for spr in sprites:
                 codeObj = CodeAndCb()	# Holds all the code that is generated.
 
                 # script is a list of these: [[cmd] [arg] [arg]...]
-                # If script starts with whenGreenFlag, generate code into
-                # whenFlagClicked callback.
+                # The script starts with whenGreenFlag, whenSpriteClicked, etc. --
+                # the "hat" blocks.
                 if script[0] == ['whenGreenFlag']:
                     print("Calling stmts with ", script[1:])
 
@@ -803,20 +1043,37 @@ for spr in sprites:
                     whenFlagClicked(codeObj, script[1:])
                     ctorCode += codeObj.code
                     if codeObj.cbCode != "":
-                        print("main: stmts() called generated this cb code:\n" +
-                              codeObj.cbCode)
+                        if debug:
+                            print("main: stmts() called generated this cb code:\n" +
+                                  codeObj.cbCode)
+                        # the stmts() generated code to be put into a callback
+                        # in the java class.
+                        cbCode.append(codeObj.cbCode)
+                elif script[0] == ['whenCloned']:
+                    # Add a comment to each section of code indicating where
+                    # the code came from.
+                    codeObj.code += genIndent(2) + "// Code from Script " + \
+                                    str(scrNum) + "\n"
+                    whenSpriteCloned(codeObj, script[1:])
+                    ctorCode += codeObj.code
+                    if codeObj.cbCode != "":
+                        if debug:
+                            print("main: stmts() called generated this cb code:\n" +
+                                  codeObj.cbCode)
                         # the stmts() generated code to be put into a callback
                         # in the java class.
                         cbCode.append(codeObj.cbCode)
                 elif script[0] == ['whenClicked']:
                     # Add a comment to each section of code indicating where
                     # the code came from.
-                    codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+                    codeObj.code += genIndent(2) + "// Code from Script " + \
+                                    str(scrNum) + "\n"
                     whenSpriteClicked(codeObj, script[1:])
                     ctorCode += codeObj.code
                     if codeObj.cbCode != "":
-                        print("main: stmts() called generated this cb code:\n" +
-                              codeObj.cbCode)
+                        if debug:
+                            print("main: stmts() called generated this cb code:\n" +
+                                  codeObj.cbCode)
                         # the stmts() generated code to be put into a callback
                         # in the java class.
                         cbCode.append(codeObj.cbCode)
@@ -824,17 +1081,37 @@ for spr in sprites:
                     # pass in the key that we are waiting for, and the code to run
                     # Add a comment to each section of code indicating where
                     # the code came from.
-                    codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+                    codeObj.code += genIndent(2) + "// Code from Script " + \
+                                    str(scrNum) + "\n"
                     whenKeyPressed(codeObj, script[0][1], script[1:])
                     ctorCode += codeObj.code
 
                     if codeObj.cbCode != "":
-                        print("main: stmts() called generated this cb code:\n" +
-                              codeObj.cbCode)
+                        if debug:
+                            print("main: stmts() called generated this cb code:\n" +
+                                  codeObj.cbCode)
+                        # the stmts() generated code to be put into a callback
+                        # in the java class.
+                        cbCode.append(codeObj.cbCode)
+                elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
+                    codeObj.code += genIndent(2) + "// Code from Script " + \
+                                    str(scrNum) + "\n"
+                    whenIReceive(codeObj, script[0][1], script[1:])
+                    ctorCode += codeObj.code
+
+                    if codeObj.cbCode != "":
+                        if debug:
+                            print("main: stmts() called generated this cb code:\n" +
+                                  codeObj.cbCode)
                         # the stmts() generated code to be put into a callback
                         # in the java class.
                         cbCode.append(codeObj.cbCode)
 
+                # TODO: need to implement whenSwitchToBackdrop in
+                # Scratch.java and add code here to handle it.
+                # TODO: need to handle scripts for the stage, not a sprite.
+
+                    
                 # TODO: filter out scripts that are "left over" -- don't start
                 # with whenGreenFlag, etc. 
 
@@ -856,21 +1133,17 @@ for spr in sprites:
         print(spr)
 
 #
-# Now, have to make the World file -- a subclass of ScratchWorld.
+# Now, to make the *World file -- a subclass of ScratchWorld.
 #
-
-# Make first letter capitalized and remove all spaces, then add World.java
-# to end. 
-classname = PROJECT_DIR.capitalize().replace(" ", "") + "World"
-filename = os.path.join(PROJECT_DIR, classname + ".java")
+filename = os.path.join(PROJECT_DIR, worldClassName + ".java")
 outFile = open(filename, "w")
 print("Writing code to " + filename + ".")
-worldCode = genWorldHeaderCode(classname) + worldCode + genIndent(1) + "}\n}\n"		# fix last part here.
+worldCode = genWorldHeaderCode(worldClassName) + worldCode + genIndent(1) + "}\n}\n"
 outFile.write(worldCode)
 outFile.close()
 
-projectFileCode += "class." + classname + "superclass=ScratchWorld\n"
-projectFileCode += "world.lastInstantiated=" + classname + "\n"
+projectFileCode += "class." + worldClassName + ".superclass=ScratchWorld\n"
+projectFileCode += "world.lastInstantiated=" + worldClassName + "\n"
 
 # Now, add configuration information to the project.greenfoot file.
 
@@ -889,7 +1162,13 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as 
 # NOTES:
 # o Motion commands are done, except for glide.
 # o Operators commands are done.
+# o Looks commands are done.
+# o Pen commands are done.
+# o Events done, except broadcastAndWait and when loudness/timer/video > <n>
+# o Control commands are done.
 # 
+
+
 
 # If you create a new (empty) Scenario, then copy ScratchWorld.java and
 # Scratch.java to the folder and edit the project.greenfoot and add these

@@ -1761,7 +1761,6 @@ public class Scratch extends Actor
     // private helper function
     private void displayCostume()
     {
-        System.out.println("displayCostume(): isShowing " + isShowing);
         if (isShowing) {
             Costume cost = costumes.get(currCostume);
             // Greenfoot transparency is from 0 to 255, with 0 being fully visible and 255 being
@@ -1770,10 +1769,8 @@ public class Scratch extends Actor
                                           + 100)            // now from 0 to 100
                                            * 2.55);         // now from 0 to 255.
             cost.img.setTransparency(transparency);
-            System.out.println("displayCostume(): calling setImage");
             setImage(cost.img);
         } else {
-            System.out.println("displayCostume: changing image to null");
             setImage((GreenfootImage) null);
         }
     }
