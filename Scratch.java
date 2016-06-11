@@ -1891,11 +1891,11 @@ public class Scratch extends Actor
     }
 
     /**
-     * return true if the mouse is pressed, else false.
+     * return true if the mouse is pressed down right now, else false.
      */
     public boolean isMouseDown()
     {
-        return Greenfoot.mousePressed(null);
+        return Greenfoot.mousePressed(null) || Greenfoot.mouseDragged(null);
     }
 
     /**

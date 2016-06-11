@@ -24,11 +24,13 @@ public class ScratchWorld extends World
     // we can return the correct value when the built-in "timer" variable is referenced.
     private long startTime;
 
-    // These private variables are used for displaying Scratch variables on the 
-    // screen.  In Scratch, you can choose to show a variable.  This causes a little
-    // box to be displayed that shows the variable's name and its value.  When multiple
-    // variables are displayed, they are initially tiled along the left side from top to bottom.
-    // We need to keep track of this x,y pair so we can tile the variable-display objects.
+    // These private variables are used for displaying Scratch variables on
+    // the screen.  In Scratch, you can choose to show a variable.  This
+    // causes a little box to be displayed that shows the variable's name
+    // and its value.  When multiple variables are displayed, they are
+    // initially tiled along the left side from top to bottom.  We need to
+    // keep track of this x,y pair so we can tile the variable-display
+    // objects.
     private int varXloc = 5;
     private int varYloc = 10;
     private final static int VAR_Y_OFFSET = 25;
@@ -65,12 +67,13 @@ public class ScratchWorld extends World
     }
     private LinkedList<BcastMsg> mesgs = new LinkedList<BcastMsg>();
 
-    // Keep an array of the classes in this world in order to support changing of the 
-    // "paint order" -- which objects are painted on top of others.  In Greenfoot, you can
-    // only specify this by class, not by individual objects in a class.
-    // Classes are added dynamically by ScratchActor calling addClassToWorld() in its
-    // constructor or addedToWorld() function.  Individual actors' code can call goToFront(), 
-    // etc., to change the paint order.
+    // Keep an array of the classes in this world in order to support
+    // changing of the "paint order" -- which objects are painted on top of
+    // others.  In Greenfoot, you can only specify this by class, not by
+    // individual objects in a class.  Classes are added dynamically by
+    // ScratchActor calling addClassToWorld() in its constructor or
+    // addedToWorld() function.  Individual actors' code can call
+    // goToFront(), etc., to change the paint order.
     private ArrayList<Class> clses4PaintOrder = new ArrayList<Class>();
 
     /**
@@ -81,7 +84,8 @@ public class ScratchWorld extends World
         super(width, height, cellSize);
 
         // make a copy of the background image.
-        backdrops.add(new Backdrop(getBackground(), "backdrop1"));   // backdrop1 is default Scratch name
+        // backdrop1 is default Scratch name
+        backdrops.add(new Backdrop(getBackground(), "backdrop1"));   
     }
 
     /**
@@ -94,8 +98,9 @@ public class ScratchWorld extends World
 
     public final void act() 
     {
-        // Record the time in milliseconds when the world is started, so that the "timer" variable
-        // can get the correct time in seconds and 1/10th of seconds since the scenario started.
+        // Record the time in milliseconds when the world is started, so
+        // that the "timer" variable can get the correct time in seconds
+        // and 1/10th of seconds since the scenario started.
         if (frameNumber == 0) {
             startTime = System.currentTimeMillis();
         }
@@ -125,7 +130,8 @@ public class ScratchWorld extends World
      */
     public void started()
     {
-        // Add variables to be displayed to the world automatically so that code doesn't have to do it.
+        // Add variables to be displayed to the world automatically so that
+        // code  doesn't have to do it.
         for (Variable v : varsToDisplay) {
             v.addToWorld(this);
         }
@@ -146,7 +152,8 @@ public class ScratchWorld extends World
     }
 
     /**
-     * return the current number of times each Scratch Actor has had its registered callbacks called.
+     * return the current number of times each Scratch Actor has had its
+     * registered callbacks called. 
      * (i.e., how many times each act() has been called.)
      */
     public long getFrameNumber() 
@@ -183,8 +190,9 @@ public class ScratchWorld extends World
 
     /**
      * add a new backdrop, with the given name.
-     * Many backdrops come with Greenfoot, but can be tough to find.  On my Mac, they are at
-     * /Applications/Greenfoot\ 2.4.2/Greenfoot.app/Contents/Resources/Java/greenfoot/imagelib/backgrounds/
+     * Many backdrops come with Greenfoot, but can be tough to find.  On my
+     * Mac, they are at /Applications/Greenfoot\
+     * 2.4.2/Greenfoot.app/Contents/Resources/Java/greenfoot/imagelib/backgrounds/ 
      */
     public void addBackdrop(String backdropFile, String backdropName)
     {
@@ -240,7 +248,8 @@ public class ScratchWorld extends World
                 return;
             }
         }
-        // Do nothing if the given backdropName is not found.  (Should perhaps issue a warning/error?)
+        // Do nothing if the given backdropName is not found.  (Should
+        // perhaps issue a warning/error?) 
     }
 
     /**
@@ -257,10 +266,12 @@ public class ScratchWorld extends World
      */
     public void registerBcast(String message)
     {
-        // Create a new BcastMsg object, saving the message string, and the frame in which
-        // the actor's registered to receive this message should execute their methods.  This
-        // frame is the *next* time around -- thus we add 1 to the current frame number.
-        System.out.println("Adding message " + message + " to bcastList with frame " + (frameNumber + 1));
+        // Create a new BcastMsg object, saving the message string, and the
+        // frame in which the actor's registered to receive this message
+        // should execute their methods.  This frame is the *next* time
+        // around -- thus we add 1 to the current frame number. 
+        System.out.println("Adding message " + message +
+			   " to bcastList with frame " + (frameNumber + 1));
         BcastMsg msg = new BcastMsg(message, frameNumber + 1);
         mesgs.addLast(msg);
     }

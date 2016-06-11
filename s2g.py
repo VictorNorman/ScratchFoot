@@ -78,9 +78,9 @@ def execOrDie(cmd, descr):
         sys.exit(1)
             
 
-
 def genIndent(level):
     return (" " * (level * NUM_SPACES_PER_LEVEL))
+
 
 def block(level, stmtList):
     """Handle block: a list of statements wrapped in { }."""
@@ -90,6 +90,7 @@ def block(level, stmtList):
         pprint(stmtList)
     return genIndent(level) + "{\n" + stmts(level, stmtList) + \
            genIndent(level) + "}\n"
+
 
 def stmts(level, stmtList):
     """Generate code for the list of statements, by repeatedly calling stmt()"""
@@ -101,6 +102,7 @@ def stmts(level, stmtList):
         # overall resulting string.
         retStr += stmt(level + 1, aStmt)
     return retStr
+
 
 def stmt(level, tokenList):
     """Handle a statement, which is a <cmd> followed by expressions.
@@ -114,7 +116,7 @@ def stmt(level, tokenList):
     cmd = tokenList[0]
 
     if cmd in scratchStmt2genCode:
-        genCodeDescr, genCodeFunc = scratchStmt2genCode[cmd]
+        genCodeFunc = scratchStmt2genCode[cmd]
         # Call the function to generate the code, passing in the rest of
         # the tokens. 
         return genCodeFunc(level, tokenList)
@@ -157,14 +159,17 @@ def boolExpr(tokenList):
             raise ValueError(firstOp)
     elif firstOp == 'touchingColor:':
         # TODO: this may not work if value from scratch is not compatible with java.
-        resStr += "(isTouchingColor(new Color(" + mathOp(tokenList[1]) + ")))"
+        resStr += "(isTouchingColor(new java.awt.Color(" + mathOp(tokenList[1]) + ")))"
     elif firstOp == 'keyPressed:':
         resStr += handleKeyPressed(tokenList[1])
+    elif firstOp == 'mousePressed':
+        resStr += "(isMouseDown())"
     elif firstOp == False:
         resStr += "false"
     else:
-        raise ValueError()
+        raise ValueError(firstOp)
     return resStr
+
 
 def convertKeyPressName(keyname):
     # Single letter/number keynames in Scratch and Greenfoot are identical.
@@ -176,6 +181,7 @@ def convertKeyPressName(keyname):
         keyname = keyname.rstrip(" arrow")
     return keyname
     
+
 def handleKeyPressed(keyname):
     """Generate call to isKeyPressed()"""
     return '(isKeyPressed("' + convertKeyPressName(keyname) + '"))'
@@ -191,6 +197,7 @@ def convertToNumber(tok):
             raise
     return val
 
+
 def strExpr(tokenOrList):
     if debug:
         print("strExpr: tokenOrList is", tokenOrList)
@@ -200,6 +207,7 @@ def strExpr(tokenOrList):
     else:
         # TODO: ??? Not sure about this...
         return mathOp(tokenOrList) + '"' + str(res) + '"'
+
 
 def mathOp(tokenOrList):
 
@@ -309,6 +317,7 @@ def cmpOp(op, tok1, tok2):
     else:
         raise ValueError(op)
     return resStr + mathOp(tok2) + ")"
+
 
 def whenFlagClicked(codeObj, tokens):
     """Generate code to handle the whenFlagClicked block.
@@ -430,7 +439,7 @@ def doForever(level, tokens):
     retStr = genIndent(level) + "while (true)\n"
     retStr += genIndent(level) + "{\n"
     retStr += stmts(level, tokens[1])
-    retStr += genIndent(level + 1) + "yield(s);\n"
+    retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
 
 
@@ -534,6 +543,16 @@ def motion2Arg(level, tokens):
                ", (int) " + mathOp(arg2) + ");\n"
     else:
         raise ValueError(cmd)
+
+def pointTowards(level, tokens):
+    """Generate code to turn the sprite to point to something.
+    """
+    cmd, arg1 = tokens
+    if arg1 == '_mouse_':
+        return genIndent(level) + "pointTowardMouse();\n"
+    else:
+        # TODO
+        return "NOT IMPLEMENTED YET"
 
 def sayForSecs(level, tokens):
     """Generate code to handle say <str> for <n> seconds.
@@ -650,7 +669,7 @@ def pen1Arg(level, tokens):
         # "color".  If the order of rgb in the number from scratch is
         # correct, we can inline the creation of the color object to solve
         # this problem. 
-        resStr += "java.awt.Color color = new Color((int) " + mathOp(arg) + ");\n"
+        resStr += "java.awt.Color color = new java.awt.Color((int) " + mathOp(arg) + ");\n"
         return resStr + genIndent(level) + "setPenColor(color);\n"
     elif cmd == "changePenHueBy:":
         return resStr + "changePenColorBy(" + mathOp(arg) + ");\n"
@@ -699,7 +718,7 @@ def doRepeat(level, tokens):
              mathOp(tokens[1]) + "; i++)\n"
     retStr += genIndent(level) + "{\n"
     retStr += stmts(level, tokens[2])
-    retStr += genIndent(level + 1) + "yield(s);\n"
+    retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
 
 def doWaitUntil(level, tokens):
@@ -715,7 +734,7 @@ def doWaitUntil(level, tokens):
     retStr += genIndent(level) + "while (true) {\n"
     retStr += genIndent(level + 1) + "if (" + boolExpr(tokens[1]) + ")\n"
     retStr += genIndent(level + 2) + "break;\n"
-    retStr += genIndent(level + 1) + "yield(s);\n"
+    retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
 
 def repeatUntil(level, tokens):
@@ -732,7 +751,7 @@ def repeatUntil(level, tokens):
     retStr += genIndent(level) + "while (! " + boolExpr(tokens[1]) + ")\n"
     retStr += genIndent(level) + "{\n"
     retStr += stmts(level, tokens[2])
-    retStr += genIndent(level + 1) + "yield(s);\n"
+    retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
 
 def stopScripts(level, tokens):
@@ -767,66 +786,66 @@ def deleteThisClone(level, tokens):
     
 
 scratchStmt2genCode = {
-    'doIf': ["Generate if clause code", doIf],
-    'doIfElse': ["Generate if-else code", doIfElse],
-    'setVar:to:': ["Generate variable creation or setting variable value", bogusFunc],
-    'readVariable': ["Generate code to read variable", bogusFunc],
-    'doUntil': ["Generate do-until call", bogusFunc],
+    'doIf': doIf,
+    'doIfElse': doIfElse,
+    'setVar:to:': bogusFunc,
+    'readVariable': bogusFunc,
 
     # Motion commands
-    'forward:': ["Generate moveForward func call", motion1Arg],
-    'turnLeft:': ["Generate turnLeft() code", motion1Arg],
-    'turnRight:': ["Generate turnRight() code", motion1Arg],
-    'heading:': ["Generate set Heading code", motion1Arg],  
-    'gotoX:y:': ["Generate goto(x, y)", motion2Arg],
-    'gotoSpriteOrMouse:': ["Generate gotoSpriteOrMouse code", motion1Arg],
-    'changeXposBy:': ["Generate changeXposBy code", motion1Arg],
-    'xpos:': ["Generate setXto code", motion1Arg],
-    'changeYposBy:': ["Generate changeYposBy code", motion1Arg],
-    'ypos:': ["Generate setYto code", motion1Arg],
-    'bounceOffEdge': ["Generate bounce off edge code", motion0Arg],    # TODO
-    'setRotationStyle': ["Generate Set rotation style code", motion1Arg],
+    'forward:': motion1Arg,
+    'turnLeft:': motion1Arg,
+    'turnRight:': motion1Arg,
+    'heading:': motion1Arg,
+    'gotoX:y:': motion2Arg,
+    'gotoSpriteOrMouse:': motion1Arg,
+    'changeXposBy:': motion1Arg,
+    'xpos:': motion1Arg,
+    'changeYposBy:': motion1Arg,
+    'ypos:': motion1Arg,
+    'bounceOffEdge': motion0Arg,    # TODO
+    'setRotationStyle': motion1Arg,
+    'pointTowards:': pointTowards,
 
     # Looks commands
-    'say:duration:elapsed:from:': ["", sayForSecs],
-    'say:': ["", say],
-    'show': ["Generate show() call", show],
-    'hide': ["Generate hide() call", hide],
-    'lookLike:': ["Generate switch costume code", switchCostumeTo],
-    'nextCostume': ['', nextCostume],
-    'startScene': ['', switchBackdropTo],
-    'changeSizeBy': ['', changeSizeBy],
-    'setSizeTo:': ['', setSizeTo],
-    'comeToFront': ['Generate "go to front" code', goToFront],
-    'goBackByLayers:': ['', goBackNLayers],
+    'say:duration:elapsed:from:': sayForSecs,
+    'say:': say,
+    'show': show,
+    'hide': hide,
+    'lookLike:': switchCostumeTo,
+    'nextCostume': nextCostume,
+    'startScene': switchBackdropTo,
+    'changeSizeBy': changeSizeBy,
+    'setSizeTo:': setSizeTo,
+    'comeToFront': goToFront,
+    'goBackByLayers:': goBackNLayers,
     
     # Pen commands
-    'clearPenTrails': ["Generate code to clear screen", pen0Arg],
-    'stampCostume': ["Generate code to stamp", pen0Arg],
-    'putPenDown': ["Generate code to put pen down", pen0Arg],
-    'putPenUp': ["Generate code to put pen up", pen0Arg],
-    'penColor:': ["Generate code to set pen color", pen1Arg],
-    'changePenHueBy:': ["Generate code to change pen color", pen1Arg],
-    'setPenHueTo:': ["Generate code to set pen color", pen1Arg],
+    'clearPenTrails': pen0Arg,
+    'stampCostume': pen0Arg,
+    'putPenDown': pen0Arg,
+    'putPenUp': pen0Arg,
+    'penColor:': pen1Arg,
+    'changePenHueBy:': pen1Arg,
+    'setPenHueTo:': pen1Arg,
 
     # Events commands
-    'broadcast:': ['', broadcast],
-    'doBroadcastAndWait': ['', broadcastAndWait],
+    'broadcast:': broadcast,
+    'doBroadcastAndWait': broadcastAndWait,
 
     # Control commands
-    'doForever': ["Generate a forever loop", doForever],
-    'wait:elapsed:from:': ["Generate wait() call", doWait],
-    'doRepeat': ['', doRepeat],
-    'doWaitUntil': ['', doWaitUntil],
-    'doUntil': ['', repeatUntil],
-    'stopScripts': ['', stopScripts],
-    'createCloneOf': ['', createCloneOf],
-    'deleteClone': ['', deleteThisClone],
+    'doForever': doForever,
+    'wait:elapsed:from:': doWait,
+    'doRepeat': doRepeat,
+    'doWaitUntil': doWaitUntil,
+    'doUntil': repeatUntil,
+    'stopScripts': stopScripts,
+    'createCloneOf': createCloneOf,
+    'deleteClone': deleteThisClone,
 
     # Sensing commands
-    'doAsk': ['Generate code to ask for input', doAsk],
+    'doAsk': doAsk,
 
-    'changeVar:by:': ["Generate code to change variable value", bogusFunc],
+    'changeVar:by:': bogusFunc,
     }
 
 def convertSpriteToFileName(sprite):
@@ -887,7 +906,7 @@ def genInitialSettingsCode(spr):
     resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex']) + ');\n'
     if not spr['visible']:
         resStr += genIndent(2) + 'hide();\n';
-    resStr += genIndent(2) + 'pointInDirection(' + str(spr['direction']) + ');\n';
+    resStr += genIndent(2) + 'pointInDirection((int) ' + str(spr['direction']) + ');\n';
     # TODO: need to test this!
     resStr += motion1Arg(2, ['setRotationStyle', spr['rotationStyle']])
     return resStr
@@ -1016,7 +1035,8 @@ for spr in sprites:
 
 	# Generate a line to the project.greenfoot file to set the image file, like this:
         #     class.Sprite1.image=1.jpg
-        projectFileCode += "class." + spriteName + ".image=" + str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
+        projectFileCode += "class." + spriteName + ".image=" + \
+                           str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
 
         ctorCode += costumeCode + initSettingsCode
 
@@ -1131,6 +1151,19 @@ for spr in sprites:
     else:
         print("\n----------- Not a sprite --------------");
         print(spr)
+
+
+# If the Stage has script(s) in it, then the 'scripts' field will be
+# in the project.json.  In this case, we'll create a Stage Actor.
+
+# --------- handle the Stage stuff --------------
+if 'scripts' in data:
+    stage = data['scripts']
+    
+
+
+
+
 
 #
 # Now, to make the *World file -- a subclass of ScratchWorld.
