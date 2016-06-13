@@ -885,7 +885,8 @@ def genLoadCostumesCode(costumes):
     resStr = ""
     imagesDir = os.path.join(PROJECT_DIR, "images")
     for cos in costumes:
-        # costume's filename is the baseLayerID (which is a small integer (1, 2, 3, etc.) plus ".svg" 
+        # costume's filename is the baseLayerID (which is a small integer
+        # (1, 2, 3, etc.)) plus ".svg"
         filename = str(cos['baseLayerID'])
         # convert it with rsvg-convert -- TODO: fix this to work for Windoze, etc.
         dest = filename + ".jpg"
@@ -938,10 +939,81 @@ public class %s extends ScratchWorld
     return boilerplate % (classname, classname, classname)
 
 
+def genScriptCode(script, scrName):
+    """Generate code (and callback code) for the given script, which may be
+    associated with a sprite or the main stage.
+    """
 
-# ----------------- main -------------------
+    codeObj = CodeAndCb()	# Holds all the code that is generated.
+    # script is a list of these: [[cmd] [arg] [arg]...]
+    # The script starts with whenGreenFlag, whenSpriteClicked, etc. --
+    # the "hat" blocks.
+    if script[0] == ['whenGreenFlag']:
+        print("Calling stmts with ", script[1:])
 
-# TODO: make file name a command-line arg
+        # Add a comment to each section of code indicating where
+        # the code came from.
+        codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+        whenFlagClicked(codeObj, script[1:])
+        if codeObj.cbCode != "":
+            if debug:
+                print("main: stmts() called generated this cb code:\n" +
+                      codeObj.cbCode)
+    elif script[0] == ['whenCloned']:
+        # Add a comment to each section of code indicating where
+        # the code came from.
+        codeObj.code += genIndent(2) + "// Code from Script " + \
+                        str(scrNum) + "\n"
+        whenSpriteCloned(codeObj, script[1:])
+        if codeObj.cbCode != "":
+            if debug:
+                print("main: stmts() called generated this cb code:\n" +
+                      codeObj.cbCode)
+    elif script[0] == ['whenClicked']:
+        # Add a comment to each section of code indicating where
+        # the code came from.
+        codeObj.code += genIndent(2) + "// Code from Script " + \
+                        str(scrNum) + "\n"
+        whenSpriteClicked(codeObj, script[1:])
+        if codeObj.cbCode != "":
+            if debug:
+                print("main: stmts() called generated this cb code:\n" +
+                      codeObj.cbCode)
+    elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
+        # pass in the key that we are waiting for, and the code to run
+        # Add a comment to each section of code indicating where
+        # the code came from.
+        codeObj.code += genIndent(2) + "// Code from Script " + \
+                        str(scrNum) + "\n"
+        whenKeyPressed(codeObj, script[0][1], script[1:])
+
+        if codeObj.cbCode != "":
+            if debug:
+                print("main: stmts() called generated this cb code:\n" +
+                      codeObj.cbCode)
+    elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
+        codeObj.code += genIndent(2) + "// Code from Script " + \
+                        str(scrNum) + "\n"
+        whenIReceive(codeObj, script[0][1], script[1:])
+
+        if codeObj.cbCode != "":
+            if debug:
+                print("main: stmts() called generated this cb code:\n" +
+                      codeObj.cbCode)
+
+    # TODO: need to implement whenSwitchToBackdrop in
+    # Scratch.java and add code here to handle it.
+    # TODO: need to handle scripts for the stage, not a sprite.
+
+        
+    # TODO: filter out scripts that are "left over" -- don't start
+    # with whenGreenFlag, etc.
+    return codeObj
+
+
+# ---------------------------------------------------------------------------
+#                ----------------- main -------------------
+# ---------------------------------------------------------------------------
 
 usage = 'Usage: python3 s2g.py <scratchFile.sb2> <GreenfootProjDir>'
 
@@ -1031,7 +1103,8 @@ for spr in sprites:
 
 	# Like location, direction, shown or hidden, etc.
         initSettingsCode = genInitialSettingsCode(spr)
-        if debug: print("Initial Settings Code is ", initSettingsCode)
+        if debug:
+            print("Initial Settings Code is ", initSettingsCode)
 
 	# Generate a line to the project.greenfoot file to set the image file, like this:
         #     class.Sprite1.image=1.jpg
@@ -1047,93 +1120,15 @@ for spr in sprites:
                 # items 0 and 1 in the sublist are the location on the screen of the script.
                 # We don't care about that, obviously.  Item 2 is the actual code.
                 script = spr['scripts'][scrNum][2]
-                print("Script" + str(scrNum) + ":", script)
+                scrName = "Script" + str(scrNum)
+                if debug:
+                    print(scrName + ":", script)
 
-                codeObj = CodeAndCb()	# Holds all the code that is generated.
-
-                # script is a list of these: [[cmd] [arg] [arg]...]
-                # The script starts with whenGreenFlag, whenSpriteClicked, etc. --
-                # the "hat" blocks.
-                if script[0] == ['whenGreenFlag']:
-                    print("Calling stmts with ", script[1:])
-
-                    # Add a comment to each section of code indicating where
-                    # the code came from.
-                    codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
-                    whenFlagClicked(codeObj, script[1:])
-                    ctorCode += codeObj.code
-                    if codeObj.cbCode != "":
-                        if debug:
-                            print("main: stmts() called generated this cb code:\n" +
-                                  codeObj.cbCode)
-                        # the stmts() generated code to be put into a callback
-                        # in the java class.
-                        cbCode.append(codeObj.cbCode)
-                elif script[0] == ['whenCloned']:
-                    # Add a comment to each section of code indicating where
-                    # the code came from.
-                    codeObj.code += genIndent(2) + "// Code from Script " + \
-                                    str(scrNum) + "\n"
-                    whenSpriteCloned(codeObj, script[1:])
-                    ctorCode += codeObj.code
-                    if codeObj.cbCode != "":
-                        if debug:
-                            print("main: stmts() called generated this cb code:\n" +
-                                  codeObj.cbCode)
-                        # the stmts() generated code to be put into a callback
-                        # in the java class.
-                        cbCode.append(codeObj.cbCode)
-                elif script[0] == ['whenClicked']:
-                    # Add a comment to each section of code indicating where
-                    # the code came from.
-                    codeObj.code += genIndent(2) + "// Code from Script " + \
-                                    str(scrNum) + "\n"
-                    whenSpriteClicked(codeObj, script[1:])
-                    ctorCode += codeObj.code
-                    if codeObj.cbCode != "":
-                        if debug:
-                            print("main: stmts() called generated this cb code:\n" +
-                                  codeObj.cbCode)
-                        # the stmts() generated code to be put into a callback
-                        # in the java class.
-                        cbCode.append(codeObj.cbCode)
-                elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
-                    # pass in the key that we are waiting for, and the code to run
-                    # Add a comment to each section of code indicating where
-                    # the code came from.
-                    codeObj.code += genIndent(2) + "// Code from Script " + \
-                                    str(scrNum) + "\n"
-                    whenKeyPressed(codeObj, script[0][1], script[1:])
-                    ctorCode += codeObj.code
-
-                    if codeObj.cbCode != "":
-                        if debug:
-                            print("main: stmts() called generated this cb code:\n" +
-                                  codeObj.cbCode)
-                        # the stmts() generated code to be put into a callback
-                        # in the java class.
-                        cbCode.append(codeObj.cbCode)
-                elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
-                    codeObj.code += genIndent(2) + "// Code from Script " + \
-                                    str(scrNum) + "\n"
-                    whenIReceive(codeObj, script[0][1], script[1:])
-                    ctorCode += codeObj.code
-
-                    if codeObj.cbCode != "":
-                        if debug:
-                            print("main: stmts() called generated this cb code:\n" +
-                                  codeObj.cbCode)
-                        # the stmts() generated code to be put into a callback
-                        # in the java class.
-                        cbCode.append(codeObj.cbCode)
-
-                # TODO: need to implement whenSwitchToBackdrop in
-                # Scratch.java and add code here to handle it.
-                # TODO: need to handle scripts for the stage, not a sprite.
-
-                    
-                # TODO: filter out scripts that are "left over" -- don't start
-                # with whenGreenFlag, etc. 
+                codeObj = genScriptCode(script, scrName)
+                ctorCode += codeObj.code
+                if codeObj.cbCode != "":
+                    # The script generate callback code.
+                    cbCode.append(codeObj.cbCode)
 
 
 	# Open file with correct name and generate code into there.
@@ -1157,12 +1152,75 @@ for spr in sprites:
 # in the project.json.  In this case, we'll create a Stage Actor.
 
 # --------- handle the Stage stuff --------------
+
+# Because the stage can have script in it much like any sprite,
+# we have to process it similarly.  So, lots of repeated code here
+# from above -- although small parts are different enough.
+
 if 'scripts' in data:
-    stage = data['scripts']
-    
+    stageScrs = data['scripts']
+
+    spriteName = "Stage"
+
+    # Write out a line to the project.greenfoot file to indicate that this
+    # sprite is a subclass of the Scratch class.
+    projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
 
 
+    # Extract the last position of the sprite and pass to addSprite() call.
+    worldCode += genIndent(2) + 'addSprite("' + spriteName + '", 0, 0);\n'
 
+    ctorCode = ""
+    cbCode = []
+
+    # TODO
+    # Need to do this for backdrops instead?
+    # costumeCode = genLoadCostumesCode(spr['costumes'])
+    # if debug: print("CostumeCode is ", costumeCode)
+
+    # Like location, direction, shown or hidden, etc.
+    # initSettingsCode = genInitialSettingsCode(spr)
+    # if debug:
+        # print("Initial Settings Code is ", initSettingsCode)
+
+    # Generate a line to the project.greenfoot file to set the image file, like this:
+    #     class.Sprite1.image=1.jpg
+    # projectFileCode += "class." + spriteName + ".image=" + \
+    #                    str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
+
+    # ctorCode += costumeCode + initSettingsCode
+
+    # The value of the 'scripts' key is the list of the scripts.  It may be
+    # a list of 1 or of many.
+    for scrNum in range(len(stageScrs)):
+        # items 0 and 1 in the sublist are the location on the screen of the script.
+        # We don't care about that, obviously.  Item 2 is the actual code.
+        script = stageScrs[scrNum][2]
+        scrName = "Script" + str(scrNum)
+        if debug:
+            print(scrName + ":", script)
+
+        codeObj = genScriptCode(script, scrName)
+        ctorCode += codeObj.code
+        if codeObj.cbCode != "":
+            # The script generate callback code.
+            cbCode.append(codeObj.cbCode)
+
+
+    # Open file with correct name and generate code into there.
+    filename = os.path.join(PROJECT_DIR, spriteName + ".java")
+    print("Writing code to " + filename + ".")
+    outFile = open(filename, "w")
+    genHeaderCode(outFile, spriteName)
+    genConstructorCode(outFile, spriteName, ctorCode)
+    for code in cbCode:
+        outFile.write(code)
+
+    outFile.write("}\n")
+    outFile.close()
+
+
+# ----------------------- Create subclass of World ------------------------------
 
 
 #
@@ -1178,6 +1236,8 @@ outFile.close()
 projectFileCode += "class." + worldClassName + ".superclass=ScratchWorld\n"
 projectFileCode += "world.lastInstantiated=" + worldClassName + "\n"
 
+
+# ---------------------------------------------------------------------------
 # Now, add configuration information to the project.greenfoot file.
 
 # Open in append mode, since we'll be writing lines to the end.
@@ -1185,6 +1245,11 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as 
     projF.write("class.Scratch.superclass=greenfoot.Actor\n")
     projF.write("class.ScratchWorld.superclass=greenfoot.World\n")
     projF.write(projectFileCode)
+
+
+# ---------------------------------------------------------------------------
+# END
+# ---------------------------------------------------------------------------
     
 # TODO: if a user runs s2g.py multiple times, it will add repeated lines to
 # the project.greenfoot file.  That's bad, I imagine.

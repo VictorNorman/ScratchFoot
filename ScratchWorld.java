@@ -385,8 +385,8 @@ public class ScratchWorld extends World
     public double getTimer() 
     {
         long diff = System.currentTimeMillis() - startTime;
-        // divide by 100 (integer division) to get number of tenths of seconds.  Then divide by 10.0 to 
-        // get floating point result in seconds.
+        // divide by 100 (integer division) to get number of tenths of
+        // seconds. Then divide by 10.0 to get floating point result in seconds.
         return (diff / 100) / 10.0;
     }
 
