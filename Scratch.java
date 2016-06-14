@@ -1142,10 +1142,8 @@ public class Scratch extends Actor
         // Use lastImg if actor is hidden, as getImage returns null.
         if(isShowing == true) {
             oldImg = getImage();
-            System.out.println("Stamp shown");
         } else {
             oldImg = lastImg;
-            System.out.println(lastImg);
         }
         int w = oldImg.getWidth(), h = oldImg.getHeight();
         // System.out.println("image width: " + w + " height " + h);
