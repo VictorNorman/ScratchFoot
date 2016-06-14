@@ -66,6 +66,7 @@ public class Scratch extends Actor
     private int penColorNumber = 0;         // an integer that is mod 200 -- 0 to 199.
     private int penSize = 1;
     private int currCostume = 0;
+    private GreenfootImage lastImg = getImage();
     
     /*
      * this class is just a pairing of costume image with its name.
@@ -818,6 +819,10 @@ public class Scratch extends Actor
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
+        // Update lastImg to current image
+        if(getImage() != null) {
+            lastImg = getImage();
+        }
     }
 
     /**
@@ -1133,7 +1138,15 @@ public class Scratch extends Actor
 
         // But, this is even more complicated: when you make the new big square image, now
         // the offset from the upperleft corner to the middle will have changed...
-        GreenfootImage oldImg = getImage();
+        GreenfootImage oldImg;
+        // Use lastImg if actor is hidden, as getImage returns null.
+        if(isShowing == true) {
+            oldImg = getImage();
+            System.out.println("Stamp shown");
+        } else {
+            oldImg = lastImg;
+            System.out.println(lastImg);
+        }
         int w = oldImg.getWidth(), h = oldImg.getHeight();
         // System.out.println("image width: " + w + " height " + h);
         int newDim = w > h ? w : h;
