@@ -819,7 +819,7 @@ public class Scratch extends Actor
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
-	    // Update lastImg to current image
+        // Update lastImg to current image
         if(getImage() != null) {
             lastImg = getImage();
         }
@@ -1419,13 +1419,40 @@ public class Scratch extends Actor
      */
     public void ifOnEdgeBounce()
     {
+        
         if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - lastImg.getWidth() / 2 <= 0) {
             // hitting right edge or left edge
-            setRotation(180 - getRotation());
+            int oldDir = currDirection;
+            currDirection = (360 - currDirection) % 360;
+            if(rotationStyle == RotationStyle.ALL_AROUND) {
+                setRotation(180 - getRotation());
+            } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
+                if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
+                    // direction has changed, so flip the image.
+                    if (getImage() != null) {
+                        getImage().mirrorHorizontally();
+                    } else {
+                        lastImg.mirrorHorizontally();
+                    }
+                }
+            } 
         }
         if (super.getY() + lastImg.getHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - lastImg.getHeight() / 2 <= 0) {
             // hitting bottom or top
-            setRotation(360 - getRotation());
+            int oldDir = currDirection;
+            currDirection = (180 - currDirection) % 360;
+            if(rotationStyle == RotationStyle.ALL_AROUND) {
+                setRotation(360 - getRotation());
+            } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
+                if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
+                    // direction has changed, so flip the image.
+                    if (getImage() != null) {
+                        getImage().mirrorHorizontally();
+                    } else {
+                        lastImg.mirrorHorizontally();
+                    }
+                }
+            }
         }
     }
 
