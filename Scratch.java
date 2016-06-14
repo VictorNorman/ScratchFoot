@@ -819,7 +819,7 @@ public class Scratch extends Actor
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
-        // Update lastImg to current image
+	// Update lastImg to current image
         if(getImage() != null) {
             lastImg = getImage();
         }
@@ -1142,8 +1142,10 @@ public class Scratch extends Actor
         // Use lastImg if actor is hidden, as getImage returns null.
         if(isShowing == true) {
             oldImg = getImage();
+            System.out.println("Stamp shown");
         } else {
             oldImg = lastImg;
+            System.out.println(lastImg);
         }
         int w = oldImg.getWidth(), h = oldImg.getHeight();
         // System.out.println("image width: " + w + " height " + h);
@@ -1419,11 +1421,11 @@ public class Scratch extends Actor
      */
     public void ifOnEdgeBounce()
     {
-        if (super.getX() >= getWorld().getWidth() - 1 || super.getX() <= 0) {
+        if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - lastImg.getWidth() / 2 <= 0) {
             // hitting right edge or left edge
             setRotation(180 - getRotation());
         }
-        if (super.getY() >= getWorld().getHeight() - 1 || super.getY() <= 0) {
+        if (super.getY() + lastImg.getHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - lastImg.getHeight() / 2 <= 0) {
             // hitting bottom or top
             setRotation(360 - getRotation());
         }
