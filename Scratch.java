@@ -1476,7 +1476,7 @@ public class Scratch extends Actor
         }
 
         if (rs == RotationStyle.ALL_AROUND) {
-            setRotation(currDirection);
+            setRotation(currDirection - 90);
         } else if (rs == RotationStyle.LEFT_RIGHT) {
             if (isFacingLeft(currDirection)) {
                 img.mirrorHorizontally();
