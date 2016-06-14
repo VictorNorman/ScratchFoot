@@ -66,6 +66,7 @@ public class Scratch extends Actor
     private int penColorNumber = 0;         // an integer that is mod 200 -- 0 to 199.
     private int penSize = 1;
     private int currCostume = 0;
+    private GreenfootImage lastImg = getImage();
     
     /*
      * this class is just a pairing of costume image with its name.
@@ -818,6 +819,10 @@ public class Scratch extends Actor
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
+        // Update lastImg to current image
+        if(getImage() != null) {
+            lastImg = getImage();
+        }
     }
 
     /**
@@ -1133,7 +1138,13 @@ public class Scratch extends Actor
 
         // But, this is even more complicated: when you make the new big square image, now
         // the offset from the upperleft corner to the middle will have changed...
-        GreenfootImage oldImg = getImage();
+        GreenfootImage oldImg;
+        // Use lastImg if actor is hidden, as getImage returns null.
+        if(isShowing == true) {
+            oldImg = getImage();
+        } else {
+            oldImg = lastImg;
+        }
         int w = oldImg.getWidth(), h = oldImg.getHeight();
         // System.out.println("image width: " + w + " height " + h);
         int newDim = w > h ? w : h;
@@ -1408,13 +1419,40 @@ public class Scratch extends Actor
      */
     public void ifOnEdgeBounce()
     {
-        if (super.getX() >= getWorld().getWidth() - 1 || super.getX() <= 0) {
+        
+        if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - lastImg.getWidth() / 2 <= 0) {
             // hitting right edge or left edge
-            setRotation(180 - getRotation());
+            int oldDir = currDirection;
+            currDirection = (360 - currDirection) % 360;
+            if(rotationStyle == RotationStyle.ALL_AROUND) {
+                setRotation(180 - getRotation());
+            } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
+                if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
+                    // direction has changed, so flip the image.
+                    if (getImage() != null) {
+                        getImage().mirrorHorizontally();
+                    } else {
+                        lastImg.mirrorHorizontally();
+                    }
+                }
+            } 
         }
-        if (super.getY() >= getWorld().getHeight() - 1 || super.getY() <= 0) {
+        if (super.getY() + lastImg.getHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - lastImg.getHeight() / 2 <= 0) {
             // hitting bottom or top
-            setRotation(360 - getRotation());
+            int oldDir = currDirection;
+            currDirection = (180 - currDirection) % 360;
+            if(rotationStyle == RotationStyle.ALL_AROUND) {
+                setRotation(360 - getRotation());
+            } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
+                if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
+                    // direction has changed, so flip the image.
+                    if (getImage() != null) {
+                        getImage().mirrorHorizontally();
+                    } else {
+                        lastImg.mirrorHorizontally();
+                    }
+                }
+            }
         }
     }
 
@@ -1438,7 +1476,7 @@ public class Scratch extends Actor
         }
 
         if (rs == RotationStyle.ALL_AROUND) {
-            setRotation(currDirection);
+            setRotation(currDirection - 90);
         } else if (rs == RotationStyle.LEFT_RIGHT) {
             if (isFacingLeft(currDirection)) {
                 img.mirrorHorizontally();
