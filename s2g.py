@@ -156,9 +156,9 @@ def boolExpr(tokenList):
         elif arg == "_edge_":
             resStr += "(isTouchingEdge())"
         else:
-            raise ValueError(firstOp)
+            # touching another sprite
+            resStr += '(isTouching("' + tokenList[1] + '"))'
     elif firstOp == 'touchingColor:':
-        # TODO: this may not work if value from scratch is not compatible with java.
         resStr += "(isTouchingColor(new java.awt.Color(" + mathOp(tokenList[1]) + ")))"
     elif firstOp == 'keyPressed:':
         resStr += handleKeyPressed(tokenList[1])
@@ -236,6 +236,14 @@ def mathOp(tokenOrList):
         elif op == "sceneName":
             return "backdropName()"	# returns a str.
         				# TODO: Seems weird to have this in mathOp
+        elif op == "mousePressed":
+            return "isMouseDown()"
+        elif op == "mouseX":
+            return "getMouseX()"
+        elif op == "mouseY":
+            return "getMouseY()"
+        elif op == "timer":
+            return "getTimer()"
         else:
             return "NOT IMPL"
             
@@ -246,6 +254,25 @@ def mathOp(tokenOrList):
             return "Math.round((float) " + mathOp(tok1) + ")"
         elif op == "stringLength:":
             return "lengthOf(" + strExpr(tok1) + ")"
+        elif op == "distanceTo:":
+            if tok1 == "_mouse_":
+                return "distanceToMouse()"
+            else:   # must be distance to a sprite
+                # TODO: this call requires a Scratch object, not a string.  Make string available.
+                return 'distanceTo("' + tok1 + '")'
+        elif op == "getTimeAndDate":
+            if tok1 == "minute":
+                return 'getCurrentMinute()'
+            elif tok1 == "month":
+                return 'getCurrentMonth()'
+            elif tok1 == "second":
+                return 'getCurrentSecond()'
+            elif tok1 == "hour":
+                return 'getCurrentHour()'
+            elif tok1 == "year":
+                return 'getCurrentYear()'
+            else:
+                raise ValueError(tokenOrList)
         else:
             return "NOT IMPL2"
 
@@ -281,6 +308,8 @@ def mathOp(tokenOrList):
             "10 ^": "Math.pow(10, "
             }
         return op2Func[tok1] + mathOp(tok2) + ")"
+    elif op == "getAttribute:of:":
+        return getAttributeOf(tok1, tok2)
     else:
         assert op in ('+', '-', '*', '/', '%')
 
@@ -318,6 +347,23 @@ def cmpOp(op, tok1, tok2):
         raise ValueError(op)
     return resStr + mathOp(tok2) + ")"
 
+def getAttributeOf(tok1, tok2):
+    """Return code to handle the various getAttributeOf calls
+    from the sensing block.
+    """
+    mapping = { 'x position': 'xPositionOf',
+                'y position': 'yPositionOf',
+                'direction': 'directionOf',
+                'costume #': 'costumeNumberOf',
+                'costume name': 'costumeNameOf',   # TODO: implement this.
+                'size': 'sizeOf',
+                }
+    if tok1 in mapping:
+        return mapping[tok1] + '("' + tok2 + '")'
+    elif tok1 ==  'backdrop name':
+        return 'backdropName()'
+    else:   # volumeOf, backdropNumberOf
+        return 'NOTIMPLEMENTED()'
 
 def whenFlagClicked(codeObj, tokens):
     """Generate code to handle the whenFlagClicked block.
@@ -1250,7 +1296,8 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as 
 # ---------------------------------------------------------------------------
 # END
 # ---------------------------------------------------------------------------
-    
+
+
 # TODO: if a user runs s2g.py multiple times, it will add repeated lines to
 # the project.greenfoot file.  That's bad, I imagine.
 # One solution is to back up the project.greenfoot file before editing and
