@@ -159,7 +159,7 @@ def boolExpr(tokenList):
             # touching another sprite
             resStr += '(isTouching("' + tokenList[1] + '"))'
     elif firstOp == 'touchingColor:':
-        resStr += "(isTouchingColor(new java.awt.Color(" + mathOp(tokenList[1]) + ")))"
+        resStr += "(isTouchingColor(new java.awt.Color(" + mathExpr(tokenList[1]) + ")))"
     elif firstOp == 'keyPressed:':
         resStr += handleKeyPressed(tokenList[1])
     elif firstOp == 'mousePressed':
@@ -206,13 +206,20 @@ def strExpr(tokenOrList):
         return '"' + str(tokenOrList) + '"'
     else:
         # TODO: ??? Not sure about this...
-        return mathOp(tokenOrList) + '"' + str(res) + '"'
+        return mathExpr(tokenOrList) + '"' + str(res) + '"'
 
 
-def mathOp(tokenOrList):
+def mathExpr(tokenOrList):
+
+    if isinstance(tokenOrList, str):
+        # make the string be a java string literal
+        return '"' + tokenOrList + '"'
 
     if not isinstance(tokenOrList, list):
+        # It is a value.
         # TODO: get rid of convertToNumber totally?
+
+        # make it a string because everything we return is a string.
         return str(convertToNumber(tokenOrList))
 
     # It is a list, so it is a math expression.
@@ -235,7 +242,7 @@ def mathOp(tokenOrList):
             return "size()"
         elif op == "sceneName":
             return "backdropName()"	# returns a str.
-        				# TODO: Seems weird to have this in mathOp
+        				# TODO: Seems weird to have this in mathExpr
         elif op == "mousePressed":
             return "isMouseDown()"
         elif op == "mouseX":
@@ -244,6 +251,8 @@ def mathOp(tokenOrList):
             return "getMouseY()"
         elif op == "timer":
             return "getTimer()"
+        elif op == "timeStamp":		# TODO: daysSince2000 in scratch.  float result
+            return "daysSince2000 not implemented"
         else:
             return "NOT IMPL"
             
@@ -251,7 +260,7 @@ def mathOp(tokenOrList):
         # Handle cases of operations that take 1 argument.
         op, tok1 = tokenOrList
         if op == "rounded":
-            return "Math.round((float) " + mathOp(tok1) + ")"
+            return "Math.round((float) " + mathExpr(tok1) + ")"
         elif op == "stringLength:":
             return "lengthOf(" + strExpr(tok1) + ")"
         elif op == "distanceTo:":
@@ -271,6 +280,10 @@ def mathOp(tokenOrList):
                 return 'getCurrentHour()'
             elif tok1 == "year":
                 return 'getCurrentYear()'
+            elif tok1 == 'day of week':
+                return 'getCurrentDayOfWeek()'
+            elif tok1 == 'date':
+                return 'getCurrentDate()'
             else:
                 raise ValueError(tokenOrList)
         else:
@@ -283,9 +296,9 @@ def mathOp(tokenOrList):
     # ops (value op value).
     if op == 'randomFrom:to:':
         # tok1 and tok2 may be math expressions.
-        return "pickRandom(" + mathOp(tok1) + ", " + mathOp(tok2) + ")"
+        return "pickRandom(" + mathExpr(tok1) + ", " + mathExpr(tok2) + ")"
     elif op == "letter:of:":
-        return "letterNOf(" + strExpr(tok2) + ", " + mathOp(tok1) + ")"
+        return "letterNOf(" + strExpr(tok2) + ", " + mathExpr(tok1) + ")"
     elif op == "concatenate:with:":
         return "join(" + strExpr(tok1) + ", " + strExpr(tok2) + ")"
     elif op == "computeFunction:of:":
@@ -307,13 +320,13 @@ def mathOp(tokenOrList):
             "e ^": "Math.exp(",
             "10 ^": "Math.pow(10, "
             }
-        return op2Func[tok1] + mathOp(tok2) + ")"
+        return op2Func[tok1] + mathExpr(tok2) + ")"
     elif op == "getAttribute:of:":
         return getAttributeOf(tok1, tok2)
     else:
         assert op in ('+', '-', '*', '/', '%')
 
-    resStr = "(" + mathOp(tok1)
+    resStr = "(" + mathExpr(tok1)
     if op == '+':
         resStr += " + "
     elif op == '-':
@@ -326,7 +339,7 @@ def mathOp(tokenOrList):
         resStr += " % "
     else:
         raise ValueError(op)
-    resStr += mathOp(tok2) + ")"
+    resStr += mathExpr(tok2) + ")"
     return resStr
 
 
@@ -336,7 +349,7 @@ def cmpOp(op, tok1, tok2):
     if debug:
         print("cmpOp: op is ", op, "tok1", tok1, "tok2", tok2)
 
-    resStr = "(" + mathOp(tok1)
+    resStr = "(" + mathExpr(tok1)
     if op == '<':
         resStr += " < "
     elif op == '>':
@@ -345,7 +358,7 @@ def cmpOp(op, tok1, tok2):
         resStr += " == "
     else:
         raise ValueError(op)
-    return resStr + mathOp(tok2) + ")"
+    return resStr + mathExpr(tok2) + ")"
 
 def getAttributeOf(tok1, tok2):
     """Return code to handle the various getAttributeOf calls
@@ -382,7 +395,7 @@ def whenFlagClicked(codeObj, tokens):
     # Add two blank lines before each method definition.
     cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                     "(Sequence s)\n"
-    cbStr += block(level, tokens)
+    cbStr += block(level, tokens) + "\n"  # add blank line after defn.
     codeObj.addToCbCode(cbStr)
 
 
@@ -391,7 +404,7 @@ def whenSpriteClicked(codeObj, tokens):
     All code in tokens goes into a callback.
     """
     scriptNum = codeObj.getNextScriptId()
-    # Build a name like whenFlagClickedCb0 
+    # Build a name like whenSpriteClickedCb0 
     cbName = 'whenSpriteClickedCb' + str(scriptNum)
 
     # Code in the constructor is always level 2.
@@ -403,7 +416,7 @@ def whenSpriteClicked(codeObj, tokens):
     # Add two blank lines before each method definition.
     cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                     "(Sequence s)\n"
-    cbStr += block(level, tokens)
+    cbStr += block(level, tokens) + "\n"  # add blank line after defn.
     codeObj.addToCbCode(cbStr)
 
 
@@ -423,7 +436,7 @@ def whenSpriteCloned(codeObj, tokens):
     # Add two blank lines before each method definition.
     cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                     "(Sequence s)\n"
-    cbStr += block(level, tokens)
+    cbStr += block(level, tokens) + "\n"  # add blank line after defn.
     codeObj.addToCbCode(cbStr)
 
 
@@ -448,7 +461,7 @@ def whenKeyPressed(codeObj, key, tokens):
     # Add two blank lines before each method definition.
     cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
             "(Sequence s)\n"
-    cbStr += block(level, tokens)
+    cbStr += block(level, tokens) + "\n"  # add blank line after defn.
 
     codeObj.addToCbCode(cbStr)
 
@@ -474,7 +487,7 @@ def whenIReceive(codeObj, message, tokens):
     # All cb code is at level 1
     cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
     cbStr += block(1, tokens)
-    codeObj.addToCbCode(cbStr)
+    codeObj.addToCbCode(cbStr) + "\n"  # add blank line after defn.
 
 
 def doForever(level, tokens):
@@ -539,20 +552,20 @@ def motion1Arg(level, tokens):
     assert len(tokens) == 2
     cmd, arg = tokens
     if cmd == "forward:":
-        return genIndent(level) + "move(" + mathOp(arg) + ");\n"
+        return genIndent(level) + "move(" + mathExpr(arg) + ");\n"
     elif cmd == "turnRight:":
-        return genIndent(level) + "turnRightDegrees((int) " + mathOp(arg) + ");\n"
+        return genIndent(level) + "turnRightDegrees((int) " + mathExpr(arg) + ");\n"
         # TODO: be nice to get rid of the (int)
-        # but would require knowing if mathOp is
+        # but would require knowing if mathExpr is
         # returning an int type or float...
         # OR, add turnRightDegrees(float) and convert it.
     elif cmd == "turnLeft:":
-        return genIndent(level) + "turnLeftDegrees((int) " + mathOp(arg) + ");\n"
+        return genIndent(level) + "turnLeftDegrees((int) " + mathExpr(arg) + ");\n"
         # TODO: be nice to get rid of the (int)
-        # but would require knowing if mathOp is
+        # but would require knowing if mathExpr is
         # returning an int type or float...
     elif cmd == "heading:":
-        return genIndent(level) + "pointInDirection((int) " + mathOp(arg) + ");\n"
+        return genIndent(level) + "pointInDirection((int) " + mathExpr(arg) + ");\n"
     elif cmd == "gotoSpriteOrMouse:":
         if arg == "_mouse_":
             return genIndent(level) + "goToMouse();\n"
@@ -560,13 +573,13 @@ def motion1Arg(level, tokens):
             return genIndent(level) + "// goToSprite(): not implemented yet.\n"
         # TODO: Looks like there is something new: gotoRandomPosition()
     elif cmd == "changeXposBy:":
-        return genIndent(level) + "changeXBy((int) " + mathOp(arg) + ");\n"
+        return genIndent(level) + "changeXBy((int) " + mathExpr(arg) + ");\n"
     elif cmd == "xpos:":
-        return genIndent(level) + "setXTo((int) " + mathOp(arg) + ");\n" 
+        return genIndent(level) + "setXTo((int) " + mathExpr(arg) + ");\n" 
     elif cmd == "changeYposBy:":
-        return genIndent(level) + "changeYBy((int) " + mathOp(arg) + ");\n"
+        return genIndent(level) + "changeYBy((int) " + mathExpr(arg) + ");\n"
     elif cmd == "ypos:":
-        return genIndent(level) + "setYTo((int) " + mathOp(arg) + ");\n"
+        return genIndent(level) + "setYTo((int) " + mathExpr(arg) + ");\n"
     elif cmd == "setRotationStyle":
         resStr = genIndent(level) + "setRotationStyle("
         if arg == "left-right":
@@ -585,8 +598,8 @@ def motion2Arg(level, tokens):
     gotoX:y:, etc."""
     cmd, arg1, arg2 = tokens
     if cmd == "gotoX:y:":
-        return genIndent(level) + "goto((int) " + mathOp(arg1) + \
-               ", (int) " + mathOp(arg2) + ");\n"
+        return genIndent(level) + "goto((int) " + mathExpr(arg1) + \
+               ", (int) " + mathExpr(arg2) + ");\n"
     else:
         raise ValueError(cmd)
 
@@ -606,7 +619,7 @@ def sayForSecs(level, tokens):
     cmd, arg1, arg2 = tokens
     assert cmd == 'say:duration:elapsed:from:'
     return genIndent(level) + "sayForNSeconds(s, " + strExpr(arg1) + ", (double)" + \
-           mathOp(arg2) + ");\n"
+           mathExpr(arg2) + ");\n"
 
 def say(level, tokens):
     """Generate code to handle say <str>.
@@ -658,14 +671,14 @@ def changeSizeBy(level, tokens):
     """
     cmd, arg1 = tokens
     assert cmd == "changeSizeBy"
-    return genIndent(level) + "changeSizeBy((int) " + mathOp(arg1) + ");\n"
+    return genIndent(level) + "changeSizeBy((int) " + mathExpr(arg1) + ");\n"
 
 def setSizeTo(level, tokens):
     """Generate code to change the size of the sprite to a certain percentage
     """
     cmd, arg1 = tokens
     assert cmd == "setSizeTo:"
-    return genIndent(level) + "setSizeTo((int) " + mathOp(arg1) + ");\n"
+    return genIndent(level) + "setSizeTo((int) " + mathExpr(arg1) + ");\n"
 
 def goToFront(level, tokens):
     """Generate code to move the sprite to the front
@@ -678,7 +691,7 @@ def goBackNLayers(level, tokens):
     """
     cmd, arg1 = tokens
     assert cmd == "goBackByLayers:"
-    return genIndent(level) + "goBackNLayers((int) " + mathOp(arg1) + ");\n"
+    return genIndent(level) + "goBackNLayers((int) " + mathExpr(arg1) + ");\n"
 
 
     
@@ -715,12 +728,12 @@ def pen1Arg(level, tokens):
         # "color".  If the order of rgb in the number from scratch is
         # correct, we can inline the creation of the color object to solve
         # this problem. 
-        resStr += "java.awt.Color color = new java.awt.Color((int) " + mathOp(arg) + ");\n"
+        resStr += "java.awt.Color color = new java.awt.Color((int) " + mathExpr(arg) + ");\n"
         return resStr + genIndent(level) + "setPenColor(color);\n"
     elif cmd == "changePenHueBy:":
-        return resStr + "changePenColorBy(" + mathOp(arg) + ");\n"
+        return resStr + "changePenColorBy(" + mathExpr(arg) + ");\n"
     elif cmd == "setPenHueTo:":
-        return resStr + "setPenColor(" + mathOp(arg) + ");\n"
+        return resStr + "setPenColor(" + mathExpr(arg) + ");\n"
     else:
         raise ValueError(cmd)
 
@@ -753,7 +766,7 @@ def doAsk(level, tokens):
 def doWait(level, tokens):
     """Generate a wait call."""
     assert len(tokens) == 2 and tokens[0] == "wait:elapsed:from:"
-    return genIndent(level) + "wait(s, " + mathOp(tokens[1]) + ");\n"
+    return genIndent(level) + "wait(s, " + mathExpr(tokens[1]) + ");\n"
 
 def doRepeat(level, tokens):
     """Generate a repeat <n> times loop.
@@ -761,7 +774,7 @@ def doRepeat(level, tokens):
     assert len(tokens) == 3 and tokens[0] == "doRepeat"
 
     retStr = genIndent(level) + "for (int i = 0; i < " + \
-             mathOp(tokens[1]) + "; i++)\n"
+             mathExpr(tokens[1]) + "; i++)\n"
     retStr += genIndent(level) + "{\n"
     retStr += stmts(level, tokens[2])
     retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
@@ -829,7 +842,112 @@ def deleteThisClone(level, tokens):
     """
     assert len(tokens) == 1 and tokens[0] == "deleteClone"
     return genIndent(level) + "deleteThisClone();\n"
-    
+
+
+def resetTimer(level, tokens):
+    return genIndent(level) + "resetTimer();\n"
+
+
+def genProcDefCode(codeObj, tokens):
+    """Generate code for a custom block definition in Scratch.
+    All the generated code goes into codeObj's cbCode since it doesn't
+    belong in the constructor.
+    """
+    # Tokens is like this:
+    # [["procDef", "name", [list of param-names], [list of values (not used)], false],
+    #  [code here]]
+
+    print("===========")
+    print(tokens)
+    decl = tokens[0]
+    code = tokens[1:]
+    # blockName and param types: e.g., block3args %n %s %b
+    blockAndParamTypes = decl[1]    
+    paramNames = decl[2]
+
+    # TODO: need to sanitize blockName, paramNames, etc.
+
+    # Need to split up blockAndParamTypes to extract the name of the
+    # procedure and the types of the parameters.
+    # The name of the procedure can have spaces, and there can be words
+    # in the middle of the param specs.
+    # Examples:
+    # "aBlock"  -- no params
+    # "a block" -- no params, but name has spaces
+    # "block2args %n %n" -- 2 "number" params.  We'll use float for all
+    #     numbers.
+    # "blockwithtext %s a word or four %b" -- 2 params, a string and a
+    #     boolean and words in the middle.
+
+    # For now we'll just take the first words before the first % sign and
+    # remove spaces and make that the procedure name.
+    # TODO: somehow append words in the middle of the param list into the
+    # name of the procedure.
+    #
+    paramTypes = []
+    idx = 0
+    # Look from beginning until we see a %.  The first part is the blockName.
+    blockName = ""
+    while idx < len(blockAndParamTypes):
+        if blockAndParamTypes[idx] == "%":
+            break
+        blockName += blockAndParamTypes[idx]
+        idx += 1
+    # Trim off any trailing spaces in blockName
+    blockName = blockName.strip()
+
+    # Now, scanning through %? and words, which we'll drop for now.
+    while idx < len(blockAndParamTypes):
+        # TODO: rewrite this with str.find() or str.index().
+        if blockAndParamTypes[idx] == "%":
+            # Now, we are looking at %.  Must be %s, %b, or %n.
+            idx += 1
+            if blockAndParamTypes[idx] == "s":
+                paramTypes.append("String")
+            elif blockAndParamTypes[idx] == "b":
+                paramTypes.append("boolean")
+            elif blockAndParamTypes[idx] == "n":
+                paramTypes.append("float")	# TODO: probably usually int
+            else:
+                raise ValueError("unknown Block param type %" +
+                                 blockAndParamTypes[idx])
+        # eat up everything else.
+        idx += 1
+    assert len(paramTypes) == len(paramNames)
+
+    codeObj.addToCbCode(genIndent(1) + "private void " + blockName + "(")
+
+    for i in range(len(paramTypes)):
+        codeObj.addToCbCode(paramTypes[i] + " " + paramNames[i])
+        # Add following ", " if not add end of list.
+        if i < len(paramTypes) - 1:
+            codeObj.addToCbCode(", ")
+
+    codeObj.addToCbCode(")\n")
+    codeObj.addToCbCode(block(1, code))
+    codeObj.addToCbCode("\n")	# add blank line after function defn.
+    return codeObj
+
+def callABlock(level, tokens):
+    """Generate a call to a custom-defined block.
+    Format of tokens is: ["call", "blockToCall", param code]
+    blockToCall has the param type specs in it: "blockToCall %n %s %b"
+    We need to strip these out.
+    """
+    func2Call = tokens[1]
+    firstPercent = func2Call.find("%")
+    if firstPercent == -1:
+        assert len(tokens) == 2    # just "call" and "blockToCall"
+        return genIndent(level) + func2Call + "();\n"
+    func2Call = func2Call[0:firstPercent]
+    func2Call = func2Call.strip()	# remove trailing blanks.
+
+    resStr = genIndent(level) + func2Call + "("
+    for i in range(2, len(tokens) - 1):
+        resStr += mathExpr(tokens[i]) + ", "
+    resStr += mathExpr(tokens[-1]) + ");\n"
+    return resStr
+
 
 scratchStmt2genCode = {
     'doIf': doIf,
@@ -890,6 +1008,10 @@ scratchStmt2genCode = {
 
     # Sensing commands
     'doAsk': doAsk,
+    'timerReset': resetTimer,
+
+    # Blocks commands
+    'call': callABlock,
 
     'changeVar:by:': bogusFunc,
     }
@@ -991,61 +1113,32 @@ def genScriptCode(script, scrName):
     """
 
     codeObj = CodeAndCb()	# Holds all the code that is generated.
+
+    # Add a comment to each section of code indicating where
+    # the code came from -- if we aren't generating code for a
+    # custom block.
+    if not (isinstance(script[0], list) and script[0][0] == 'procDef'):
+        codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
+
     # script is a list of these: [[cmd] [arg] [arg]...]
     # The script starts with whenGreenFlag, whenSpriteClicked, etc. --
     # the "hat" blocks.
     if script[0] == ['whenGreenFlag']:
-        print("Calling stmts with ", script[1:])
-
-        # Add a comment to each section of code indicating where
-        # the code came from.
-        codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
         whenFlagClicked(codeObj, script[1:])
-        if codeObj.cbCode != "":
-            if debug:
-                print("main: stmts() called generated this cb code:\n" +
-                      codeObj.cbCode)
     elif script[0] == ['whenCloned']:
-        # Add a comment to each section of code indicating where
-        # the code came from.
-        codeObj.code += genIndent(2) + "// Code from Script " + \
-                        str(scrNum) + "\n"
         whenSpriteCloned(codeObj, script[1:])
-        if codeObj.cbCode != "":
-            if debug:
-                print("main: stmts() called generated this cb code:\n" +
-                      codeObj.cbCode)
     elif script[0] == ['whenClicked']:
-        # Add a comment to each section of code indicating where
-        # the code came from.
-        codeObj.code += genIndent(2) + "// Code from Script " + \
-                        str(scrNum) + "\n"
         whenSpriteClicked(codeObj, script[1:])
-        if codeObj.cbCode != "":
-            if debug:
-                print("main: stmts() called generated this cb code:\n" +
-                      codeObj.cbCode)
     elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
-        # pass in the key that we are waiting for, and the code to run
-        # Add a comment to each section of code indicating where
-        # the code came from.
-        codeObj.code += genIndent(2) + "// Code from Script " + \
-                        str(scrNum) + "\n"
         whenKeyPressed(codeObj, script[0][1], script[1:])
-
-        if codeObj.cbCode != "":
-            if debug:
-                print("main: stmts() called generated this cb code:\n" +
-                      codeObj.cbCode)
     elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
-        codeObj.code += genIndent(2) + "// Code from Script " + \
-                        str(scrNum) + "\n"
         whenIReceive(codeObj, script[0][1], script[1:])
-
-        if codeObj.cbCode != "":
-            if debug:
-                print("main: stmts() called generated this cb code:\n" +
-                      codeObj.cbCode)
+    elif isinstance(script[0], list) and script[0][0] == 'procDef':
+        # Defining a procedure in Scratch.
+        genProcDefCode(codeObj, script)
+    else:
+        raise ValueError(script[0])
+    
 
     # TODO: need to implement whenSwitchToBackdrop in
     # Scratch.java and add code here to handle it.
