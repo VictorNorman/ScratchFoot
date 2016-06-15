@@ -67,6 +67,7 @@ public class Scratch extends Actor
     private int penSize = 1;
     private int currCostume = 0;
     private GreenfootImage lastImg = getImage();
+    private boolean isFlipped = false;      // tracks whether the image is flipped due to LEFT_RIGHT rotation.
     
     /*
      * this class is just a pairing of costume image with its name.
@@ -820,7 +821,7 @@ public class Scratch extends Actor
             sayActorUpdateLocation();
         }
         // Update lastImg to current image
-        if(getImage() != null) {
+        if (getImage() != null) {
             lastImg = getImage();
         }
     }
@@ -1140,7 +1141,7 @@ public class Scratch extends Actor
         // the offset from the upperleft corner to the middle will have changed...
         GreenfootImage oldImg;
         // Use lastImg if actor is hidden, as getImage returns null.
-        if(isShowing == true) {
+        if (isShowing) {
             oldImg = getImage();
         } else {
             oldImg = lastImg;
@@ -1298,30 +1299,16 @@ public class Scratch extends Actor
      * turn the sprite clockwise by the given degrees.
      */
     public void turnRightDegrees(int degrees) {
-        int oldDir = currDirection;
-        currDirection = (currDirection + degrees) % 360;
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            turn(degrees);
-        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-            if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                getImage().mirrorHorizontally();
-            }
-        } // else for DONT_ROTATE: nothing to do.
+        currDirection += degrees;
+        setRotation(currDirection);
     }
 
     /**
      * turn the sprite counter-clockwise by the given degrees.
      */
     public void turnLeftDegrees(int degrees) { 
-        int oldDir = currDirection;
-        currDirection = (currDirection - degrees) % 360;
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            turn(-degrees);
-        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-            if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                getImage().mirrorHorizontally();
-            }
-        } // else for DONT_ROTATE: nothing to do.turn(-degrees); 
+        currDirection -= degrees;
+        setRotation(currDirection);
     }
 
     /**
@@ -1330,30 +1317,64 @@ public class Scratch extends Actor
      */
     public void pointInDirection(int dir) 
     {
-        dir %= 360;   // get rid of extra rotations.
-
-        // store the current direction (in Scratch orientation)
-        int oldDir = currDirection;
-        currDirection = dir;   
-
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            // subtract 90 because 0 is up for Scratch, but to the east for Greenfoot.
-            setRotation(dir - 90);
-        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-            // Only face directly left or right.
-
-            if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                // direction has changed, so flip the image.
-                getImage().mirrorHorizontally();  
-            }
-
-            // Note: no need to store changed image in currCostumes as they refer
-            // to the same image in memory anyway.
-
-            displayCostume();
-        } // DONT_ROTATE: do nothing.
+        currDirection = dir;
+        setRotation(currDirection);
     }
-
+    
+    /**
+     * Override for setRotation to handle Rotation Styles more succinctly
+     *
+     */
+    public void setRotation(int rotation)
+    {
+        // Ensure that rotation and currDirection are between 0 and 360
+        if (rotation < 0) {
+            rotation += 360;
+        }
+        if (currDirection < 0) {
+            currDirection += 360;
+        }
+        rotation %= 360;
+        currDirection %= 360;
+        
+        // rotation Style logic unified from all methods involving rotation
+        if (rotationStyle == RotationStyle.ALL_AROUND) {
+            super.setRotation(rotation - 90);
+            isFlipped = false;
+        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
+            if (isFacingLeft(currDirection)) {
+                super.setRotation(180);
+                // check if image should be flipped
+                if (!isFlipped) {
+                    // if image is null use lastImg instead so stamping works properly
+                    if (getImage() != null) {
+                        getImage().mirrorVertically();
+                    } else {
+                        lastImg.mirrorVertically();
+                    }
+                    isFlipped = true;
+                }
+            } else {
+                super.setRotation(0);
+                // check if image should be unflipped
+                if (isFlipped) {
+                    // if image is null use lastImg instead so stamping works properly
+                    if (getImage() != null) {
+                        getImage().mirrorVertically();
+                    } else {
+                        lastImg.mirrorVertically();
+                    }
+                    isFlipped = false;
+                }
+            }
+        } else {
+            super.setRotation(0);
+            isFlipped = false;
+        }
+    }
+    
+    
+    
     /**
      * return the direction the sprite is pointed in.  Note that the sprite/actor
      * may not look like it is facing this way, due to the rotation style that is set.
@@ -1375,14 +1396,7 @@ public class Scratch extends Actor
         int oldDir = currDirection;
         currDirection = (int) degrees + 90;   // convert to Scratch orientation
 
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            setRotation((int) degrees);
-        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-            if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                // direction has changed, so flip the image.
-                getImage().mirrorHorizontally();  
-            }
-        }  // else DONT_ROTATE: do nothing
+        setRotation(currDirection);
 
         // TODO: need displayCostume() call?
     }
@@ -1403,14 +1417,7 @@ public class Scratch extends Actor
         int oldDir = currDirection;
         currDirection = (int) degrees + 90;   // convert to Scratch orientation
 
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            setRotation((int) degrees);
-        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-            if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                // direction has changed, so flip the image.
-                getImage().mirrorHorizontally();  
-            }
-        }  // else DONT_ROTATE: do nothing
+        setRotation(currDirection);
     }
 
     /**
@@ -1420,39 +1427,31 @@ public class Scratch extends Actor
     public void ifOnEdgeBounce()
     {
         
-        if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - lastImg.getWidth() / 2 <= 0) {
-            // hitting right edge or left edge
-            int oldDir = currDirection;
+        if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 ) {
+            // hitting right edge
             currDirection = (360 - currDirection) % 360;
-            if(rotationStyle == RotationStyle.ALL_AROUND) {
-                setRotation(180 - getRotation());
-            } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-                if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                    // direction has changed, so flip the image.
-                    if (getImage() != null) {
-                        getImage().mirrorHorizontally();
-                    } else {
-                        lastImg.mirrorHorizontally();
-                    }
-                }
-            } 
+            setRotation(currDirection);
+            // prevent actor from getting stuck on the edge by pushing it out
+            changeXBy(-((super.getX() + lastImg.getWidth() / 2) - (getWorld().getWidth() - 1)) - 1); 
+        } else if (super.getX() - lastImg.getWidth() / 2 <= 0) {
+            // hitting left edge
+            currDirection = (360 - currDirection) % 360;
+            setRotation(currDirection);
+            // prevent actor from getting stuck on the edge by pushing it out
+            changeXBy(-(super.getX() - lastImg.getWidth() / 2) + 1);
         }
-        if (super.getY() + lastImg.getHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - lastImg.getHeight() / 2 <= 0) {
-            // hitting bottom or top
-            int oldDir = currDirection;
+        if (super.getY() + lastImg.getHeight() / 2 >= getWorld().getHeight() - 1) {
+            // hitting top
             currDirection = (180 - currDirection) % 360;
-            if(rotationStyle == RotationStyle.ALL_AROUND) {
-                setRotation(360 - getRotation());
-            } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-                if (isFacingLeft(oldDir) != isFacingLeft(currDirection)) {
-                    // direction has changed, so flip the image.
-                    if (getImage() != null) {
-                        getImage().mirrorHorizontally();
-                    } else {
-                        lastImg.mirrorHorizontally();
-                    }
-                }
-            }
+            setRotation(currDirection);
+            // prevent actor from getting stuck on the edge by pushing it out
+            changeYBy(((super.getY() + lastImg.getHeight() / 2) - (getWorld().getHeight() - 1)) + 1);
+        } else if (super.getY() - lastImg.getHeight() / 2 <= 0) {
+            // hitting bottom
+            currDirection = (180 - currDirection) % 360;
+            setRotation(currDirection);
+            // prevent actor from getting stuck on the edge by pushing it out
+            changeYBy((super.getY() - lastImg.getHeight() / 2) - 1);
         }
     }
 
@@ -1475,22 +1474,12 @@ public class Scratch extends Actor
                 (int) (img.getHeight() * (costumeSize / 100.0F)));
         }
 
-        if (rs == RotationStyle.ALL_AROUND) {
-            setRotation(currDirection - 90);
-        } else if (rs == RotationStyle.LEFT_RIGHT) {
-            if (isFacingLeft(currDirection)) {
-                img.mirrorHorizontally();
-            }
-            setRotation(0);    // TODO: necessary?  This is facing right.
-        } else {    // DONT_ROTATE: always face right.
-            setRotation(0);
-        }
-
         // No need to rotate the image.  Rotation is a property of the Actor, not the image,
         // so when you switch images they are rotated automatically (just like Scratch as
         // it turns out).
         costumes.set(currCostume, new Costume(img, costumes.get(currCostume).name));
         displayCostume();
+        setRotation(currDirection);
     }
 
     /**
@@ -1684,6 +1673,10 @@ public class Scratch extends Actor
     {
         isShowing = true;
         displayCostume();
+        // ensure that image is oriented properly if rotation style was changed while invisible
+        if (!lastImg.equals(getImage()) && isFlipped) {
+            getImage().mirrorVertically();
+        }
     }
 
     /**
