@@ -1431,7 +1431,7 @@ public class Scratch extends Actor
     public void ifOnEdgeBounce()
     {
         
-        if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 ) {
+        if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1) {
             // hitting right edge
             currDirection = (360 - currDirection) % 360;
             setRotation(currDirection);
@@ -1864,8 +1864,8 @@ public class Scratch extends Actor
      */
     public boolean isTouchingEdge()
     {
-        return (super.getX() >= getWorld().getWidth() - 1 || super.getX() <= 0 || 
-            super.getY() >= getWorld().getHeight() - 1 || super.getY() <= 0);
+        return (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - lastImg.getWidth() / 2 <= 0 || 
+            super.getY() + lastImg.getHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - lastImg.getHeight() / 2 <= 0);
     }
 
     /**
