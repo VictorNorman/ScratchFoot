@@ -1207,6 +1207,10 @@ public class Scratch extends Actor
      */
     public void glideTo(Sequence s, double duration, int x, int y)
     {
+        if (duration < .02) {
+            goTo(x, y);
+            return;
+        }
         duration *= 1000.0;   // convert to milliseconds.
         int begX = super.getX();  // get original X, Y in Greenfoot coordinates
         int begY = super.getY();
