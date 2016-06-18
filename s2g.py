@@ -39,6 +39,13 @@ NUM_SPACES_PER_LEVEL = 4
 # "*" for multiplication: values are numbers, not strings.
 
 
+# A global dictionary mapping (spriteName, variableName) --> variableType.
+# We need this so we can generate code that calls the correct
+# functions to generate the correct type of results.
+# E.g., if a variable is boolean, we'll call boolExpr()
+# from setVariables(), not mathExpr().
+varTypes = {}
+
 class CodeAndCb:
     """This class binds together code, and possibly code that that code
     will call that belongs in a callback."""
@@ -148,7 +155,14 @@ def boolExpr(tokenList):
         resStr += "! " + boolExpr(tokenList[1])
     elif firstOp in ('<', '>', '='):
         assert len(tokenList) == 3
-        resStr += cmpOp(firstOp, tokenList[1], tokenList[2])
+        resStr += "(" + mathExpr(tokenList[1])
+        if firstOp == '<':
+            resStr += " < "
+        elif firstOp == '>':
+            resStr += " > "
+        else: 	# must be ' = '
+            resStr += " == "
+        resStr += mathExpr(tokenList[2]) + ")"
     elif firstOp == 'touching:':
         arg = tokenList[1]
         if arg == "_mouse_":
@@ -188,6 +202,9 @@ def handleKeyPressed(keyname):
 
 
 def convertToNumber(tok):
+    if isinstance(tok, (float, int)):
+        return tok
+    # Try to convert the string/bool, etc., to an integer.
     try:
         val = int(tok)
     except ValueError:
@@ -199,30 +216,52 @@ def convertToNumber(tok):
 
 
 def strExpr(tokenOrList):
+    """Evaluate a string-producing expression (or literal).
+    """
     if debug:
         print("strExpr: tokenOrList is", tokenOrList)
-    if not isinstance(tokenOrList, list):
-        # Print it out as a Java string with double quotes.
-        return '"' + str(tokenOrList) + '"'
-    else:
-        # TODO: ??? Not sure about this...
-        return mathExpr(tokenOrList) + '"' + str(res) + '"'
 
+    if isinstance(tokenOrList, str):
+        # Wrap in double quotes like Java.
+        return '"' + str(tokenOrList) + '"'
+
+    if len(tokenOrList) == 1:
+        # Handle built-in variables.
+        op = tokenOrList[0]
+        if op == "sceneName":
+            return "backdropName()"
+        elif op == "username":
+            return "username NOT IMPLEMENTED"
+        else:
+            raise ValueError("Unknown string operator " + op)
+    if len(tokenOrList) == 3:
+        op, tok1, tok2 = tokenOrList	
+        if op == "concatenate:with:":
+            # This is a little strange because I know you can join a string
+            # with an integer literal or expression result in Scratch.
+            return "join(" + strExpr(tok1) + ", " + strExpr(tok2) + ")"
+        elif op == "letter:of:":
+            return "letterNOf(" + strExpr(tok2) + ", " + mathExpr(tok1) + ")"
+        else:
+            raise ValueError("Unknown string operator " + op)
+    raise ValueError("Unknown string operator " + tokenOrList[0])
 
 def mathExpr(tokenOrList):
 
     if isinstance(tokenOrList, str):
-        # make the string be a java string literal
-        return '"' + tokenOrList + '"'
+        # We have a literal value that is a string.  We should convert it
+        # to an integer, if possible.
+        # This is to cover cases like if you have (in Scratch) x position <
+        # 0: Scratch give us "0" in the json.
+        # (Convert to str() because everything we return is a str.)
+        return str(int(tokenOrList))
 
     if not isinstance(tokenOrList, list):
-        # It is a value.
-        # TODO: get rid of convertToNumber totally?
-
+        # It is NOT an expression and not a string (handled above).
         # make it a string because everything we return is a string.
         return str(convertToNumber(tokenOrList))
 
-    # It is a list, so it is a math expression.
+    # It is a list, so it is an expression.
 
     if len(tokenOrList) == 1:
         # Handle built-in variables.
@@ -238,11 +277,8 @@ def mathExpr(tokenOrList):
             # I think getCostumeNumber() should be changed to just costumeNumber()...
             # This would be a change to Scratch.java.
             return "getCostumeNumber()"
-        elif op == "scale": 		# Looks menu's size block
+        elif op == "scale": 		# Look menu's size block
             return "size()"
-        elif op == "sceneName":
-            return "backdropName()"	# returns a str.
-        				# TODO: Seems weird to have this in mathExpr
         elif op == "mousePressed":
             return "isMouseDown()"
         elif op == "mouseX":
@@ -254,7 +290,7 @@ def mathExpr(tokenOrList):
         elif op == "timeStamp":		# TODO: daysSince2000 in scratch.  float result
             return "daysSince2000 not implemented"
         else:
-            return "NOT IMPL"
+            raise ValueError("Unknown operation " + op)
             
     if len(tokenOrList) == 2:
         # Handle cases of operations that take 1 argument.
@@ -287,7 +323,7 @@ def mathExpr(tokenOrList):
             else:
                 raise ValueError(tokenOrList)
         else:
-            return "NOT IMPL2"
+            raise ValueError("Unknown operation " + op)
 
     assert len(tokenOrList) == 3	# Bad assumption?
     op, tok1, tok2 = tokenOrList	
@@ -297,10 +333,6 @@ def mathExpr(tokenOrList):
     if op == 'randomFrom:to:':
         # tok1 and tok2 may be math expressions.
         return "pickRandom(" + mathExpr(tok1) + ", " + mathExpr(tok2) + ")"
-    elif op == "letter:of:":
-        return "letterNOf(" + strExpr(tok2) + ", " + mathExpr(tok1) + ")"
-    elif op == "concatenate:with:":
-        return "join(" + strExpr(tok1) + ", " + strExpr(tok2) + ")"
     elif op == "computeFunction:of:":
         assert tok1 in ("abs", "floor", "ceiling", "sqrt", "sin", "cos", "tan",
                       "asin", "acos", "atan", "ln", "log", "e ^", "10 ^")
@@ -342,23 +374,6 @@ def mathExpr(tokenOrList):
     resStr += mathExpr(tok2) + ")"
     return resStr
 
-
-def cmpOp(op, tok1, tok2):
-    """Generate code for boolean comparisons: <, >, =."""
-
-    if debug:
-        print("cmpOp: op is ", op, "tok1", tok1, "tok2", tok2)
-
-    resStr = "(" + mathExpr(tok1)
-    if op == '<':
-        resStr += " < "
-    elif op == '>':
-        resStr += " > "
-    elif op == '=':
-        resStr += " == "
-    else:
-        raise ValueError(op)
-    return resStr + mathExpr(tok2) + ")"
 
 def getAttributeOf(tok1, tok2):
     """Return code to handle the various getAttributeOf calls
@@ -694,8 +709,6 @@ def goBackNLayers(level, tokens):
     return genIndent(level) + "goBackNLayers((int) " + mathExpr(arg1) + ");\n"
 
 
-    
-
 def pen0Arg(level, tokens):
     """Generate code to handle Pen blocks with 0 arguments"""
     assert len(tokens) == 1
@@ -737,6 +750,30 @@ def pen1Arg(level, tokens):
     else:
         raise ValueError(cmd)
 
+def setVariable(level, tokens):
+    """Set a variable's value from within the code.
+    Generate code like this:
+    var.set(value)
+    tokens is: ["setVar:to:", "varName", [expression]]
+    """
+
+    global spriteName
+    global varTypes
+
+    print("setVariable: ", spriteName, tokens[1])
+
+    varType = varTypes.get((spriteName, tokens[1]))
+    if varType is None:
+        raise ValueError("sprite with variable " + tokens[1] + " unknown.")
+    if varType == 'Boolean':
+        val = boolExpr(tokens[2])
+    elif varType in ('Int', 'Double'):
+        val = mathExpr(tokens[2])
+    else:
+        val = strExpr(tokens[2])
+    
+    return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
+
 
 def broadcast(level, tokens):
     """Generate code to handle sending a broacast message.
@@ -763,10 +800,12 @@ def doAsk(level, tokens):
     return genIndent(level) + "String answer = askStringAndWait(" + \
            strExpr(quest) + ")\t\t// may want to replace variable\n"
 
+
 def doWait(level, tokens):
     """Generate a wait call."""
     assert len(tokens) == 2 and tokens[0] == "wait:elapsed:from:"
     return genIndent(level) + "wait(s, " + mathExpr(tokens[1]) + ");\n"
+
 
 def doRepeat(level, tokens):
     """Generate a repeat <n> times loop.
@@ -779,6 +818,7 @@ def doRepeat(level, tokens):
     retStr += stmts(level, tokens[2])
     retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
+
 
 def doWaitUntil(level, tokens):
     """Generate doWaitUtil code: in java we'll do this:
@@ -795,6 +835,7 @@ def doWaitUntil(level, tokens):
     retStr += genIndent(level + 2) + "break;\n"
     retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
+
 
 def repeatUntil(level, tokens):
     """Generate doUntil code, which translates to this:
@@ -813,6 +854,7 @@ def repeatUntil(level, tokens):
     retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
     return retStr + genIndent(level) + "}\n"
 
+
 def stopScripts(level, tokens):
     """Generate code to stop all scripts.
     """
@@ -826,6 +868,7 @@ def stopScripts(level, tokens):
     else:
         raise ValueError("stopScripts: unknown type")
 
+
 def createCloneOf(level, tokens):
     """Create a clone of the sprite itself or of the given sprite.
     """
@@ -836,6 +879,7 @@ def createCloneOf(level, tokens):
     return genIndent(level) + "createCloneOf(" + \
            "((" + worldClassName + ")getWorld()).getActorByName(" + \
            tokens[1] + "));\n"
+
 
 def deleteThisClone(level, tokens):
     """Delete this sprite.
@@ -928,6 +972,7 @@ def genProcDefCode(codeObj, tokens):
     codeObj.addToCbCode("\n")	# add blank line after function defn.
     return codeObj
 
+
 def callABlock(level, tokens):
     """Generate a call to a custom-defined block.
     Format of tokens is: ["call", "blockToCall", param code]
@@ -952,7 +997,6 @@ def callABlock(level, tokens):
 scratchStmt2genCode = {
     'doIf': doIf,
     'doIfElse': doIfElse,
-    'setVar:to:': bogusFunc,
     'readVariable': bogusFunc,
 
     # Motion commands
@@ -991,6 +1035,9 @@ scratchStmt2genCode = {
     'penColor:': pen1Arg,
     'changePenHueBy:': pen1Arg,
     'setPenHueTo:': pen1Arg,
+
+    # Data commands
+    'setVar:to:': setVariable,
 
     # Events commands
     'broadcast:': broadcast,
@@ -1107,6 +1154,121 @@ public class %s extends ScratchWorld
     return boilerplate % (classname, classname, classname)
 
 
+def genVariablesDefnCode(listOfVars, spriteName, allChildren):
+    """Genereate code to define instance variables for this sprite.
+    The listOfVars is a list of dictionaries, one per variable (see below).
+    The spriteName is the sprite we are generating "local" variables for.
+    The allChildren is the list of dictionaries defined for this
+    project. It is necessary because sprites and their scripts (in a
+    dictionary with an "objName" key) are in children, also a dictionary
+    exists for each variable, with a "cmd" --> "getVar:" entry.  We
+    need info from both the listOfVars and each of those other
+    variable-specific dictionaries.
+    """
+
+    # The listOfVars has this format:
+    #  [{ "name": "xloc",
+    #     "value": false,
+    #     "isPersistent": false
+    #     }]
+    # We get the name and default value from this easily, but we have to derive
+    # the type from the default value.
+    # A variable-specific dictionary (in 'children' list) has this format:
+    # {
+    #			"target": "Sprite1",
+    #			"cmd": "getVar:",
+    #			"param": "xloc",
+    #			"color": 15629590,
+    #			"label": "Sprite1: xloc",
+    #			"mode": 1,
+    #			"sliderMin": 0,
+    #			"sliderMax": 100,
+    #			"isDiscrete": true,
+    #			"x": 5,
+    #			"y": 8,
+    #			"visible": true
+    #  },
+    #
+    # Algorithm:
+    # for each variable in the listOfVars list:
+    #   o get the *name* and *value* out.
+    #   o derive the *type* from the *value*.
+    #   o find the variable's dictionary in allChildren, where
+    #     the dictionary has 'cmd' -> 'getVar:' and 'param' -> *name* and
+    #     'target' -> *spriteName*.  From that entry,
+    #     o get *label*
+    #     o get *x* and *y* location
+    #     o get *visible*
+    #   o generate the variable's definition.
+    #   o generate the code in the constructor to create the variable with
+    #     the initial value.
+    #   o generate code to possibly hide() the variable.
+    #   o NOTE: api does not support putting the variable at a x,y
+    #     location.   TODO
+
+    global varTypes	# global dictionary
+    
+    def deriveType(val):
+        if isinstance(val, str):
+            return '"' + str + '"', 'String'
+        elif isinstance(val, bool):
+            if val:
+                return "true", 'Boolean'
+            else:
+                return "false", 'Boolean'
+        elif isinstance(val, int):
+            return val, 'Int'
+        elif isinstance(val, float):
+            return val, 'Double'
+        else:
+            raise ValueError("deriveType cannot figure out type of -->" + \
+                             str(val) + "<--")
+
+    defnCode = ""
+    initCode = "\n" + genIndent(2) + "// Variable initialization.\n"
+    
+    for var in listOfVars:  # var is a dictionary.
+        name = var['name']
+        value = var['value']
+        # return the varType and the value converted to a java equivalent
+        # for that type. (e.g., False --> false)
+        # varType is one of 'Boolean', 'Double', 'Int', 'String'
+        value, varType = deriveType(value)
+
+        for aDict in allChildren:
+            if aDict.get('cmd') == 'getVar:' and \
+               aDict.get('param') == name and \
+               aDict.get('target') == spriteName:
+                varInfo = aDict
+                break
+        else:
+            raise ValueError("No variable definition dictionary found in script json")
+        label = varInfo['label']
+        x = varInfo['x']    # Not used at this time.
+        y = varInfo['y']    # Not used at this time.
+        visible = varInfo['visible']
+
+        # Record this variable in the global variables dictionary.
+        # We need this so we can generate code that calls the correct
+        # functions to generate the correct type of results.
+        # E.g., if a variable is boolean, we'll call boolExpr()
+        # from setVariables(), not mathExpr().
+        varTypes[(spriteName, name)] = varType
+        print("Adding entry for", spriteName, ",", name, "to dict with value", varType)
+
+        # Something like "Scratch.IntVar score;"
+        defnCode += genIndent(1) + "Scratch." + varType + "Var " + name + ";\n"
+        # Something like "score = createIntVariable("score", 0);
+        initCode += genIndent(2) + name + " = create" + varType + \
+                    'Variable("' + label + '", ' + str(value) + ");\n"
+        if not visible:
+            initCode += genIndent(2) + name + ".hide();\n"
+
+    # Add blank line after variable definitions.
+    defnCode += "\n"
+    return defnCode, initCode
+    
+          
 def genScriptCode(script, scrName):
     """Generate code (and callback code) for the given script, which may be
     associated with a sprite or the main stage.
@@ -1192,7 +1354,7 @@ execOrDie("cp " + os.path.join(scratch_dir, "*.{svg,png}") + " " + \
           "move image files to Greenfoot images directory")
       
 
-# TODO: move sounds files.  NOTE: this won't work on Windows.  Use os.rename().
+# TODO: move sounds files.
 
 
 # Now, (finally!), open the project.json file and start processing it.
@@ -1236,6 +1398,7 @@ for spr in sprites:
 
         ctorCode = ""
         cbCode = []
+        defnCode = ""		# code for defining Scratch variables.
 
         costumeCode = genLoadCostumesCode(spr['costumes'])
         if debug: print("CostumeCode is ", costumeCode)
@@ -1252,6 +1415,15 @@ for spr in sprites:
 
         ctorCode += costumeCode + initSettingsCode
 
+      	# Handle variables defined for this sprite.  This has to be done
+        # before handling the scripts, as the scripts may refer will the
+        # variables.
+        if 'variables' in spr:
+            defnCode, initCode = \
+                      genVariablesDefnCode(spr['variables'], spriteName, \
+                                           data['children'])
+            ctorCode += initCode
+        
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
         if 'scripts' in spr:
@@ -1269,12 +1441,14 @@ for spr in sprites:
                     # The script generate callback code.
                     cbCode.append(codeObj.cbCode)
 
-
 	# Open file with correct name and generate code into there.
         filename = os.path.join(PROJECT_DIR, convertSpriteToFileName(spriteName))
         print("Writing code to " + filename + ".")
         outFile = open(filename, "w")
         genHeaderCode(outFile, spriteName)
+
+        outFile.write(defnCode)
+
         genConstructorCode(outFile, spriteName, ctorCode)
         for code in cbCode:
             outFile.write(code)
@@ -1434,4 +1608,25 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as 
 #    the project.
 # Restart Greenfoot and your project should be ready to compile and run.
 
+
+# What to do about mathExpr() vs. boolExpr() vs. strExpr().
+# 
+# Some Scratch blocks obviously require numbers, strings, or bools in
+# certain places.  In that case, call the appropriate functions.
+#   o what if you require a strExpr() but the value is an expression?
+#
+
+
+# Need a dispatcher to call the appropriate method for the operators:
+# "join" --> call strExpr() on each param.
+# "say" --> ditto
+# "+", etc. --> call mathExpr() on each.
+# etc.
+
+# What if in strExpr(), the param is a method that returns an integer?
+#  o how do we know? We are generating code, so we always get a string
+#    back.  If the value generated by the code will be an int, then we should
+#    wrap it in a String constructor...
+#  o Implies we shoudl return not only a string of code to generate the
+#    value, but also the expected type of value.
 
