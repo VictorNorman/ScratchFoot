@@ -510,7 +510,7 @@ def doForever(level, tokens):
     forever loop is turned into a while (true) loop, with the last
     operation being a yield(s) call.
     """
-    retStr = genIndent(level) + "while (true)\n"
+    retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
     retStr += genIndent(level) + "{\n"
     retStr += stmts(level, tokens[1])
     retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
@@ -760,8 +760,6 @@ def setVariable(level, tokens):
     global spriteName
     global varTypes
 
-    print("setVariable: ", spriteName, tokens[1])
-
     varType = varTypes.get((spriteName, tokens[1]))
     if varType is None:
         raise ValueError("sprite with variable " + tokens[1] + " unknown.")
@@ -774,6 +772,26 @@ def setVariable(level, tokens):
     
     return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
 
+
+def hideVariable(level, tokens):
+    """Generate code to hide a variable.
+    """
+    return genIndent(level) + tokens[1] + ".hide();\n"
+
+
+def showVariable(level, tokens):
+    """Generate code to hide a variable.
+    """
+    return genIndent(level) + tokens[1] + ".show();\n"
+
+
+def changeVarBy(level, tokens):
+    """Generate code to change the value of a variable.
+    Code will be like this:
+    aVar.set(aVar.get() + 3);
+    """
+    return genIndent(level) + tokens[1] + ".set(" + \
+           tokens[1] + ".get() + " + mathExpr(tokens[2]) + ");\n"
 
 def broadcast(level, tokens):
     """Generate code to handle sending a broacast message.
@@ -1038,6 +1056,9 @@ scratchStmt2genCode = {
 
     # Data commands
     'setVar:to:': setVariable,
+    'hideVariable:': hideVariable,
+    'showVariable:': showVariable,
+    'changeVar:by:': changeVarBy,
 
     # Events commands
     'broadcast:': broadcast,
@@ -1060,7 +1081,6 @@ scratchStmt2genCode = {
     # Blocks commands
     'call': callABlock,
 
-    'changeVar:by:': bogusFunc,
     }
 
 def convertSpriteToFileName(sprite):

@@ -472,7 +472,7 @@ public class Scratch extends Actor
         return newVar; 
     }
 
-    private class Variable extends Actor 
+    protected class Variable extends Actor 
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
