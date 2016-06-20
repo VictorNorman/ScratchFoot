@@ -755,22 +755,36 @@ def setVariable(level, tokens):
     Generate code like this:
     var.set(value)
     tokens is: ["setVar:to:", "varName", [expression]]
+
+    The variable may be sprite-specific or global.  We have to check
+    both dictionaries to figure it out.
     """
 
-    global spriteName
+    global spriteName, worldClassName
     global varTypes
 
+    isGlobal = False
     varType = varTypes.get((spriteName, tokens[1]))
     if varType is None:
-        raise ValueError("sprite with variable " + tokens[1] + " unknown.")
+        varType = varTypes.get(("Stage", tokens[1]))
+        if varType is None:
+            raise ValueError("Sprite " + spriteName + " variable " +
+                         tokens[1] + " unknown.")
+        else:
+            isGlobal = True
     if varType == 'Boolean':
         val = boolExpr(tokens[2])
     elif varType in ('Int', 'Double'):
         val = mathExpr(tokens[2])
     else:
         val = strExpr(tokens[2])
-    
-    return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
+
+    if isGlobal:
+        # Something like: ((Simple1World)getWorld()).counter.set(0);
+        return genIndent(level) + "((%s)getWorld()).%s.set(%s);\n" % \
+               (worldClassName, tokens[1], val)
+    else:
+        return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
 
 
 def hideVariable(level, tokens):
@@ -1161,16 +1175,18 @@ import greenfoot.*;
  */
 public class %s extends ScratchWorld
 {
+"""
+    return boilerplate % (classname, classname)
+
+
+def genWorldCtorHeader(classname):
+    boilerplate = """
     public %s()
     {
         // To change world size, pass in width, height values to super() below.
         super();
 """
-    # TODO: we could add parameters to the super() call above to make the
-    # size of the screen be 480x360, just like a Scratch screen, but I
-    # think one of the main limitations of Scratch is this small screen
-    # size. 
-    return boilerplate % (classname, classname, classname)
+    return boilerplate % classname
 
 
 def genVariablesDefnCode(listOfVars, spriteName, allChildren):
@@ -1229,7 +1245,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     
     def deriveType(val):
         if isinstance(val, str):
-            return '"' + str + '"', 'String'
+            return '"' + val + '"', 'String'
         elif isinstance(val, bool):
             if val:
                 return "true", 'Boolean'
@@ -1273,10 +1289,15 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         # E.g., if a variable is boolean, we'll call boolExpr()
         # from setVariables(), not mathExpr().
         varTypes[(spriteName, name)] = varType
-        print("Adding entry for", spriteName, ",", name, "to dict with value", varType)
+        print("Adding entry for", spriteName, ",", name,
+              "to dict with value", varType)
 
-        # Something like "Scratch.IntVar score;"
-        defnCode += genIndent(1) + "Scratch." + varType + "Var " + name + ";\n"
+        # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
+        if spriteName == "Stage":
+            # Code is going into the World
+            defnCode += genIndent(1) + "ScratchWorld.%sVar %s;\n" % (varType, name)
+        else:
+            defnCode += genIndent(1) + "Scratch.%sVar %s;\n" % (varType, name)
         # Something like "score = createIntVariable("score", 0);
         initCode += genIndent(2) + name + " = create" + varType + \
                     'Variable("' + label + '", ' + str(value) + ");\n"
@@ -1387,7 +1408,7 @@ sprites = data['children']
 projectFileCode = ""
 
 # Code to be written into the World.java file.
-worldCode = ""
+worldCtorCode = ""
 
 # Determine the name of the ScratchWorld subclass.  This variable below
 # is used in some code above to generate casts.  I know this is a very bad
@@ -1395,6 +1416,21 @@ worldCode = ""
 # Make first letter capitalized and remove all spaces, then add World.java
 # to end.
 worldClassName = PROJECT_DIR.capitalize().replace(" ", "") + "World"
+
+
+# If there are global variables, they are defined in the outermost part
+# of the json data, and more info about each is defined in objects labeled
+# with "target": "Stage" in 'childen'.
+# These need to be processed before we process any Sprite-specific code
+# which may reference these global variables.
+spriteName = "Stage"
+worldDefnCode = ""
+if 'variables' in data:
+    worldDefnCode, initCode = genVariablesDefnCode(data['variables'], "Stage",
+                                              data['children'])
+    worldCtorCode += initCode
+
+
 
 
 for spr in sprites:
@@ -1412,8 +1448,9 @@ for spr in sprites:
 
 
         # Extract the last position of the sprite and pass to addSprite() call.
-        worldCode += genIndent(2) + 'addSprite("' + spriteName + '", ' + \
-                     str(spr['scratchX']) + ', ' + str(spr['scratchY']) + ');\n'
+        worldCtorCode += genIndent(2) + 'addSprite("' + spriteName + \
+                         '", ' + str(spr['scratchX']) + ', ' + \
+                         str(spr['scratchY']) + ');\n'
 
         ctorCode = ""
         cbCode = []
@@ -1440,7 +1477,7 @@ for spr in sprites:
         # variables.
         if 'variables' in spr:
             defnCode, initCode = \
-                      genVariablesDefnCode(spr['variables'], spriteName, \
+                      genVariablesDefnCode(spr['variables'], spriteName,
                                            data['children'])
             ctorCode += initCode
         
@@ -1468,7 +1505,7 @@ for spr in sprites:
         outFile = open(filename, "w")
         genHeaderCode(outFile, spriteName)
 
-        outFile.write(defnCode)
+        outFile.write(defnCode)   # variable definitions
 
         genConstructorCode(outFile, spriteName, ctorCode)
         for code in cbCode:
@@ -1491,41 +1528,42 @@ for spr in sprites:
 # we have to process it similarly.  So, lots of repeated code here
 # from above -- although small parts are different enough.
 
+spriteName = "Stage"
+
+# Write out a line to the project.greenfoot file to indicate that this
+# sprite is a subclass of the Scratch class.
+projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
+
+
+# Create the special Stage sprite.
+worldCtorCode += genIndent(2) + 'addSprite("' + spriteName + '", 0, 0);\n'
+
+ctorCode = ""
+cbCode = []
+
+
+# TODO
+# Need to do this for backdrops instead?
+# costumeCode = genLoadCostumesCode(spr['costumes'])
+# if debug: print("CostumeCode is ", costumeCode)
+
+# Like location, direction, shown or hidden, etc.
+# initSettingsCode = genInitialSettingsCode(spr)
+# if debug:
+    # print("Initial Settings Code is ", initSettingsCode)
+
+# Generate a line to the project.greenfoot file to set the image file, like this:
+#     class.Sprite1.image=1.jpg
+# projectFileCode += "class." + spriteName + ".image=" + \
+#                    str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
+
+# ctorCode += costumeCode + initSettingsCode
+
+# The value of the 'scripts' key is the list of the scripts.  It may be
+# a list of 1 or of many.
 if 'scripts' in data:
     stageScrs = data['scripts']
 
-    spriteName = "Stage"
-
-    # Write out a line to the project.greenfoot file to indicate that this
-    # sprite is a subclass of the Scratch class.
-    projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
-
-
-    # Extract the last position of the sprite and pass to addSprite() call.
-    worldCode += genIndent(2) + 'addSprite("' + spriteName + '", 0, 0);\n'
-
-    ctorCode = ""
-    cbCode = []
-
-    # TODO
-    # Need to do this for backdrops instead?
-    # costumeCode = genLoadCostumesCode(spr['costumes'])
-    # if debug: print("CostumeCode is ", costumeCode)
-
-    # Like location, direction, shown or hidden, etc.
-    # initSettingsCode = genInitialSettingsCode(spr)
-    # if debug:
-        # print("Initial Settings Code is ", initSettingsCode)
-
-    # Generate a line to the project.greenfoot file to set the image file, like this:
-    #     class.Sprite1.image=1.jpg
-    # projectFileCode += "class." + spriteName + ".image=" + \
-    #                    str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
-
-    # ctorCode += costumeCode + initSettingsCode
-
-    # The value of the 'scripts' key is the list of the scripts.  It may be
-    # a list of 1 or of many.
     for scrNum in range(len(stageScrs)):
         # items 0 and 1 in the sublist are the location on the screen of the script.
         # We don't care about that, obviously.  Item 2 is the actual code.
@@ -1541,20 +1579,21 @@ if 'scripts' in data:
             cbCode.append(codeObj.cbCode)
 
 
-    # Open file with correct name and generate code into there.
-    filename = os.path.join(PROJECT_DIR, spriteName + ".java")
-    print("Writing code to " + filename + ".")
-    outFile = open(filename, "w")
-    genHeaderCode(outFile, spriteName)
-    genConstructorCode(outFile, spriteName, ctorCode)
-    for code in cbCode:
-        outFile.write(code)
+# Open file with correct name and generate code into there.
+filename = os.path.join(PROJECT_DIR, spriteName + ".java")
+print("Writing code to " + filename + ".")
+outFile = open(filename, "w")
+genHeaderCode(outFile, spriteName)
+genConstructorCode(outFile, spriteName, ctorCode)
+for code in cbCode:
+    outFile.write(code)
 
-    outFile.write("}\n")
-    outFile.close()
+outFile.write("}\n")
+outFile.close()
 
 
 # ----------------------- Create subclass of World ------------------------------
+
 
 
 #
@@ -1563,7 +1602,14 @@ if 'scripts' in data:
 filename = os.path.join(PROJECT_DIR, worldClassName + ".java")
 outFile = open(filename, "w")
 print("Writing code to " + filename + ".")
-worldCode = genWorldHeaderCode(worldClassName) + worldCode + genIndent(1) + "}\n}\n"
+
+worldCode = genWorldHeaderCode(worldClassName)
+worldCode += worldDefnCode
+worldCode += genWorldCtorHeader(worldClassName)
+worldCode += worldCtorCode
+worldCode += genIndent(1) + "}\n"
+worldCode += "}\n"
+
 outFile.write(worldCode)
 outFile.close()
 
