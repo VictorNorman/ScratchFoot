@@ -472,7 +472,7 @@ public class Scratch extends Actor
         return newVar; 
     }
 
-    private class Variable extends Actor 
+    protected class Variable extends Actor 
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
@@ -1547,7 +1547,13 @@ public class Scratch extends Actor
             return;
         }
 
-        GreenfootImage mySprite = getImage();
+        GreenfootImage mySprite;
+        if (getImage() == null) {
+            mySprite = lastImg;
+        } else {
+            mySprite = getImage();
+        }
+        
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
@@ -1560,7 +1566,13 @@ public class Scratch extends Actor
      */
     public void sayForNSeconds(Sequence s, String str, double duration)
     {
-        GreenfootImage mySprite = getImage();
+        GreenfootImage mySprite;
+        if (getImage() == null) {
+            mySprite = lastImg;
+        } else {
+            mySprite = getImage();
+        }
+        
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
@@ -1576,7 +1588,13 @@ public class Scratch extends Actor
     // called from act() above to update the location of the say/think actor.
     private void sayActorUpdateLocation()
     {
-        GreenfootImage mySprite = getImage();
+        GreenfootImage mySprite;
+        if (getImage() == null) {
+            mySprite = lastImg;
+        } else {
+            mySprite = getImage();
+        }
+        
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
         sayActor.updateLocation(super.getX() + width + 10, super.getY() - height - 5);
@@ -1667,6 +1685,9 @@ public class Scratch extends Actor
     public void hide()
     {
         isShowing = false;
+        if (sayActor != null) {
+            sayActor.hide();
+        }
         displayCostume();
     }
 
@@ -1676,6 +1697,10 @@ public class Scratch extends Actor
     public void show()
     {
         isShowing = true;
+        if (sayActor != null) {
+            sayActor.show();
+            sayActor.update();
+        }
         displayCostume();
         // ensure that image is oriented properly if rotation style was changed while invisible
         if (!lastImg.equals(getImage()) && isFlipped) {
