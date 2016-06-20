@@ -1559,6 +1559,9 @@ public class Scratch extends Actor
 
         sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+        if (!isShowing) {
+            sayActor.hide();
+        }
     }
 
     /**
@@ -1578,6 +1581,10 @@ public class Scratch extends Actor
 
         sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+        
+        if (!isShowing) {
+            sayActor.hide();
+        }
 
         wait(s, duration);
 
