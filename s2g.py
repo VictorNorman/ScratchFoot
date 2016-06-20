@@ -1015,7 +1015,6 @@ def callABlock(level, tokens):
 scratchStmt2genCode = {
     'doIf': doIf,
     'doIfElse': doIfElse,
-    'readVariable': bogusFunc,
 
     # Motion commands
     'forward:': motion1Arg,
@@ -1428,7 +1427,8 @@ for spr in sprites:
         if debug:
             print("Initial Settings Code is ", initSettingsCode)
 
-	# Generate a line to the project.greenfoot file to set the image file, like this:
+	# Generate a line to the project.greenfoot file to set the image
+        # file, like this: 
         #     class.Sprite1.image=1.jpg
         projectFileCode += "class." + spriteName + ".image=" + \
                            str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
@@ -1448,7 +1448,8 @@ for spr in sprites:
         # list of 1 or of many.
         if 'scripts' in spr:
             for scrNum in range(len(spr['scripts'])):
-                # items 0 and 1 in the sublist are the location on the screen of the script.
+                # items 0 and 1 in the sublist are the location on the
+                # screen of the script. 
                 # We don't care about that, obviously.  Item 2 is the actual code.
                 script = spr['scripts'][scrNum][2]
                 scrName = "Script" + str(scrNum)
