@@ -1547,7 +1547,13 @@ public class Scratch extends Actor
             return;
         }
 
-        GreenfootImage mySprite = getImage();
+        GreenfootImage mySprite;
+        if (getImage() == null) {
+            mySprite = lastImg;
+        } else {
+            mySprite = getImage();
+        }
+        
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
@@ -1560,7 +1566,13 @@ public class Scratch extends Actor
      */
     public void sayForNSeconds(Sequence s, String str, double duration)
     {
-        GreenfootImage mySprite = getImage();
+        GreenfootImage mySprite;
+        if (getImage() == null) {
+            mySprite = lastImg;
+        } else {
+            mySprite = getImage();
+        }
+        
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
@@ -1576,7 +1588,13 @@ public class Scratch extends Actor
     // called from act() above to update the location of the say/think actor.
     private void sayActorUpdateLocation()
     {
-        GreenfootImage mySprite = getImage();
+        GreenfootImage mySprite;
+        if (getImage() == null) {
+            mySprite = lastImg;
+        } else {
+            mySprite = getImage();
+        }
+        
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
         sayActor.updateLocation(super.getX() + width + 10, super.getY() - height - 5);
