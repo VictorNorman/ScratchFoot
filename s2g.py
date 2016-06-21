@@ -178,6 +178,8 @@ def boolExpr(tokenList):
         resStr += handleKeyPressed(tokenList[1])
     elif firstOp == 'mousePressed':
         resStr += "(isMouseDown())"
+    elif firstOp == 'readVariable':
+        resStr += readVariable(tokenList[1])
     elif firstOp == False:
         resStr += "false"
     else:
@@ -785,6 +787,36 @@ def setVariable(level, tokens):
                (worldClassName, tokens[1], val)
     else:
         return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
+
+
+def readVariable(varname):
+    """Get a variable's value from within the code.
+    Generate code like this:
+    var.get() or
+    ((ScratchWorld)getWorld()).varname.get()
+
+    The variable may be sprite-specific or global.  We have to check
+    both dictionaries to figure it out.
+    """
+
+    global spriteName, worldClassName
+    global varTypes
+
+    isGlobal = False
+    varType = varTypes.get((spriteName, varname))
+    if varType is None:
+        varType = varTypes.get(("Stage", varname))
+        if varType is None:
+            raise ValueError("Sprite " + spriteName + " variable " +
+                         varname + " unknown.")
+        else:
+            isGlobal = True
+
+    if isGlobal:
+        # Something like: ((Simple1World)getWorld()).counter.get();
+        return "((%s)getWorld()).%s.get()" % (worldClassName, varname)
+    else:
+        return varname + ".get()"
 
 
 def hideVariable(level, tokens):
