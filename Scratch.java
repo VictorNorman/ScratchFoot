@@ -1559,6 +1559,9 @@ public class Scratch extends Actor
 
         sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+        if (!isShowing) {
+            sayActor.hide();
+        }
     }
 
     /**
@@ -1578,6 +1581,10 @@ public class Scratch extends Actor
 
         sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+        
+        if (!isShowing) {
+            sayActor.hide();
+        }
 
         wait(s, duration);
 
@@ -1685,6 +1692,9 @@ public class Scratch extends Actor
     public void hide()
     {
         isShowing = false;
+        if (sayActor != null) {
+            sayActor.hide();
+        }
         displayCostume();
     }
 
@@ -1694,6 +1704,10 @@ public class Scratch extends Actor
     public void show()
     {
         isShowing = true;
+        if (sayActor != null) {
+            sayActor.show();
+            sayActor.update();
+        }
         displayCostume();
         // ensure that image is oriented properly if rotation style was changed while invisible
         if (!lastImg.equals(getImage()) && isFlipped) {
