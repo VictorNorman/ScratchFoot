@@ -113,6 +113,12 @@ public class Scratch extends Actor
 
     private int lastMouseX;
     private int lastMouseY;
+    
+    // Track the actor's subpixel location
+    // this makes angled movement more robust when moving small distances
+    
+    private double subX;
+    private double subY;
 
     // Remember if this object is a clone or not.  It is not, by default.
     private boolean isClone = false;
@@ -1173,25 +1179,39 @@ public class Scratch extends Actor
         int oldX = super.getX();
         int oldY = super.getY();
 
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            super.move(distance);
-        } else {      // rotationStyle is LEFT_RIGHT || DONT_ROTATE
+        // We don't use the move() function provided by greenfoot because
+        // it rounds x and y to integer values.  If we use it, we end up
+        // with a limited number of angles that can actually be achieved.
+        // So, instead we move the actor using setLocation() with subpixels.
 
-            // We don't use the move() function provided by greenfoot because
-            // it moves in the direction the image is facing.  If we use it,
-            // then we cannot do the setRotationStyle(LEFT_RIGHT) correctly.
-            // So, instead we move the actor using setLocation().
+        int GFdir = (currDirection - 90) % 360;
 
-            int GFdir = (currDirection - 90) % 360;
-
-            // This code copied from Greenfoot source.
-            double radians = Math.toRadians(GFdir);
-            // We round to the nearest integer, to allow moving one unit at an angle
-            // to actually move.
-            int dx = (int) Math.round(Math.cos(radians) * distance);
-            int dy = (int) Math.round(Math.sin(radians) * distance);
-            setLocation(oldX + dx, oldY + dy);
+        // This code copied from Greenfoot source.
+        double radians = Math.toRadians(GFdir);
+        
+        // Calculate the cartesian movement from polar
+        double dx = (Math.cos(radians) * distance);
+        double dy = (Math.sin(radians) * distance);
+        
+        // Update subpixel locations with the decimal portion of dx and dy
+        subX += dx % 1;
+        subY += dy % 1;
+        
+        // If a subpixel amount is greater than 1, change that movement to standard pixel
+        // movement
+        if (Math.abs(subX) > 1) {
+            // add the integer portion of subX to dx, then wrap subX
+            dx += (int)subX;
+            subX %= 1;
         }
+        if (Math.abs(subY) > 1) {
+            // add the integer portion of subY to dy, then wrap subY
+            dy += (int)subY;
+            subY %= 1;
+        }
+        // Set the location to the integer portion of dx and dy, as the decimal part is
+        // tracked in subX and subY
+        setLocation(oldX + (int)dx, oldY + (int)dy);
 
         /* pen is down, so we need to draw a line from the current point to the new point */
         if (isPenDown) {
