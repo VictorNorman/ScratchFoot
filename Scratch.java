@@ -1897,14 +1897,37 @@ public class Scratch extends Actor
      */
     public boolean isTouchingMouse()
     {
-        MouseInfo mi = Greenfoot.getMouseInfo();
-        if (mi == null) {
-            return false;
+        // Get the image and rotate it to the proper orientation. TODO The rotation code is
+        // copied from stamp(), possibility for refactoring.
+        GreenfootImage oldImg;
+        if (isShowing) {
+            oldImg = getImage();
+        } else {
+            oldImg = lastImg;
         }
-        if (mi.getActor() == null) {
-            return false;
-        }
-        return (mi.getActor() == this);
+        int w = oldImg.getWidth(), h = oldImg.getHeight();
+        int newDim = w > h ? w : h;
+        GreenfootImage image = new GreenfootImage(newDim, newDim);  
+        image.drawImage(oldImg, (newDim - w) / 2, (newDim - h) / 2);
+        int rot = getRotation();
+        image.rotate(rot);
+        
+        java.awt.image.BufferedImage bIm = image.getAwtImage();
+        try {
+            // This line gets the pixel color at x and y of the mouse relative to
+            // the actor's position. The y value must be reversed because the y axis
+            // is different for buffered images. 
+            int pixel = bIm.getRGB(getMouseX() - getX() + (bIm.getWidth() / 2),
+                        bIm .getHeight() - (getMouseY() - getY() + (bIm.getHeight() / 2)));
+            if ((pixel >> 24) == 0x00) {
+                return false;   // transparent pixel: doesn't count.
+            } else {
+                return true;
+            }
+            
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return false;   // pixel out of bounds of image
+        } 
     }
 
     /**
