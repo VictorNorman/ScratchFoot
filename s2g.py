@@ -13,6 +13,7 @@ debug = False
 
 NUM_SPACES_PER_LEVEL = 4
 
+
 # Just print out the sprites.
 # if debug:
 #     for ch in data['children']:
@@ -1170,6 +1171,7 @@ def genConstructorCode(outFile, spriteName, code):
 def genLoadCostumesCode(costumes):
     """Generate code to load costumes from files for a sprite.
     """
+    import platform
 
     # print("genLoadCC: costumes ->" + str(costumes) + "<-")
     resStr = ""
@@ -1179,10 +1181,16 @@ def genLoadCostumesCode(costumes):
         # (1, 2, 3, etc.)) plus ".svg"
         filename = str(cos['baseLayerID'])
         # convert it with rsvg-convert -- TODO: fix this to work for Windoze, etc.
+
         dest = filename + ".jpg"
-        execOrDie("rsvg-convert " + os.path.join(imagesDir, filename + ".svg") + \
-                  " -o " + os.path.join(imagesDir, dest),
-                  "convert svg file to jpg")
+        if platform.system() == 'Darwin':    # Mac OS
+            execOrDie("rsvg-convert " + os.path.join(imagesDir, filename + ".svg") + \
+                      " -o " + os.path.join(imagesDir, dest),
+                      "convert svg file to jpg")
+        elif platform.system() in ('Windows', 'Linux'):
+            execOrDie("convert " + os.path.join(imagesDir, filename + ".svg") + \
+                      " " + os.path.join(imagesDir, dest),
+                      "convert svg file to jpg")
         resStr += genIndent(2) + 'addCostume("' + dest + '", "' + cos['costumeName'] + '");\n'
     return resStr
 
