@@ -287,7 +287,7 @@ public class Scratch extends Actor
             }
             // System.out.println(methodToCall + ": perfSeq: done");
         }
-	
+    
     }
     // Keep a list of all the "plain" sequences.
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
@@ -314,7 +314,7 @@ public class Scratch extends Actor
             if (Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
                     System.out.println("keySeq: for key " + this.key +
-				       " changing from NOT triggered to triggered.");
+                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -349,7 +349,7 @@ public class Scratch extends Actor
             if (Greenfoot.mouseClicked(this.getObj())) {
                 if (! triggered) {
                     System.out.println("ActorClickedSeq: for actor " + this.getObj() +
-				       " changing from NOT triggered to triggered.");
+                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -393,7 +393,7 @@ public class Scratch extends Actor
             if (((ScratchWorld) getWorld()).bcastPending(mesg)) {
                 if (! triggered) {
                     System.out.println("mesgRecvdSeq: for mesg " + mesg +
-				       " changing from NOT triggered to triggered.");
+                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -830,15 +830,17 @@ public class Scratch extends Actor
                 seq.performSequence();
             } 
         }
-	
+    
 
-	if (sayActor != null) {
+        if (sayActor != null) {
             sayActorUpdateLocation();
         }
+        
         // Update lastImg to current image
         if (getImage() != null) {
             lastImg = getImage();
         }
+        
     }
 
     /**
@@ -906,7 +908,7 @@ public class Scratch extends Actor
         cloneStartSeqs.add(cb);
         cb.start();
         // System.out.println("whenIStartAsAClone: method registered for class " +
-	//		   this.getClass().getName() + "; sequence obj created.");
+    //         this.getClass().getName() + "; sequence obj created.");
     }
 
     
@@ -932,7 +934,15 @@ public class Scratch extends Actor
      */
     public void createCloneOfMyself()
     {
-        createCloneOf(this);
+        // Create a new Object, which is a subclass of Scratch (the same class as "this").
+        Object clone = callConstructor();
+
+        System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
+           clone.getClass().getName() + ". Now, calling addObject()");
+        ((ScratchWorld) getWorld()).addObject((Scratch)clone, super.getX(), super.getY());
+
+        ((ScratchWorld) getWorld()).registerCloneSpriteName(this.getClass().getName());
+        System.out.println("Clone request done");
     }
 
     /**
@@ -943,21 +953,15 @@ public class Scratch extends Actor
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
 
-        System.out.println("createCloneOf: called copy constructor to get object of type " + 
-           clone.getClass().getName() + ". Now, calling addObject()");
-        ((ScratchWorld) getWorld()).addObject((Scratch)clone, super.getX(), super.getY());
+        // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
+        //    clone.getClass().getName() + ". Now, calling addObject()");
+        ((ScratchWorld) getWorld()).addObject((Scratch)clone, translateToGreenfootX(actor.getX()), 
+            translateToGreenfootY(actor.getY()));
 
-        ((ScratchWorld) getWorld()).registerCloneSpriteName(actor.getClass().getName());
-        System.out.println("Clone request done");
-    }
+        // NOTE: Scratch does NOT run the "when added as clone" block when a clone of another
+        // Sprite is created, so we won't either.
 
-
-    /**
-     * createCloneOf: create a clone of the given Scratch actor.
-     */
-    public void createCloneOf(String spriteName)
-    {
-        createCloneOf(((ScratchWorld) getWorld()).getActorByName(spriteName));
+        System.out.println("Clone added");        
     }
 
 
@@ -2002,7 +2006,7 @@ public class Scratch extends Actor
      */
     public boolean isMouseDown()
     {
-        return Greenfoot.mousePressed(null) || Greenfoot.mouseDragged(null);
+        return ((ScratchWorld)getWorld()).isMouseDown();
     }
 
     /**
