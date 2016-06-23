@@ -932,15 +932,7 @@ public class Scratch extends Actor
      */
     public void createCloneOfMyself()
     {
-        // Create a new Object, which is a subclass of Scratch (the same class as "this").
-        Object clone = callConstructor();
-
-        System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
-           clone.getClass().getName() + ". Now, calling addObject()");
-        ((ScratchWorld) getWorld()).addObject((Scratch)clone, super.getX(), super.getY());
-
-        ((ScratchWorld) getWorld()).registerCloneSpriteName(this.getClass().getName());
-        System.out.println("Clone request done");
+        createCloneOf(this);
     }
 
     /**
@@ -951,15 +943,21 @@ public class Scratch extends Actor
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
 
-        // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
-        //    clone.getClass().getName() + ". Now, calling addObject()");
-        ((ScratchWorld) getWorld()).addObject((Scratch)clone, translateToGreenfootX(actor.getX()), 
-            translateToGreenfootY(actor.getY()));
+        System.out.println("createCloneOf: called copy constructor to get object of type " + 
+           clone.getClass().getName() + ". Now, calling addObject()");
+        ((ScratchWorld) getWorld()).addObject((Scratch)clone, super.getX(), super.getY());
 
-        // NOTE: Scratch does NOT run the "when added as clone" block when a clone of another
-        // Sprite is created, so we won't either.
+        ((ScratchWorld) getWorld()).registerCloneSpriteName(actor.getClass().getName());
+        System.out.println("Clone request done");
+    }
 
-        System.out.println("Clone added");        
+
+    /**
+     * createCloneOf: create a clone of the given Scratch actor.
+     */
+    public void createCloneOf(String spriteName)
+    {
+        createCloneOf(((ScratchWorld) getWorld()).getActorByName(spriteName));
     }
 
 

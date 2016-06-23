@@ -623,7 +623,7 @@ def motion2Arg(level, tokens):
     gotoX:y:, etc."""
     cmd, arg1, arg2 = tokens
     if cmd == "gotoX:y:":
-        return genIndent(level) + "goto((int) " + mathExpr(arg1) + \
+        return genIndent(level) + "goTo((int) " + mathExpr(arg1) + \
                ", (int) " + mathExpr(arg2) + ");\n"
     else:
         raise ValueError(cmd)
@@ -949,8 +949,8 @@ def createCloneOf(level, tokens):
         return genIndent(level) + "createCloneOfMyself();\n"
 
     return genIndent(level) + "createCloneOf(" + \
-           "((" + worldClassName + ")getWorld()).getActorByName(" + \
-           tokens[1] + "));\n"
+           "((" + worldClassName + ')getWorld()).getActorByName("' + \
+           tokens[1] + '"));\n'
 
 
 def deleteThisClone(level, tokens):
