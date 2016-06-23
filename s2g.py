@@ -445,15 +445,23 @@ def whenSpriteCloned(codeObj, tokens):
     cbName = 'whenIStartAsACloneCb' + str(scriptNum)
 
     # Code in the constructor is always level 2.
-    codeObj.addToCode(genIndent(2) + 'whenStartAsClone("' + cbName + '");\n')
-
-    level = 1    # all callbacks are at level 1.
+    codeObj.addToCode(genIndent(2) + 'whenIStartAsAClone("' + cbName + '");\n')
 
     # Generate callback code, into the codeObj's cbCode string.
     # Add two blank lines before each method definition.
-    cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+    cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
                     "(Sequence s)\n"
-    cbStr += block(level, tokens) + "\n"  # add blank line after defn.
+    cbStr += block(1, tokens) + "\n"  # add blank line after defn.
+    codeObj.addToCbCode(cbStr)
+
+    # Generate a copy constructor too.
+    cbStr = "\n\n" + genIndent(1) + "// copy constructor, required for cloning\n"
+    cbStr += genIndent(1) + "public " + spriteName + "(" + \
+             spriteName + " other, int x, int y) {\n"
+    cbStr += genIndent(2) + "super(other, x, y);\n"
+    cbStr += genIndent(2) + "// add code here to copy any instance variables'\n"
+    cbStr += genIndent(2) + "// values from other to this.\n"
+    cbStr += genIndent(1) + "}\n\n"
     codeObj.addToCbCode(cbStr)
 
 
