@@ -206,9 +206,9 @@ public class Scratch extends Actor
                 synchronized (sequenceLock) {
 
                     while (doneSequence) {
-                        System.out.println(methodToCall + ": run(): Calling seqLock.wait");
+                        // System.out.println(methodToCall + ": run(): Calling seqLock.wait");
                         sequenceLock.wait();
-                        System.out.println(methodToCall + ": run(): done with seqLock.wait");
+                        // System.out.println(methodToCall + ": run(): done with seqLock.wait");
                     }
 
                     java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
@@ -828,7 +828,7 @@ public class Scratch extends Actor
         for (CloneStartSeq seq : cloneStartSeqs) {
             if (seq.isTriggered()) {
                 seq.performSequence();
-            }
+            } 
         }
 	
 
@@ -902,10 +902,11 @@ public class Scratch extends Actor
      */
     public void whenIStartAsAClone(String methodName)
     {
-        CloneStartSeq cb = new CloneStartSeq(this.getClass().getName(), methodName);
+        CloneStartSeq cb = new CloneStartSeq(this, methodName);
         cloneStartSeqs.add(cb);
         cb.start();
-        System.out.println("whenIStartAsAClone: method registered, sequence obj created.");
+        // System.out.println("whenIStartAsAClone: method registered for class " +
+	//		   this.getClass().getName() + "; sequence obj created.");
     }
 
     
