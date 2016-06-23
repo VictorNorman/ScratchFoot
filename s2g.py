@@ -5,6 +5,8 @@ import os, os.path
 import sys
 from subprocess import call
 from pprint import pprint
+import shutil
+import glob
 
 # TODO: make debug on/off a command-line arg
 debug = False
@@ -1169,7 +1171,7 @@ def genLoadCostumesCode(costumes):
     """Generate code to load costumes from files for a sprite.
     """
 
-    print("genLoadCC: costumes ->" + str(costumes) + "<-")
+    # print("genLoadCC: costumes ->" + str(costumes) + "<-")
     resStr = ""
     imagesDir = os.path.join(PROJECT_DIR, "images")
     for cos in costumes:
@@ -1425,13 +1427,21 @@ try:
 except FileExistsError as e:
     pass    # If the directory exists already, no problem.
 
-execOrDie("unzip -ou '" + SCRATCH_FILE + "' -d " + scratch_dir,
-          "unzip scratch download file")
+# Unzip the .sb2 file into the project/scratch_code directory.
+print("Unpacking Scratch download file.")
+shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
 
-# Copy image files to images dir.
-execOrDie("cp " + os.path.join(scratch_dir, "*.{svg,png}") + " " + \
-          os.path.join(PROJECT_DIR, "images"),
-          "move image files to Greenfoot images directory")
+# Copy svg and png image files to images dir.
+print("Copying image files to the project's images/ directory.")
+files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
+files2Copy.extend(glob.glob(os.path.join(scratch_dir, "*.png")))
+imagesDir = os.path.join(PROJECT_DIR, "images")
+for f in files2Copy:
+    shutil.copy2(f, imagesDir)
+
+# execOrDie("cp " + os.path.join(scratch_dir, "*.{svg,png}") + " " + \
+#           os.path.join(PROJECT_DIR, "images"),
+#          "move image files to Greenfoot images directory")
       
 
 # TODO: move sounds files.
