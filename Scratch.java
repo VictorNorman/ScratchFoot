@@ -148,40 +148,11 @@ public class Scratch extends Actor
         }
     }
 
-    private class CloneStartCb {
-        public String className;
-        public String method;
-
-        // Store the method to call, and also the class in which the method exists.
-        // When we invoke this (here in Scratch), we don't know the actual subclass, so
-        // we have to reference it by the stored name.
-        public CloneStartCb(String className, String method) 
-        {
-            this.className = className;
-            this.method = method;
-        }
-        // obj is the (new) clone object to call the method on.
-        public void invoke(Object obj)
-        {
-            try {
-                Class clazz = Class.forName(className);
-                Method m = clazz.getMethod(method);
-                m.invoke(obj);
-            } catch (Exception e) {
-                System.err.println("Scratch.cloneCb: exception when invoking callback method '" + 
-                    method + "': " + e);
-                e.printStackTrace();
-            }
-        }
-    }
-    private ArrayList<CloneStartCb> cloneStartCbs = new ArrayList<CloneStartCb>();
-    
-
     /**
      * A Sequence is an executable thread of code that will be run.  
      * It can be paused via a wait() call, like in Scratch, etc.
      */
-    public class Sequence extends Thread
+    protected class Sequence extends Thread
     {
         private Object sequenceLock;
         private boolean doneSequence;
@@ -189,13 +160,14 @@ public class Scratch extends Actor
         // active records if the registered sequence should continue to be run in the future.
         // It is set to false when stopThisScript() or stopOtherScriptsForSprite() has been called.
         private boolean active;
-        // isRunning records if this sequence is being run now.  It is used only in stopOtherScriptsForSprite.
-        // This is similar to the variable above called inForeverloop, which is set to true if *any* sequence is
-        // being run at the time.
+        // isRunning records if this sequence is being run now.  It is used
+        // only in stopOtherScriptsForSprite. 
+        // This is similar to the variable above called inForeverloop,
+        // which is set to true if *any* sequence is being run at the time.
         private boolean isRunning;
         // triggered is true indicates if this sequence is running.  It is false when the condition to 
-        // run the sequence has not been met yet.  E.g., a key press sequence will have triggered false when
-        // the key has not by hit by the user yet.
+        // run the sequence has not been met yet.  E.g., a key press
+        // sequence will have triggered false when the key has not by hit by the user yet.
         protected boolean triggered; 
 
         private Object objToCall;
@@ -211,7 +183,7 @@ public class Scratch extends Actor
             terminated = false;
             active = true;
             isRunning = false;
-            triggered = true;      // override this in subclasses for non-automatically triggered sequences.
+            triggered = true;      // override this for non-automatically triggered sequences.
             this.objToCall = obj;
             this.methodToCall = method;
             // System.out.println("Sequence ctor: obj " + obj + " method " + method);
@@ -241,7 +213,7 @@ public class Scratch extends Actor
 
                     java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
                             Class.forName("Scratch$Sequence"));
-                    // System.out.println(methodToCall + ": run(): invoking callback");
+                    System.out.println(methodToCall + ": run(): invoking callback");
                     inCbScript = true;
                     isRunning = true;
                     m.invoke(objToCall, this);
@@ -315,22 +287,14 @@ public class Scratch extends Actor
             }
             // System.out.println(methodToCall + ": perfSeq: done");
         }
-
-        // This is a Template Method.  Each subclass returns true if the condition has
-        // been met for the sequence to be invoked.  E.g., for an act-like method, there
-        // is no condition -- it is run.  For a keypress method, it returns true if
-        // the user has typed the specified key.
-        protected boolean invoke()
-        {
-            return true;
-        }
+	
     }
     // Keep a list of all the "plain" sequences.
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 
     /* -------- End of Sequence definition --------- */
 
-    public class KeyPressSeq extends Sequence {
+    private class KeyPressSeq extends Sequence {
         private String key;
 
         public KeyPressSeq(String key, Object obj, String method)
@@ -345,10 +309,12 @@ public class Scratch extends Actor
             this(other.key, other.getObj(), other.getMethod());
         }
 
+        // Called from act().
         public boolean isTriggered() {
             if (Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
-                    System.out.println("keySeq: for key " + this.key + " changing from NOT triggered to triggered.");
+                    System.out.println("keySeq: for key " + this.key +
+				       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -357,7 +323,7 @@ public class Scratch extends Actor
     }
     private ArrayList<KeyPressSeq> keySeqs = new ArrayList<KeyPressSeq>();
 
-    private class ActorOrStageClickedSeq extends Sequence {
+    abstract private class ActorOrStageClickedSeq extends Sequence {
 
         public ActorOrStageClickedSeq(Object obj, String method)
         {
@@ -369,7 +335,6 @@ public class Scratch extends Actor
         public ActorOrStageClickedSeq(ActorOrStageClickedSeq other) {
             this(other.getObj(), other.getMethod());
         }
-
     }
 
     private class ActorClickedSeq extends ActorOrStageClickedSeq {
@@ -383,7 +348,8 @@ public class Scratch extends Actor
         public boolean isTriggered() {
             if (Greenfoot.mouseClicked(this.getObj())) {
                 if (! triggered) {
-                    System.out.println("ActorClickedSeq: for actor " + this.getObj() + " changing from NOT triggered to triggered.");
+                    System.out.println("ActorClickedSeq: for actor " + this.getObj() +
+				       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -426,7 +392,8 @@ public class Scratch extends Actor
         public boolean isTriggered() {
             if (((ScratchWorld) getWorld()).bcastPending(mesg)) {
                 if (! triggered) {
-                    System.out.println("mesgRecvdSeq: for mesg " + mesg + " changing from NOT triggered to triggered.");
+                    System.out.println("mesgRecvdSeq: for mesg " + mesg +
+				       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -434,6 +401,32 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<MesgRecvdSeq> mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>();
+
+
+    private class CloneStartSeq extends Sequence {
+        public CloneStartSeq(Object obj, String method) 
+        {
+            super(obj, method);
+            this.triggered = false;
+        }
+
+        public CloneStartSeq(CloneStartSeq other) {
+            this(other.getObj(), other.getMethod());
+        }
+
+        // called from act()
+        public boolean isTriggered() {
+            if (((ScratchWorld) getWorld()).clonePending(getObj().getClass().getName())) {
+                if (! triggered) {
+                    System.out.println("CloneStartSeq: for sprite " + getObj().getClass().getName() +
+                                       " changing from NOT triggered to triggered.");
+                }
+                triggered = true;
+            }
+            return triggered;
+        }
+    }
+    private ArrayList<CloneStartSeq> cloneStartSeqs = new ArrayList<CloneStartSeq>();
 
     /* -------------------  Variables ------------------------ */
     private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
@@ -684,7 +677,7 @@ public class Scratch extends Actor
         actorClickedSeqs = new ArrayList<ActorClickedSeq>(other.actorClickedSeqs);
         stageClickedSeqs = new ArrayList<StageClickedSeq>(other.stageClickedSeqs);
         mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>(other.mesgRecvdSeqs);
-        cloneStartCbs = new ArrayList<CloneStartCb>(other.cloneStartCbs);
+        cloneStartSeqs = new ArrayList<CloneStartSeq>(other.cloneStartSeqs);
 
         // Initialize everything for this new Actor in Greenfoot.
         super.setLocation(x, y);
@@ -727,8 +720,7 @@ public class Scratch extends Actor
     {
         // Call all the registered "whenFlagClicked" scripts.
 
-        // Remove all terminated sequences from the main sequences list.  Do this by
-        // copying the non-terminated ones to temp, then reassigning sequences to refer to temp.
+        // Remove all terminated sequences from the main sequences list.
         for (ListIterator<Sequence> iter = sequences.listIterator(); iter.hasNext(); ) {
             if (iter.next().isTerminated()) {
                 iter.remove();
@@ -740,7 +732,6 @@ public class Scratch extends Actor
         }
 
         /* Now handle keyPress sequences.  They get restarted if they terminated. */
-        
         for (ListIterator<KeyPressSeq> iter = keySeqs.listIterator(); iter.hasNext(); ) {
             KeyPressSeq seq = iter.next();
             if (seq.isTerminated()) {
@@ -816,14 +807,32 @@ public class Scratch extends Actor
 
         /* Loop through sequences that have been invoked already. */
         for (MesgRecvdSeq seq : mesgRecvdSeqs) {
-            // isTriggered returns true if a sequence has seen the stage click done already, or
-            // if the sequence is seeing stage click done right now.
             if (seq.isTriggered()) {
                 seq.performSequence();
             }
         }        
 
-        if (sayActor != null) {
+        /* ---------- Repeat, but for clone requests. ------------- */
+
+        for (ListIterator<CloneStartSeq> iter = cloneStartSeqs.listIterator(); iter.hasNext(); ) {
+            CloneStartSeq seq = iter.next();
+            if (seq.isTerminated()) {
+                CloneStartSeq n = new CloneStartSeq(seq);
+                iter.remove();   // remove old one
+                iter.add(n);     // add new one that is reset to the beginning.
+                n.start();
+            }
+        }
+
+        /* Loop through sequences that have been invoked already. */
+        for (CloneStartSeq seq : cloneStartSeqs) {
+            if (seq.isTriggered()) {
+                seq.performSequence();
+            } 
+        }
+	
+
+	if (sayActor != null) {
             sayActorUpdateLocation();
         }
         // Update lastImg to current image
@@ -887,6 +896,19 @@ public class Scratch extends Actor
         m.start();
     }
 
+    /**
+     * register a method to be called when a new clone starts up.  The method
+     * has no parameters.
+     */
+    public void whenIStartAsAClone(String methodName)
+    {
+        CloneStartSeq cb = new CloneStartSeq(this, methodName);
+        cloneStartSeqs.add(cb);
+        cb.start();
+        // System.out.println("whenIStartAsAClone: method registered for class " +
+	//		   this.getClass().getName() + "; sequence obj created.");
+    }
+
     
     /**
      * broadcast a message to all sprites.
@@ -913,16 +935,12 @@ public class Scratch extends Actor
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor();
 
-        // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
-        //    clone.getClass().getName() + ". Now, calling addObject()");
+        System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
+           clone.getClass().getName() + ". Now, calling addObject()");
         ((ScratchWorld) getWorld()).addObject((Scratch)clone, super.getX(), super.getY());
 
-        // If there are methods registered to be called when a clone is created,
-        // call the methods now.   TODO: should this be done in the next frame?
-        // But, have the new object run the callbacks.
-        ((Scratch)clone).runCloneCallbacks();
-
-        // System.out.println("Clone added");
+        ((ScratchWorld) getWorld()).registerCloneSpriteName(this.getClass().getName());
+        System.out.println("Clone request done");
     }
 
     /**
@@ -944,13 +962,6 @@ public class Scratch extends Actor
         System.out.println("Clone added");        
     }
 
-    // Run registered "WhenIStartAsAClone" callbacks.
-    private void runCloneCallbacks()
-    {
-        for (CloneStartCb cb : cloneStartCbs) {
-            cb.invoke(this);
-        }
-    }
 
     private Object callConstructor(Scratch obj)
     {
@@ -974,18 +985,6 @@ public class Scratch extends Actor
     private Object callConstructor()
     {
         return callConstructor(this);
-    }
-
-    /**
-     * register a method to be called when a new clone starts up.  The method
-     * has no parameters.
-     */
-    public void whenStartAsClone(String methodName)
-    {
-        // Save the method name, and also the name of the class of the new clone after it
-        // is created.
-        CloneStartCb cb = new CloneStartCb(getClass().getName(), methodName);
-        cloneStartCbs.add(cb);
     }
 
     /**
