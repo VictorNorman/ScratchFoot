@@ -560,16 +560,12 @@ def doIfElse(tokens, level):
     resStr += block(level, tokens[3])
     return resStr
     
-    
-def bogusFunc(level, tokens):
-    return ""
 
 def motion0Arg(level, tokens):
     """Generate code to handle Motion blocks with 0 arguments"""
     assert len(tokens) == 1
     cmd = tokens[0]
     if cmd == "bounceOffEdge":
-        prindent(level)
         return genIndent(level) + "ifOnEdgeBounce();\n"
     else:
         raise ValueError(cmd)
