@@ -938,6 +938,14 @@ public class Scratch extends Actor
     /**
      * createCloneOf: create a clone of the given Scratch actor.
      */
+    public void createCloneOf(String spriteName)
+    {
+        createCloneOf(getWorld().getActorByName(spriteName));
+    }
+    
+    /**
+     * createCloneOf: create a clone of the given Scratch actor.
+     */
     public void createCloneOf(Scratch actor)
     {
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
@@ -946,22 +954,12 @@ public class Scratch extends Actor
         // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
         //    clone.getClass().getName() + ". Now, calling addObject()");
         getWorld().addObject((Scratch)clone, translateToGreenfootX(actor.getX()), 
-            translateToGreenfootY(actor.getY()));
+			     translateToGreenfootY(actor.getY()));
 
         // NOTE: Scratch does NOT run the "when added as clone" block when a clone of another
         // Sprite is created, so we won't either.
 
-        getWorld().registerCloneSpriteName(actor.getClass().getName());
-        System.out.println("Clone request done");
-    }
-
-
-    /**
-     * createCloneOf: create a clone of the given Scratch actor.
-     */
-    public void createCloneOf(String spriteName)
-    {
-        createCloneOf(getWorld().getActorByName(spriteName));
+        System.out.println("Clone added");        
     }
 
 
