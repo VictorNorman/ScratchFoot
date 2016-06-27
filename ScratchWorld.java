@@ -41,6 +41,9 @@ public class ScratchWorld extends World
     // Maintain a mapping from spriteName (a String) to the sprite object.
     // TODO: need to test whether this works or should work with clones.
     HashMap<String, Scratch> sprites = new HashMap();
+    
+    // This variable tracks whether the mouse is pressed
+    private boolean isMouseDown;
 
     /*
      * this class is just a pairing of backdrop image with its name.
@@ -56,16 +59,27 @@ public class ScratchWorld extends World
     }
     private ArrayList<Backdrop> backdrops = new ArrayList<Backdrop>();
 
-    private class BcastMsg {
-        public String message;
+
+    /*
+     * This is used for storing bcast message in the string for handling broadcasts,
+     * and for storing the sprite to clone in the string for handling cloning.
+     */
+    private class StringFrameNumPair {
+        public String str;
         public long frameNum;   // the frame # this message should be sent in.
 
-        public BcastMsg(String msg, long frame) {
-            this.message = msg;
+        public StringFrameNumPair(String str, long frame) {
+            this.str = str;
             this.frameNum = frame;
         }
     }
-    private LinkedList<BcastMsg> mesgs = new LinkedList<BcastMsg>();
+
+    // A list of pending broadcast messages.
+    private LinkedList<StringFrameNumPair> mesgs = new LinkedList<StringFrameNumPair>();
+
+    // A list of pending clone requests.
+    private LinkedList<StringFrameNumPair> sprs2Clone = new LinkedList<StringFrameNumPair>();
+
 
     // Keep an array of the classes in this world in order to support
     // changing of the "paint order" -- which objects are painted on top of
@@ -113,7 +127,7 @@ public class ScratchWorld extends World
             // Go through the messages in the bcast message list and remove the
             // first ones that are old -- with frameNumber in the past.
             while (true) {
-                BcastMsg bcmsg = mesgs.peekFirst();
+                StringFrameNumPair bcmsg = mesgs.peekFirst();
                 if (bcmsg != null && bcmsg.frameNum < frameNumber) {
                     mesgs.removeFirst();
                 } else {
@@ -122,6 +136,38 @@ public class ScratchWorld extends World
                     break;
                 }
             }
+        }
+        if (sprs2Clone.size() != 0) {
+            // Go through the messages in the bcast message list and remove the
+            // first ones that are old -- with frameNumber in the past.
+            while (true) {
+                StringFrameNumPair spr = sprs2Clone.peekFirst();
+                if (spr != null && spr.frameNum < frameNumber) {
+                    sprs2Clone.removeFirst();
+                } else {
+                    // The list is empty or the pending clones are for the next
+                    // iteration.
+                    break;
+                }
+            }
+        }
+        
+        // This tracks whether the mouse is pressed by using the fact that 
+        // mouseClickCount is > 0 when the mouse is released, and drag ended works 
+        // outside the greenfoot window. 
+        MouseInfo mi = Greenfoot.getMouseInfo();
+        boolean dragEnd = Greenfoot.mouseDragEnded(null);
+        boolean pressed = Greenfoot.mousePressed(null);
+        // Iterate through all on-screen objects to check if they have been clicked
+        if (mi != null) {
+            if (mi.getClickCount() > 0 || dragEnd) {
+                isMouseDown = false;
+            }
+        } else if (dragEnd) {
+            isMouseDown = false;
+        }
+        if (pressed) {
+            isMouseDown = true;
         }
     }
 
@@ -142,15 +188,68 @@ public class ScratchWorld extends World
      */
     public boolean bcastPending(String message)
     {
-        for (BcastMsg bcmsg : mesgs) {
+        for (StringFrameNumPair bcmsg : mesgs) {
             // Look for the correct message, to be triggered in the frame.
-            if (bcmsg.message == message && bcmsg.frameNum == frameNumber) {
+            if (bcmsg.str == message && bcmsg.frameNum == frameNumber) {
                 return true;
             }
         }
         return false;
     }
 
+    /**
+     * Not to be called by the user: register a bcast message, to be sent to all 
+     * Scratch Actors during the next frame.
+     */
+    public void registerBcast(String message)
+    {
+        // Create a new StringFrameNumPair object, saving the message string, and the
+        // frame in which the actor's registered to receive this message
+        // should execute their methods.  This frame is the *next* time
+        // around -- thus we add 1 to the current frame number. 
+        System.out.println("Adding message " + message +
+               " to bcastList with frame " + (frameNumber + 1));
+        StringFrameNumPair msg = new StringFrameNumPair(message, frameNumber + 1);
+        mesgs.addLast(msg);
+    }
+
+    /**
+     * Not to be called by users -- only by Scratch.
+     * return true if there is a clone pending for the given sprite name.
+     */
+    public boolean clonePending(String sprName)
+    {
+        for (StringFrameNumPair spr : sprs2Clone) {
+            // Look for the correct sprite name, to be triggered in the frame.
+            if (spr.str == sprName && spr.frameNum == frameNumber) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // add the given sprite name to the list of pending clone requests.
+    public void registerCloneSpriteName(String sprName)
+    {
+        // Create a new StringFrameNumPair object, saving the sprName
+        // string, and the frame in which the actor should be cloned.
+        // This frame is the *next* time around -- thus we add 1 to the
+        // current frame number.  
+        System.out.println("Adding sprite " + sprName +
+               " to sprs2Clone with frame " + (frameNumber + 1));
+        StringFrameNumPair spr = new StringFrameNumPair(sprName, frameNumber + 1);
+        sprs2Clone.addLast(spr);
+    }
+
+
+    /**
+     *  return whether or not the mouse is currently pressed on this world
+     */
+    public boolean isMouseDown() 
+    {
+        return isMouseDown;
+    }
+    
     /**
      * return the current number of times each Scratch Actor has had its
      * registered callbacks called. 
@@ -258,22 +357,6 @@ public class ScratchWorld extends World
     public void renameDefaultBackdrop(String newName) 
     {
         backdrops.get(0).name = newName;
-    }
-
-    /**
-     * Not to be called by the user: register a bcast message, to be sent to all 
-     * Scratch Actors during the next frame.
-     */
-    public void registerBcast(String message)
-    {
-        // Create a new BcastMsg object, saving the message string, and the
-        // frame in which the actor's registered to receive this message
-        // should execute their methods.  This frame is the *next* time
-        // around -- thus we add 1 to the current frame number. 
-        System.out.println("Adding message " + message +
-			   " to bcastList with frame " + (frameNumber + 1));
-        BcastMsg msg = new BcastMsg(message, frameNumber + 1);
-        mesgs.addLast(msg);
     }
 
     /* 
