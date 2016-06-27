@@ -299,6 +299,16 @@ public class ScratchWorld extends World
     }
 
     /**
+     * set the current backdrop number to the given value.
+     */
+    public void setBackdropNumber(int num)
+    {
+        currBackdrop = num;
+        // TODO: check num to make sure it is valid before setting it.
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+    }
+
+    /**
      * return the name of the current backdrop
      */
     public String getBackdropName()
