@@ -905,8 +905,8 @@ public class Scratch extends Actor
         CloneStartSeq cb = new CloneStartSeq(this, methodName);
         cloneStartSeqs.add(cb);
         cb.start();
-        // System.out.println("whenIStartAsAClone: method registered for class " +
-        //         this.getClass().getName() + "; sequence obj created.");
+        System.out.println("whenIStartAsAClone: method registered for class " +
+                           this.getClass().getName() + "; sequence obj created.");
     }
 
     
@@ -951,13 +951,11 @@ public class Scratch extends Actor
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
 
-        // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
-        //    clone.getClass().getName() + ". Now, calling addObject()");
-        getWorld().addObject((Scratch)clone, translateToGreenfootX(actor.getX()), 
-			     translateToGreenfootY(actor.getY()));
-
-        // NOTE: Scratch does NOT run the "when added as clone" block when a clone of another
-        // Sprite is created, so we won't either.
+        System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
+            clone.getClass().getName() + ". Now, calling addObject()");
+        getWorld().addObject((Scratch)clone, super.getX(), super.getY());
+        
+        getWorld().registerCloneSpriteName(actor.getClass().getName());
 
         System.out.println("Clone added");        
     }

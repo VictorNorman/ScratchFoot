@@ -685,18 +685,14 @@ def nextCostume(level, tokens):
 def switchBackdropTo(level, tokens):
     """Generate code to switch the backdrop.
     """
-    global worldClassName	# I know: dependence on an external variable is bad.
     cmd, arg1 = tokens
     assert cmd == "startScene"
-    return genIndent(level) + "((" + worldClassName + \
-           ")getWorld()).switchBackdropTo(" + strExpr(arg1) + ");\n"
+    return genIndent(level) + "getWorld().switchBackdropTo(" + strExpr(arg1) + ");\n"
 
 def nextBackdrop(level, tokens):
     """Generate code to switch to the next backdrop.
     """
-    global worldClassName
-    return genIndent(level) + "((" + worldClassName + \
-           ")getWorld()).nextBackdrop();\n"
+    return genIndent(level) + "getWorld().nextBackdrop();\n"
 
 def changeSizeBy(level, tokens):
     """Generate code to change the size of the sprite
@@ -767,6 +763,26 @@ def pen1Arg(level, tokens):
     else:
         raise ValueError(cmd)
 
+def getTypeAndLocalGlobal(varTok):
+    """Look up the token representing a variable name in the varTypes
+    dictionary.  If it is found, return the type and whether it
+    is a local variable or global.  Global is known if it is found
+    in GLOBAL object.  Raise ValueError if it isn't found
+    in the dictionary.
+    """
+    global spriteName
+    
+    isGlobal = False
+    varType = varTypes.get((spriteName, varTok))
+    if varType is None:
+        varType = varTypes.get(("GLOBAL", varTok))
+        if varType is None:
+            raise ValueError("Sprite " + spriteName + " variable " +
+                         varTok + " unknown.")
+        else:
+            isGlobal = True
+    return (varType, isGlobal)
+
 def setVariable(level, tokens):
     """Set a variable's value from within the code.
     Generate code like this:
@@ -780,15 +796,7 @@ def setVariable(level, tokens):
     global spriteName, worldClassName
     global varTypes
 
-    isGlobal = False
-    varType = varTypes.get((spriteName, tokens[1]))
-    if varType is None:
-        varType = varTypes.get(("Stage", tokens[1]))
-        if varType is None:
-            raise ValueError("Sprite " + spriteName + " variable " +
-                         tokens[1] + " unknown.")
-        else:
-            isGlobal = True
+    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
     if varType == 'Boolean':
         val = boolExpr(tokens[2])
     elif varType in ('Int', 'Double'):
@@ -797,7 +805,7 @@ def setVariable(level, tokens):
         val = strExpr(tokens[2])
 
     if isGlobal:
-        # Something like: ((Simple1World)getWorld()).counter.set(0);
+        # Something like: ((AWorld)getWorld()).counter.set(0);
         return genIndent(level) + "((%s)getWorld()).%s.set(%s);\n" % \
                (worldClassName, tokens[1], val)
     else:
@@ -817,18 +825,9 @@ def readVariable(varname):
     global spriteName, worldClassName
     global varTypes
 
-    isGlobal = False
-    varType = varTypes.get((spriteName, varname))
-    if varType is None:
-        varType = varTypes.get(("Stage", varname))
-        if varType is None:
-            raise ValueError("Sprite " + spriteName + " variable " +
-                         varname + " unknown.")
-        else:
-            isGlobal = True
-
+    varType, isGlobal = getTypeAndLocalGlobal(varname)
     if isGlobal:
-        # Something like: ((Simple1World)getWorld()).counter.get();
+        # Something like: ((AWorld)getWorld()).counter.get();
         return "((%s)getWorld()).%s.get()" % (worldClassName, varname)
     else:
         return varname + ".get()"
@@ -837,13 +836,25 @@ def readVariable(varname):
 def hideVariable(level, tokens):
     """Generate code to hide a variable.
     """
-    return genIndent(level) + tokens[1] + ".hide();\n"
+    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    if isGlobal:
+        # Something like: ((AWorld)getWorld()).counter.hide();
+        return genIndent(level) + "((%s)getWorld()).%s.hide();\n" % \
+               (worldClassName, tokens[1])
+    else:
+        return genIndent(level) + tokens[1] + ".hide();\n"
 
 
 def showVariable(level, tokens):
     """Generate code to hide a variable.
     """
-    return genIndent(level) + tokens[1] + ".show();\n"
+    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    if isGlobal:
+        # Something like: ((AWorld)getWorld()).counter.show();
+        return genIndent(level) + "((%s)getWorld()).%s.show();\n" % \
+               (worldClassName, tokens[1])
+    else:
+        return genIndent(level) + tokens[1] + ".show();\n"
 
 
 def changeVarBy(level, tokens):
@@ -851,8 +862,17 @@ def changeVarBy(level, tokens):
     Code will be like this:
     aVar.set(aVar.get() + 3);
     """
-    return genIndent(level) + tokens[1] + ".set(" + \
-           tokens[1] + ".get() + " + mathExpr(tokens[2]) + ");\n"
+    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    if isGlobal:
+        # Something like:
+        # ((AWorld)getWorld()).counter.set(((AWorld)getWorld()).counter.get() + 1);
+        return genIndent(level) + \
+               "((%s)getWorld()).%s.set(((%s)getWorld()).%s.get() + %s);\n" % \
+               (worldClassName, tokens[1],
+                worldClassName, tokens[1], mathExpr(tokens[2]))
+    else:
+        return genIndent(level) + tokens[1] + ".set(" + \
+               tokens[1] + ".get() + " + mathExpr(tokens[2]) + ");\n"
 
 def broadcast(level, tokens):
     """Generate code to handle sending a broacast message.
@@ -956,8 +976,7 @@ def createCloneOf(level, tokens):
         return genIndent(level) + "createCloneOfMyself();\n"
 
     return genIndent(level) + "createCloneOf(" + \
-           "((" + worldClassName + ')getWorld()).getActorByName("' + \
-           tokens[1] + '"));\n'
+           'getWorld().getActorByName("' + tokens[1] + '"));\n'
 
 
 def deleteThisClone(level, tokens):
@@ -1335,7 +1354,14 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         # functions to generate the correct type of results.
         # E.g., if a variable is boolean, we'll call boolExpr()
         # from setVariables(), not mathExpr().
-        varTypes[(spriteName, name)] = varType
+
+        # If the spriteName is "GLOBAL" then it is a global variable.
+        # However, we store global variable in the World, so we'll use
+        # "GLOBAL" instead.
+        if spriteName == "Stage":
+            varTypes[("GLOBAL", name)] = varType
+        else:
+            varTypes[(spriteName, name)] = varType
         if debug:
             print("Adding entry for", spriteName, ",", name,
                   "to dict with value", varType)
@@ -1505,13 +1531,17 @@ worldClassName = PROJECT_DIR.capitalize().replace(" ", "") + "World"
 # These need to be processed before we process any Sprite-specific code
 # which may reference these global variables.
 spriteName = "Stage"
+
 worldDefnCode = ""
 if 'variables' in data:
     worldDefnCode, initCode = genVariablesDefnCode(data['variables'], "Stage",
                                                    data['children'])
     worldCtorCode += initCode
 
+
+# ---------------------------------------------------------------------------
 # Start processing each sprite's info: scripts, costumes, variables, etc.
+# ---------------------------------------------------------------------------
 for spr in sprites:
     if 'objName' in spr:
         spriteName = spr['objName']
@@ -1600,8 +1630,6 @@ for spr in sprites:
             print(spr)
 
 
-# If the Stage has script(s) in it, then the 'scripts' field will be
-# in the project.json.  In this case, we'll create a Stage Actor.
 
 # --------- handle the Stage stuff --------------
 
@@ -1649,7 +1677,7 @@ genHeaderCode(outFile, spriteName)
 
 # Set the image for the Stage to nothing.  Backdrops are
 # part of the World in Greenfoot, not the Stage object.
-ctorCode += genIndent(2) + "setImage((GreenfootImage) null);\t\t// No image for the stage.\n"
+ctorCode = genIndent(2) + "setImage((GreenfootImage) null);\t\t// No image for the stage.\n" + ctorCode
 genConstructorCode(outFile, spriteName, ctorCode)
 for code in cbCode:
     outFile.write(code)
