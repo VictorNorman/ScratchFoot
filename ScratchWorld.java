@@ -41,6 +41,9 @@ public class ScratchWorld extends World
     // Maintain a mapping from spriteName (a String) to the sprite object.
     // TODO: need to test whether this works or should work with clones.
     HashMap<String, Scratch> sprites = new HashMap();
+    
+    // This variable tracks whether the mouse is pressed
+    private boolean isMouseDown;
 
     /*
      * this class is just a pairing of backdrop image with its name.
@@ -144,6 +147,24 @@ public class ScratchWorld extends World
                 }
             }
         }
+        
+        // This tracks whether the mouse is pressed by using the fact that 
+        // mouseClickCount is > 0 when the mouse is released, and drag ended works 
+        // outside the greenfoot window. 
+        MouseInfo mi = Greenfoot.getMouseInfo();
+        boolean dragEnd = Greenfoot.mouseDragEnded(null);
+        boolean pressed = Greenfoot.mousePressed(null);
+        // Iterate through all on-screen objects to check if they have been clicked
+        if (mi != null) {
+            if (mi.getClickCount() > 0 || dragEnd) {
+                isMouseDown = false;
+            }
+        } else if (dragEnd) {
+            isMouseDown = false;
+        }
+        if (pressed) {
+            isMouseDown = true;
+        }
     }
 
     /**
@@ -183,7 +204,7 @@ public class ScratchWorld extends World
         // should execute their methods.  This frame is the *next* time
         // around -- thus we add 1 to the current frame number. 
         System.out.println("Adding message " + message +
-			   " to bcastList with frame " + (frameNumber + 1));
+                           " to bcastList with frame " + (frameNumber + 1));
         StringFrameNumPair msg = new StringFrameNumPair(message, frameNumber + 1);
         mesgs.addLast(msg);
     }
@@ -211,12 +232,20 @@ public class ScratchWorld extends World
         // This frame is the *next* time around -- thus we add 1 to the
         // current frame number.  
         System.out.println("Adding sprite " + sprName +
-			   " to sprs2Clone with frame " + (frameNumber + 1));
+                           " to sprs2Clone with frame " + (frameNumber + 1));
         StringFrameNumPair spr = new StringFrameNumPair(sprName, frameNumber + 1);
         sprs2Clone.addLast(spr);
     }
 
 
+    /**
+     *  return whether or not the mouse is currently pressed on this world
+     */
+    public boolean isMouseDown() 
+    {
+        return isMouseDown;
+    }
+    
     /**
      * return the current number of times each Scratch Actor has had its
      * registered callbacks called. 

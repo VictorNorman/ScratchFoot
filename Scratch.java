@@ -287,7 +287,6 @@ public class Scratch extends Actor
             }
             // System.out.println(methodToCall + ": perfSeq: done");
         }
-	
     }
     // Keep a list of all the "plain" sequences.
     private ArrayList<Sequence> sequences = new ArrayList<Sequence>();
@@ -314,7 +313,7 @@ public class Scratch extends Actor
             if (Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
                     System.out.println("keySeq: for key " + this.key +
-				       " changing from NOT triggered to triggered.");
+                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -349,7 +348,7 @@ public class Scratch extends Actor
             if (Greenfoot.mouseClicked(this.getObj())) {
                 if (! triggered) {
                     System.out.println("ActorClickedSeq: for actor " + this.getObj() +
-				       " changing from NOT triggered to triggered.");
+                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -390,10 +389,10 @@ public class Scratch extends Actor
             this(other.mesg, other.getObj(), other.getMethod());
         }
         public boolean isTriggered() {
-            if (((ScratchWorld) getWorld()).bcastPending(mesg)) {
+            if (getWorld().bcastPending(mesg)) {
                 if (! triggered) {
                     System.out.println("mesgRecvdSeq: for mesg " + mesg +
-				       " changing from NOT triggered to triggered.");
+                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -416,7 +415,7 @@ public class Scratch extends Actor
 
         // called from act()
         public boolean isTriggered() {
-            if (((ScratchWorld) getWorld()).clonePending(getObj().getClass().getName())) {
+            if (getWorld().clonePending(getObj().getClass().getName())) {
                 if (! triggered) {
                     System.out.println("CloneStartSeq: for sprite " + getObj().getClass().getName() +
                                        " changing from NOT triggered to triggered.");
@@ -830,15 +829,16 @@ public class Scratch extends Actor
                 seq.performSequence();
             } 
         }
-	
 
-	if (sayActor != null) {
+        if (sayActor != null) {
             sayActorUpdateLocation();
         }
+        
         // Update lastImg to current image
         if (getImage() != null) {
             lastImg = getImage();
         }
+        
     }
 
     /**
@@ -906,7 +906,7 @@ public class Scratch extends Actor
         cloneStartSeqs.add(cb);
         cb.start();
         // System.out.println("whenIStartAsAClone: method registered for class " +
-	//		   this.getClass().getName() + "; sequence obj created.");
+        //         this.getClass().getName() + "; sequence obj created.");
     }
 
     
@@ -915,7 +915,7 @@ public class Scratch extends Actor
      */
     public void broadcast(String message)
     {
-        ((ScratchWorld) getWorld()).registerBcast(message);
+        getWorld().registerBcast(message);
     }
 
     /*
@@ -943,11 +943,15 @@ public class Scratch extends Actor
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
 
-        System.out.println("createCloneOf: called copy constructor to get object of type " + 
-           clone.getClass().getName() + ". Now, calling addObject()");
-        ((ScratchWorld) getWorld()).addObject((Scratch)clone, super.getX(), super.getY());
+        // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
+        //    clone.getClass().getName() + ". Now, calling addObject()");
+        getWorld().addObject((Scratch)clone, translateToGreenfootX(actor.getX()), 
+            translateToGreenfootY(actor.getY()));
 
-        ((ScratchWorld) getWorld()).registerCloneSpriteName(actor.getClass().getName());
+        // NOTE: Scratch does NOT run the "when added as clone" block when a clone of another
+        // Sprite is created, so we won't either.
+
+        getWorld().registerCloneSpriteName(actor.getClass().getName());
         System.out.println("Clone request done");
     }
 
@@ -957,7 +961,7 @@ public class Scratch extends Actor
      */
     public void createCloneOf(String spriteName)
     {
-        createCloneOf(((ScratchWorld) getWorld()).getActorByName(spriteName));
+        createCloneOf(getWorld().getActorByName(spriteName));
     }
 
 
@@ -1122,7 +1126,7 @@ public class Scratch extends Actor
     {
         // This call actually rewrites the backdrop onto the background, without
         // all the pen drawing, stamping, etc.
-        ((ScratchWorld) getWorld()).clearBackdrop();
+        getWorld().clearBackdrop();
     }
 
     /**
@@ -1872,6 +1876,14 @@ public class Scratch extends Actor
      * Sensing blocks.
      * ---------------------------------------------------------------------
      */
+    
+    /**
+     * Returns the containing scratchworld
+     */
+    public ScratchWorld getWorld()
+    {
+        return (ScratchWorld)super.getWorld();
+    }
 
     /**
      * return true if this sprite is touching the other given sprite,
@@ -1887,7 +1899,7 @@ public class Scratch extends Actor
      */
     public boolean isTouching(String spriteName) 
     {
-        Scratch other = ((ScratchWorld) getWorld()).getActorByName(spriteName);
+        Scratch other = getWorld().getActorByName(spriteName);
         return isTouching(other);
     }
 
@@ -2002,7 +2014,7 @@ public class Scratch extends Actor
      */
     public boolean isMouseDown()
     {
-        return Greenfoot.mousePressed(null) || Greenfoot.mouseDragged(null);
+        return getWorld().isMouseDown();
     }
 
     /**
@@ -2022,7 +2034,15 @@ public class Scratch extends Actor
         int deltaY = super.getY() - other.getY();
         return (int) java.lang.Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     }
-
+    
+    /**
+     * return the distance in pixels to the other sprite.
+     */
+    public int distanceTo(String spriteName)
+    {
+        return distanceTo(getWorld().getActorByName(spriteName));
+    }
+    
     /**
      * return the distance in pixels to the mouse pointer.
      */
@@ -2047,7 +2067,7 @@ public class Scratch extends Actor
      */
     public double getTimer()
     {
-        return ((ScratchWorld) getWorld()).getTimer();
+        return getWorld().getTimer();
     }
 
     /**
@@ -2055,7 +2075,7 @@ public class Scratch extends Actor
      */
     public void resetTimer()
     {
-        ((ScratchWorld) getWorld()).resetTimer();
+        getWorld().resetTimer();
     }
 
     /**
@@ -2065,7 +2085,15 @@ public class Scratch extends Actor
     {
         return translateGFtoScratchX(other.getX());
     }
-
+    
+    /**
+     * return the x position of the given sprite.
+     */
+    public int xPositionOf(String spriteName)
+    {
+        return xPositionOf(getWorld().getActorByName(spriteName));
+    }
+    
     /**
      * return the y position of the given sprite.
      */
@@ -2073,12 +2101,29 @@ public class Scratch extends Actor
     {
         return translateGFtoScratchY(other.getY());
     }
+    
+    /**
+     * return the x position of the given sprite.
+     */
+    public int yPositionOf(String spriteName)
+    {
+        return yPositionOf(getWorld().getActorByName(spriteName));
+    }
 
     /**
      * return the direction the given sprite is pointing to.
      */
     public int directionOf(Scratch other)
     {
+        return other.getDirection();
+    }
+    
+    /**
+     * return the direction the given sprite is pointing to.
+     */
+    public int directionOf(String spriteName)
+    {
+        Scratch other = getWorld().getActorByName(spriteName);
         return other.getDirection();
     }
 
@@ -2089,12 +2134,30 @@ public class Scratch extends Actor
     {
         return other.getCostumeNumber();
     }
+    
+    /**
+     * return the costume number of the given sprite
+     */
+    public int costumeNumberOf(String spriteName)
+    {
+        Scratch other = getWorld().getActorByName(spriteName);
+        return other.getCostumeNumber();
+    }
 
     /**
      * return the size (in percentage of the original) of the given sprite
      */
     public int sizeOf(Scratch other)
     {
+        return other.size();
+    }
+    
+    /**
+     * return the size (in percentage of the original) of the given sprite
+     */
+    public int sizeOf(String spriteName)
+    {
+        Scratch other = getWorld().getActorByName(spriteName);
         return other.size();
     }
 
