@@ -6,7 +6,7 @@ import os, os.path
 import platform
 from pprint import pprint
 import shutil
-from subprocess import call
+from subprocess import call, getstatusoutput
 import sys
 
 # TODO: make debug on/off a command-line arg
@@ -56,7 +56,7 @@ class CodeAndCb:
 
     # class variable
     cbScriptId = 0
-    
+
     def __init__(self):
         self.code = ""
         self.cbCode = ""
@@ -69,8 +69,6 @@ class CodeAndCb:
         return ret
     def addToCode(self, code):
         self.code += code
-    # def addToInitCode(self, code):
-    #     self.varInitCode += code
 
 
 def execOrDie(cmd, descr):
@@ -87,7 +85,7 @@ def execOrDie(cmd, descr):
         print("Command to " + descr + ": Execution failed:", e, \
               file=sys.stderr)
         sys.exit(1)
-            
+
 
 def genIndent(level):
     return (" " * (level * NUM_SPACES_PER_LEVEL))
@@ -200,7 +198,7 @@ def convertKeyPressName(keyname):
     if "arrow" in keyname:
         keyname = keyname.rstrip(" arrow")
     return keyname
-    
+
 
 def handleKeyPressed(keyname):
     """Generate call to isKeyPressed()"""
@@ -297,7 +295,7 @@ def mathExpr(tokenOrList):
             return "daysSince2000 not implemented"
         else:
             raise ValueError("Unknown operation " + op)
-            
+
     if len(tokenOrList) == 2:
         # Handle cases of operations that take 1 argument.
         op, tok1 = tokenOrList
@@ -562,7 +560,7 @@ def doIfElse(tokens, level):
     resStr += genIndent(level) + "else\n"
     resStr += block(level, tokens[3])
     return resStr
-    
+
 
 def motion0Arg(level, tokens):
     """Generate code to handle Motion blocks with 0 arguments"""
@@ -746,7 +744,7 @@ def pen0Arg(level, tokens):
 
 def pen1Arg(level, tokens):
     """Generate code to handle Pen blocks with 1 argument."""
-    
+
     assert len(tokens) == 2
     cmd, arg = tokens
     resStr = genIndent(level)
@@ -1107,7 +1105,7 @@ scratchStmt2genCode = {
     'comeToFront': goToFront,
     'goBackByLayers:': goBackNLayers,
     'nextScene': nextBackdrop,
-    
+
     # Pen commands
     'clearPenTrails': pen0Arg,
     'stampCostume': pen0Arg,
@@ -1151,7 +1149,7 @@ def convertSpriteToFileName(sprite):
     joined, with no spaces between."""
     words = sprite.split()
     return ''.join(words) + ".java"
-    
+
 
 def genHeaderCode(outFile, spriteName):
     """Generate code at the top of the output file -- imports, public class ..., etc."""
@@ -1291,7 +1289,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     #     location.   TODO
 
     global varTypes	# global dictionary
-    
+
     def deriveType(val):
         if isinstance(val, str):
             return '"' + val + '"', 'String'
@@ -1310,7 +1308,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
 
     defnCode = ""
     initCode = "\n" + genIndent(2) + "// Variable initialization.\n"
-    
+
     for var in listOfVars:  # var is a dictionary.
         name = var['name']
         value = var['value']
@@ -1357,7 +1355,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     # Add blank line after variable definitions.
     defnCode += "\n"
     return defnCode, initCode
-    
+
           
 def genScriptCode(script, scrName):
     """Generate code (and callback code) for the given script, which may be
@@ -1390,13 +1388,13 @@ def genScriptCode(script, scrName):
         genProcDefCode(codeObj, script)
     else:
         raise ValueError(script[0])
-    
+
 
     # TODO: need to implement whenSwitchToBackdrop in
     # Scratch.java and add code here to handle it.
     # TODO: need to handle scripts for the stage, not a sprite.
 
-        
+
     # TODO: filter out scripts that are "left over" -- don't start
     # with whenGreenFlag, etc.
     return codeObj
@@ -1445,7 +1443,26 @@ print("Copying image files to " + imagesDir)
 
 files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
 for f in files2Copy:
-    shutil.copy2(f, imagesDir)
+    # Copy png files over to the images dir, but if they are large
+    # (which probably means they are background images) convert
+    # them to 480x360.
+    res = getstatusoutput("identify " + f)
+    if res[0] != 0:
+        print(res[1])
+        sys.exit(1)
+    # Output from identify is like this:
+    # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
+    size = res[1].split()[2]     # got the geometry.
+    width, height = size.split("x")	 # got the width and height, as strings
+    width = int(width)
+    height = int(height)
+    if width > 480:
+        # For now, just make 480x360.  This may not be correct in all cases.
+        dest = os.path.join(imagesDir, os.path.basename(f))
+        execOrDie("convert -resize 480x360 " + f + " " + dest,
+              "copy and resize png file")
+    else:
+        shutil.copy2(f, imagesDir)
 
 # Convert svg images files to png files in the images dir.
 files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
@@ -1454,17 +1471,9 @@ for f in files2Copy:
     fname = os.path.basename(f)
     dest = os.path.join(imagesDir, fname)
     dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
-    if platform.system() == 'Darwin':    # Mac OS
-        execOrDie("rsvg-convert " + f + " -o " + dest,
-                  "convert svg file to png")
-    elif platform.system() in ('Windows', 'Linux'):
-        execOrDie("convert " + f + " " + dest,
-                  "convert svg file to png")
+    execOrDie("convert -background None " + f + " " + dest,
+              "convert svg file to png")
 
-# execOrDie("cp " + os.path.join(scratch_dir, "*.{svg,png}") + " " + \
-#           os.path.join(PROJECT_DIR, "images"),
-#          "move image files to Greenfoot images directory")
-      
 
 # TODO: move sounds files.
 
@@ -1509,7 +1518,7 @@ for spr in sprites:
 
         # TODO: need to handle sprites with names that are illegal Java identifiers.
         # E.g., the sprite could be called "1", but we cannot create a "class 1".
-        
+
         print("\n----------- Sprite: {} ----------------".format(spriteName))
 
         # Write out a line to the project.greenfoot file to indicate that this
@@ -1551,7 +1560,7 @@ for spr in sprites:
                       genVariablesDefnCode(spr['variables'], spriteName,
                                            data['children'])
             ctorCode += initCode
-        
+
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
         if 'scripts' in spr:
