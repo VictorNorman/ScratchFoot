@@ -1,12 +1,13 @@
 #!/bin/env python3
 
+import glob
 import json
 import os, os.path
-import sys
-from subprocess import call
+import platform
 from pprint import pprint
 import shutil
-import glob
+from subprocess import call, getstatusoutput
+import sys
 
 # TODO: make debug on/off a command-line arg
 debug = False
@@ -55,7 +56,7 @@ class CodeAndCb:
 
     # class variable
     cbScriptId = 0
-    
+
     def __init__(self):
         self.code = ""
         self.cbCode = ""
@@ -68,8 +69,6 @@ class CodeAndCb:
         return ret
     def addToCode(self, code):
         self.code += code
-    # def addToInitCode(self, code):
-    #     self.varInitCode += code
 
 
 def execOrDie(cmd, descr):
@@ -86,7 +85,7 @@ def execOrDie(cmd, descr):
         print("Command to " + descr + ": Execution failed:", e, \
               file=sys.stderr)
         sys.exit(1)
-            
+
 
 def genIndent(level):
     return (" " * (level * NUM_SPACES_PER_LEVEL))
@@ -131,7 +130,7 @@ def stmt(level, tokenList):
         # the tokens. 
         return genCodeFunc(level, tokenList)
     else:
-        return "Unimplemented stmt\n"
+        return genIndent(level) + 'System.out.println("Unimplemented stmt: ' + cmd + '");\n'
 
 
 def boolExpr(tokenList):
@@ -199,7 +198,7 @@ def convertKeyPressName(keyname):
     if "arrow" in keyname:
         keyname = keyname.rstrip(" arrow")
     return keyname
-    
+
 
 def handleKeyPressed(keyname):
     """Generate call to isKeyPressed()"""
@@ -296,7 +295,7 @@ def mathExpr(tokenOrList):
             return "daysSince2000 not implemented"
         else:
             raise ValueError("Unknown operation " + op)
-            
+
     if len(tokenOrList) == 2:
         # Handle cases of operations that take 1 argument.
         op, tok1 = tokenOrList
@@ -327,6 +326,8 @@ def mathExpr(tokenOrList):
                 return 'getCurrentDate()'
             else:
                 raise ValueError(tokenOrList)
+        elif op == 'readVariable':
+            return readVariable(tok1)
         else:
             raise ValueError("Unknown operation " + op)
 
@@ -559,7 +560,7 @@ def doIfElse(tokens, level):
     resStr += genIndent(level) + "else\n"
     resStr += block(level, tokens[3])
     return resStr
-    
+
 
 def motion0Arg(level, tokens):
     """Generate code to handle Motion blocks with 0 arguments"""
@@ -690,6 +691,13 @@ def switchBackdropTo(level, tokens):
     return genIndent(level) + "((" + worldClassName + \
            ")getWorld()).switchBackdropTo(" + strExpr(arg1) + ");\n"
 
+def nextBackdrop(level, tokens):
+    """Generate code to switch to the next backdrop.
+    """
+    global worldClassName
+    return genIndent(level) + "((" + worldClassName + \
+           ")getWorld()).nextBackdrop();\n"
+
 def changeSizeBy(level, tokens):
     """Generate code to change the size of the sprite
     """
@@ -736,7 +744,7 @@ def pen0Arg(level, tokens):
 
 def pen1Arg(level, tokens):
     """Generate code to handle Pen blocks with 1 argument."""
-    
+
     assert len(tokens) == 2
     cmd, arg = tokens
     resStr = genIndent(level)
@@ -1096,7 +1104,8 @@ scratchStmt2genCode = {
     'setSizeTo:': setSizeTo,
     'comeToFront': goToFront,
     'goBackByLayers:': goBackNLayers,
-    
+    'nextScene': nextBackdrop,
+
     # Pen commands
     'clearPenTrails': pen0Arg,
     'stampCostume': pen0Arg,
@@ -1138,9 +1147,9 @@ scratchStmt2genCode = {
 def convertSpriteToFileName(sprite):
     """Make the filename with all words from sprite capitalized and
     joined, with no spaces between."""
-    words = [w.capitalize() for w in sprite.split()]
+    words = sprite.split()
     return ''.join(words) + ".java"
-    
+
 
 def genHeaderCode(outFile, spriteName):
     """Generate code at the top of the output file -- imports, public class ..., etc."""
@@ -1164,30 +1173,22 @@ def genConstructorCode(outFile, spriteName, code):
     outFile.write(code)
     outFile.write(genIndent(1) + "}\n");
 
-def genLoadCostumesCode(costumes):
+def genLoadCostumesCode(costumes, isBackdrop=False):
     """Generate code to load costumes from files for a sprite.
     """
-    import platform
-
     # print("genLoadCC: costumes ->" + str(costumes) + "<-")
     resStr = ""
     imagesDir = os.path.join(PROJECT_DIR, "images")
     for cos in costumes:
         # costume's filename is the baseLayerID (which is a small integer
-        # (1, 2, 3, etc.)) plus ".svg"
-        filename = str(cos['baseLayerID'])
-        # convert it with rsvg-convert -- TODO: fix this to work for Windoze, etc.
-
-        dest = filename + ".jpg"
-        if platform.system() == 'Darwin':    # Mac OS
-            execOrDie("rsvg-convert " + os.path.join(imagesDir, filename + ".svg") + \
-                      " -o " + os.path.join(imagesDir, dest),
-                      "convert svg file to jpg")
-        elif platform.system() in ('Windows', 'Linux'):
-            execOrDie("convert " + os.path.join(imagesDir, filename + ".svg") + \
-                      " " + os.path.join(imagesDir, dest),
-                      "convert svg file to jpg")
-        resStr += genIndent(2) + 'addCostume("' + dest + '", "' + cos['costumeName'] + '");\n'
+        # (1, 2, 3, etc.)) plus ".png"
+        fname = str(cos['baseLayerID']) + ".png"
+        if isBackdrop:
+            resStr += genIndent(2) + 'addBackdrop("' + fname + \
+                      '", "' + cos['costumeName'] + '");\n'
+        else:
+            resStr += genIndent(2) + 'addCostume("' + fname + \
+                      '", "' + cos['costumeName'] + '");\n'
     return resStr
 
 def genInitialSettingsCode(spr):
@@ -1288,7 +1289,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     #     location.   TODO
 
     global varTypes	# global dictionary
-    
+
     def deriveType(val):
         if isinstance(val, str):
             return '"' + val + '"', 'String'
@@ -1307,7 +1308,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
 
     defnCode = ""
     initCode = "\n" + genIndent(2) + "// Variable initialization.\n"
-    
+
     for var in listOfVars:  # var is a dictionary.
         name = var['name']
         value = var['value']
@@ -1335,8 +1336,9 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         # E.g., if a variable is boolean, we'll call boolExpr()
         # from setVariables(), not mathExpr().
         varTypes[(spriteName, name)] = varType
-        print("Adding entry for", spriteName, ",", name,
-              "to dict with value", varType)
+        if debug:
+            print("Adding entry for", spriteName, ",", name,
+                  "to dict with value", varType)
 
         # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
         if spriteName == "Stage":
@@ -1353,7 +1355,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     # Add blank line after variable definitions.
     defnCode += "\n"
     return defnCode, initCode
-    
+
           
 def genScriptCode(script, scrName):
     """Generate code (and callback code) for the given script, which may be
@@ -1386,13 +1388,13 @@ def genScriptCode(script, scrName):
         genProcDefCode(codeObj, script)
     else:
         raise ValueError(script[0])
-    
+
 
     # TODO: need to implement whenSwitchToBackdrop in
     # Scratch.java and add code here to handle it.
     # TODO: need to handle scripts for the stage, not a sprite.
 
-        
+
     # TODO: filter out scripts that are "left over" -- don't start
     # with whenGreenFlag, etc.
     return codeObj
@@ -1435,18 +1437,43 @@ except FileExistsError as e:
 print("Unpacking Scratch download file.")
 shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
 
-# Copy svg and png image files to images dir.
-print("Copying image files to the project's images/ directory.")
-files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
-files2Copy.extend(glob.glob(os.path.join(scratch_dir, "*.png")))
+# Copy png image files to images dir.
 imagesDir = os.path.join(PROJECT_DIR, "images")
-for f in files2Copy:
-    shutil.copy2(f, imagesDir)
+print("Copying image files to " + imagesDir)
 
-# execOrDie("cp " + os.path.join(scratch_dir, "*.{svg,png}") + " " + \
-#           os.path.join(PROJECT_DIR, "images"),
-#          "move image files to Greenfoot images directory")
-      
+files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
+for f in files2Copy:
+    # Copy png files over to the images dir, but if they are large
+    # (which probably means they are background images) convert
+    # them to 480x360.
+    res = getstatusoutput("identify " + f)
+    if res[0] != 0:
+        print(res[1])
+        sys.exit(1)
+    # Output from identify is like this:
+    # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
+    size = res[1].split()[2]     # got the geometry.
+    width, height = size.split("x")	 # got the width and height, as strings
+    width = int(width)
+    height = int(height)
+    if width > 480:
+        # For now, just make 480x360.  This may not be correct in all cases.
+        dest = os.path.join(imagesDir, os.path.basename(f))
+        execOrDie("convert -resize 480x360 " + f + " " + dest,
+              "copy and resize png file")
+    else:
+        shutil.copy2(f, imagesDir)
+
+# Convert svg images files to png files in the images dir.
+files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
+for f in files2Copy:
+    # fname is just the file name -- all directories removed.
+    fname = os.path.basename(f)
+    dest = os.path.join(imagesDir, fname)
+    dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
+    execOrDie("convert -background None " + f + " " + dest,
+              "convert svg file to png")
+
 
 # TODO: move sounds files.
 
@@ -1481,19 +1508,17 @@ spriteName = "Stage"
 worldDefnCode = ""
 if 'variables' in data:
     worldDefnCode, initCode = genVariablesDefnCode(data['variables'], "Stage",
-                                              data['children'])
+                                                   data['children'])
     worldCtorCode += initCode
 
-
-
-
+# Start processing each sprite's info: scripts, costumes, variables, etc.
 for spr in sprites:
     if 'objName' in spr:
         spriteName = spr['objName']
 
         # TODO: need to handle sprites with names that are illegal Java identifiers.
         # E.g., the sprite could be called "1", but we cannot create a "class 1".
-        
+
         print("\n----------- Sprite: {} ----------------".format(spriteName))
 
         # Write out a line to the project.greenfoot file to indicate that this
@@ -1511,7 +1536,8 @@ for spr in sprites:
         defnCode = ""		# code for defining Scratch variables.
 
         costumeCode = genLoadCostumesCode(spr['costumes'])
-        if debug: print("CostumeCode is ", costumeCode)
+        if debug:
+            print("CostumeCode is ", costumeCode)
 
 	# Like location, direction, shown or hidden, etc.
         initSettingsCode = genInitialSettingsCode(spr)
@@ -1520,9 +1546,9 @@ for spr in sprites:
 
 	# Generate a line to the project.greenfoot file to set the image
         # file, like this: 
-        #     class.Sprite1.image=1.jpg
+        #     class.Sprite1.image=1.png
         projectFileCode += "class." + spriteName + ".image=" + \
-                           str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
+                           str(spr['costumes'][0]['baseLayerID']) + ".png\n"
 
         ctorCode += costumeCode + initSettingsCode
 
@@ -1534,7 +1560,7 @@ for spr in sprites:
                       genVariablesDefnCode(spr['variables'], spriteName,
                                            data['children'])
             ctorCode += initCode
-        
+
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
         if 'scripts' in spr:
@@ -1569,8 +1595,9 @@ for spr in sprites:
         outFile.close()
 
     else:
-        print("\n----------- Not a sprite --------------");
-        print(spr)
+        if debug:
+            print("\n----------- Not a sprite --------------");
+            print(spr)
 
 
 # If the Stage has script(s) in it, then the 'scripts' field will be
@@ -1588,30 +1615,11 @@ spriteName = "Stage"
 # sprite is a subclass of the Scratch class.
 projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
 
-
 # Create the special Stage sprite.
 worldCtorCode += genIndent(2) + 'addSprite("' + spriteName + '", 0, 0);\n'
 
 ctorCode = ""
 cbCode = []
-
-
-# TODO
-# Need to do this for backdrops instead?
-# costumeCode = genLoadCostumesCode(spr['costumes'])
-# if debug: print("CostumeCode is ", costumeCode)
-
-# Like location, direction, shown or hidden, etc.
-# initSettingsCode = genInitialSettingsCode(spr)
-# if debug:
-    # print("Initial Settings Code is ", initSettingsCode)
-
-# Generate a line to the project.greenfoot file to set the image file, like this:
-#     class.Sprite1.image=1.jpg
-# projectFileCode += "class." + spriteName + ".image=" + \
-#                    str(spr['costumes'][0]['baseLayerID']) + ".jpg\n"
-
-# ctorCode += costumeCode + initSettingsCode
 
 # The value of the 'scripts' key is the list of the scripts.  It may be
 # a list of 1 or of many.
@@ -1638,6 +1646,10 @@ filename = os.path.join(PROJECT_DIR, spriteName + ".java")
 print("Writing code to " + filename + ".")
 outFile = open(filename, "w")
 genHeaderCode(outFile, spriteName)
+
+# Set the image for the Stage to nothing.  Backdrops are
+# part of the World in Greenfoot, not the Stage object.
+ctorCode += genIndent(2) + "setImage((GreenfootImage) null);\t\t// No image for the stage.\n"
 genConstructorCode(outFile, spriteName, ctorCode)
 for code in cbCode:
     outFile.write(code)
@@ -1661,6 +1673,18 @@ worldCode = genWorldHeaderCode(worldClassName)
 worldCode += worldDefnCode
 worldCode += genWorldCtorHeader(worldClassName)
 worldCode += worldCtorCode
+
+# Adding the backdrops will be done in the World constructor, not
+# the stage constructor because backdrops (backgrounds) are a property
+# of the World in Greenfoot.
+addBackdropsCode = genLoadCostumesCode(data['costumes'], isBackdrop=True)
+if debug:
+    print("CostumeCode is ", addBackdropsCode)
+
+addBackdropsCode += genIndent(2) + 'setBackdropNumber(' + \
+                    str(data['currentCostumeIndex']) + ');\n'
+
+worldCode += addBackdropsCode
 worldCode += genIndent(1) + "}\n"
 worldCode += "}\n"
 

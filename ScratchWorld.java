@@ -96,10 +96,6 @@ public class ScratchWorld extends World
     public ScratchWorld(int width, int height, int cellSize)
     {    
         super(width, height, cellSize);
-
-        // make a copy of the background image.
-        // backdrop1 is default Scratch name
-        backdrops.add(new Backdrop(getBackground(), "backdrop1"));   
     }
 
     /**
@@ -325,6 +321,16 @@ public class ScratchWorld extends World
     public int getBackdropNumber() 
     {
         return currBackdrop;
+    }
+
+    /**
+     * set the current backdrop number to the given value.
+     */
+    public void setBackdropNumber(int num)
+    {
+        currBackdrop = num;
+        // TODO: check num to make sure it is valid before setting it.
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
 
     /**
