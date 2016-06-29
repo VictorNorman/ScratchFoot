@@ -504,8 +504,10 @@ def whenIReceive(codeObj, message, tokens):
 
     # Build a name like whenIReceiveMessage1Cb0
     # TODO: convert key to a legal java identifier: no spaces, etc.
-    message = message.capitalize()
-    cbName = 'whenIReceive' + message + 'Cb' + str(scriptNum)
+
+    # This code converts the first letter to uppercase only.
+    messageId = message[0].upper() + message[1:]
+    cbName = 'whenIReceive' + messageId + 'Cb' + str(scriptNum)
 
     # Code in the constructor is always level 2.
     codeObj.addToCode(genIndent(2) + 'whenRecvMessage("' +
