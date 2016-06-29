@@ -266,7 +266,11 @@ public class ScratchWorld extends World
      */
     public void clearBackdrop()
     {
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+        if (backdrops.size() > 0) {
+            setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+        } else {
+            setBackground(new GreenfootImage(getWidth() - 1, getHeight() - 1));
+        }
     }
 
     /**
