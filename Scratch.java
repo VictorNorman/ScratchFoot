@@ -68,7 +68,7 @@ public class Scratch extends Actor
     private int currCostume = 0;
     private GreenfootImage lastImg = getImage();
     private boolean isFlipped = false;      // tracks whether the image is flipped due to LEFT_RIGHT rotation.
-    
+
     /*
      * this class is just a pairing of costume image with its name.
      */
@@ -86,7 +86,7 @@ public class Scratch extends Actor
     // costumesCopy holds the original unaltered costume images.  So, if
     // the code alters the costume by, e.g., scaling it, the copy stays
     // unchanged.
-    
+
     // TODO TODO: need to figure out if this is really necessary.
     private ArrayList<GreenfootImage> costumesCopy = new ArrayList<GreenfootImage>();   
 
@@ -113,10 +113,10 @@ public class Scratch extends Actor
 
     private int lastMouseX;
     private int lastMouseY;
-    
+
     // Track the actor's subpixel location
     // this makes angled movement more robust when moving small distances
-    
+
     private double subX;
     private double subY;
 
@@ -130,7 +130,7 @@ public class Scratch extends Actor
 
     // Actor that is showing what is being said OR thought by this sprite.
     Sayer sayActor = null;
-    
+
     /**
      *  Turn the sprite to face the direction depending on the rotation style:
      *   o if ALL_AROUND: rotate to face the direction.
@@ -313,7 +313,7 @@ public class Scratch extends Actor
             if (Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
                     System.out.println("keySeq: for key " + this.key +
-                       " changing from NOT triggered to triggered.");
+                        " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -340,6 +340,7 @@ public class Scratch extends Actor
         ActorClickedSeq(Object obj, String method) {
             super(obj, method);
         }
+
         public ActorClickedSeq(ActorClickedSeq other) {
             this(other.getObj(), other.getMethod());
         }
@@ -348,7 +349,7 @@ public class Scratch extends Actor
             if (Greenfoot.mouseClicked(this.getObj())) {
                 if (! triggered) {
                     System.out.println("ActorClickedSeq: for actor " + this.getObj() +
-                       " changing from NOT triggered to triggered.");
+                        " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -356,14 +357,16 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<ActorClickedSeq> actorClickedSeqs = new ArrayList<ActorClickedSeq>();
-    
+
     private class StageClickedSeq extends ActorOrStageClickedSeq {
         StageClickedSeq(Object obj, String method) {
             super(obj, method);
         }        
+
         public StageClickedSeq(StageClickedSeq other) {
             this(other.getObj(), other.getMethod());
         }
+
         public boolean isTriggered() {
             if (Greenfoot.mouseClicked(null)) {
                 if (! triggered) {
@@ -375,7 +378,7 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<StageClickedSeq> stageClickedSeqs = new ArrayList<StageClickedSeq>();
-    
+
     private class MesgRecvdSeq extends Sequence {
         private String mesg;
 
@@ -385,14 +388,16 @@ public class Scratch extends Actor
             // A message received sequence is not triggered until the message is received.
             this.triggered = false;
         }
+
         public MesgRecvdSeq(MesgRecvdSeq other) {
             this(other.mesg, other.getObj(), other.getMethod());
         }
+
         public boolean isTriggered() {
             if (getWorld().bcastPending(mesg)) {
                 if (! triggered) {
                     System.out.println("mesgRecvdSeq: for mesg " + mesg +
-                       " changing from NOT triggered to triggered.");
+                        " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -400,7 +405,6 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<MesgRecvdSeq> mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>();
-
 
     private class CloneStartSeq extends Sequence {
         public CloneStartSeq(Object obj, String method) 
@@ -418,7 +422,7 @@ public class Scratch extends Actor
             if (getWorld().clonePending(getObj().getClass().getName())) {
                 if (! triggered) {
                     System.out.println("CloneStartSeq: for sprite " + getObj().getClass().getName() +
-                                       " changing from NOT triggered to triggered.");
+                        " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -428,49 +432,8 @@ public class Scratch extends Actor
     private ArrayList<CloneStartSeq> cloneStartSeqs = new ArrayList<CloneStartSeq>();
 
     /* -------------------  Variables ------------------------ */
-    private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
 
-    /**
-     * Create an integer variable whose value will be displayed on the screen.
-     */
-    public IntVar createIntVariable(String varName, int initVal)
-    {
-        IntVar newVar = new IntVar(varName, initVal);
-        varsToDisplay.add(newVar);
-        return newVar; 
-    }
-
-    /**
-     * Create a String variable whose value will be displayed on the screen.
-     */
-    public StringVar createStringVariable(String varName, String val)
-    {
-        StringVar newVar = new StringVar(varName, val);
-        varsToDisplay.add(newVar);
-        return newVar; 
-    }
-
-    /**
-     * Create a double variable whose value will be displayed on the screen.
-     */
-    public DoubleVar createDoubleVariable(String varName, double val)
-    {
-        DoubleVar newVar = new DoubleVar(varName, val);
-        varsToDisplay.add(newVar);
-        return newVar; 
-    }
-
-    /**
-     * Create a boolean variable whose value will be displayed on the screen.
-     */
-    public BooleanVar createBooleanVariable(String varName, boolean val)
-    {
-        BooleanVar newVar = new BooleanVar(varName, val);
-        varsToDisplay.add(newVar);
-        return newVar; 
-    }
-
-    protected class Variable extends Actor 
+    private class Variable extends Scratch 
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
@@ -479,19 +442,19 @@ public class Scratch extends Actor
         private String text;
         private boolean valChanged = true;
         private boolean display = true;           // is the variable supposed to be displayed or hidden?
-        private boolean addedToWorldYet = false;  // has this object been added to the world yet?
-        private int xLoc, yLoc;                   // initial location of the image.
+        private boolean addedToWorld = false;     // has this object been added to the world yet?
+        private int xLoc, yLoc;                   // current location of the image: the upper-lefthand
+        // corner.
 
-        public Variable(String varName, Object val)
+        public Variable(ScratchWorld w, String varName, Object val)
         {
             text = varName;
             value = val;
             valChanged = true;
 
-            String dispStr = text + value + 2;   // add 2 for padding.  Remove later...
-            int stringLength = dispStr.length() * 10;
-            setImage(new GreenfootImage(stringLength, 16));      // TODO: remove this?
-            updateImage();
+            // Get the initial upperleft-hand corner coordinates for this variable.
+            xLoc = w.getDisplayVarXLoc();
+            yLoc = w.getDisplayVarYLoc();
         }
 
         public void act()
@@ -517,20 +480,39 @@ public class Scratch extends Actor
             return value;
         }
 
+        public int getXLoc() { return xLoc; }
+
+        public int getYLoc() { return yLoc; }
+
         /**
          * Update the image being displayed.
          */
         private void updateImage()
         {
             if (! display) {
-                System.out.println("IV.updateImage: calling clear");
                 getImage().clear();
                 return;
             }
             if (valChanged) {
+                // To support the user pausing the scenario and moving the Variable display box
+                // to a new location, we will read the actual xLoc and yLoc from the actor,
+                // but also subtract the current width/height, since
+                // Greenfoot's image reference point is the center of the
+                // image.  (Note: this has to be done before recomputing
+                // a possible new width/height in the code below.)
+                if (addedToWorld) {
+                    // getX() and getY() get the actual current location -- in Scratch coords.
+                    // System.out.println("AddedToWorld is TRUE: var, getX, getY = " + text + " " + translateToGreenfootX(getX()) + " " + translateToGreenfootY(getY()));
+                    xLoc = translateToGreenfootX(getX()) - getImage().getWidth() / 2;
+                    yLoc = translateToGreenfootY(getY()) - getImage().getHeight() / 2;
+                    // System.out.println("AddedToWorld is TRUE: xLoc, yLoc = " + xLoc + " " + yLoc);
+                } else {
+                    // System.out.println("addedToWorld is FALSE: var, xLoc, yLoc = " + text + " " + xLoc + " " + yLoc);
+                }
+
                 String dispStr = text + value;
                 int stringLength = (dispStr.length() + 1) * 7;
-                // Create a gray background until the variable's name.
+                // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength, 20);
                 image.setColor(bgColor);
                 image.fill();
@@ -539,7 +521,7 @@ public class Scratch extends Actor
                 image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
 
                 image.setColor(textColor);
-                System.out.println("IV.updateImage: creating with value " + text + " " + value);
+                // System.out.println("Variable.updateImage: creating with value " + text + " " + value);
                 image.drawString(text + " " + value, 1, 15);
                 setImage(image);
 
@@ -549,31 +531,11 @@ public class Scratch extends Actor
                 // on the center of the image, we have to calculate a new location for
                 // each image, each time.
                 setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
+                // System.out.println("setLocation done: set to x, y = " + (xLoc + getImage().getWidth() / 2) +
+                //     " " + (yLoc + getImage().getHeight() / 2));
+                // System.out.println("    image width, height is " + getImage().getWidth() + " " + getImage().getHeight());
                 valChanged = false;
-            }
-        }
-
-        /**
-         * Add the Variable actor to the world so that it can be displayed.
-         */
-        public void addToWorld(ScratchWorld sw)
-        {
-            super.addedToWorld(sw);
-            if (! addedToWorldYet) {
-                // Insert into the world.  Need to compute the width of the object because
-                // addObject() uses x, y as the center of the image, and we want all these
-                // displayed variable images to be lined up along the left side of the 
-                // screen.
-                int w = getImage().getWidth();
-                int h = getImage().getHeight();
-                // store the original x and y locations of the image.  These are used later
-                // when the image is resized, so that we can keep the image lined up along
-                // the left side of the screen.
-                xLoc = sw.getDisplayVarXLoc();
-                yLoc = sw.getDisplayVarYLoc();
-                sw.addObject(this, xLoc + (int) (w / 2.0), (int) (yLoc + (h / 2.0)));
-                addedToWorldYet = true;
-                show();
+                addedToWorld = true;
             }
         }
 
@@ -595,37 +557,90 @@ public class Scratch extends Actor
             valChanged = true;  // make sure we don't display the value in next act() iteration.
         }
     }
+
     public class IntVar extends Variable {
 
-        public IntVar(String name, int initVal) {
-            super(name, (Object) initVal);
+        public IntVar(ScratchWorld w, String name, int initVal) {
+            super(w, name, (Object) initVal);
         }
 
         public Integer get() { return (Integer) super.get(); }
     }
     public class StringVar extends Variable {
 
-        public StringVar(String name, String initVal) {
-            super(name, (Object) initVal);
+        public StringVar(ScratchWorld w, String name, String initVal) {
+            super(w, name, (Object) initVal);
         }
 
         public String get() { return (String) super.get(); }
     }
     public class DoubleVar extends Variable {
 
-        public DoubleVar(String name, double initVal) {
-            super(name, (Object) initVal);
+        public DoubleVar(ScratchWorld w, String name, double initVal) {
+            super(w, name, (Object) initVal);
         }
 
         public Double get() { return (Double) super.get(); }
     }
     public class BooleanVar extends Variable {
 
-        public BooleanVar(String name, boolean initVal) {
-            super(name, (Object) initVal);
+        public BooleanVar(ScratchWorld w, String name, boolean initVal) {
+            super(w, name, (Object) initVal);
         }
 
         public Boolean get() { return (Boolean) super.get(); }
+    }
+
+    /**
+     * Create an integer variable whose value will be displayed on the screen.
+     */
+    public IntVar createIntVariable(ScratchWorld w, String varName, int initVal)
+    {
+        IntVar newVar = new IntVar(w, varName, initVal);
+        w.addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        return newVar; 
+    }
+
+    /**
+     * Create a String variable whose value will be displayed on the screen.
+     */
+    public StringVar createStringVariable(ScratchWorld w, String varName, String val)
+    {
+        StringVar newVar = new StringVar(w, varName, val);
+        w.addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        return newVar; 
+    }
+
+    /**
+     * Create a double variable whose value will be displayed on the screen.
+     */
+    public DoubleVar createDoubleVariable(ScratchWorld w, String varName, double val)
+    {
+        DoubleVar newVar = new DoubleVar(w, varName, val);
+        w.addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        return newVar; 
+    }
+
+    /**
+     * Create a boolean variable whose value will be displayed on the screen.
+     */
+    public BooleanVar createBooleanVariable(ScratchWorld w, String varName, boolean val)
+    {
+        BooleanVar newVar = new BooleanVar(w, varName, val);
+        w.addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        return newVar;
     }
 
     /*
@@ -635,7 +650,7 @@ public class Scratch extends Actor
     public Scratch()
     {
         super();
-        
+
         // put the first costume in our array of costumes.
         costumes.add(new Costume(getImage(), "Sprite1"));
 
@@ -689,7 +704,7 @@ public class Scratch extends Actor
         inCbScript = false;
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
-        
+
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
     }
 
@@ -703,19 +718,14 @@ public class Scratch extends Actor
     public void addedToWorld(World w)
     {
         ((ScratchWorld) w).addToPaintOrder(this.getClass());
-
-        // Add variables to be displayed to the world automatically so that code doesn't have to do it.
-        for (Variable v : varsToDisplay) {
-            v.addToWorld(((ScratchWorld) w));
-        }
     }
 
     /*
      * act - first look for keypresses and call any registered methods on them.  Then, call each 
      * method registered as an 'act' callback -- e.g., a "whenFlagClicked" callback.
-     * Users do NOT override (and cannot override) act() in this system.
+     * Users must NOT override act() in this system.
      */
-    public final void act()
+    public void act()
     {
         // Call all the registered "whenFlagClicked" scripts.
 
@@ -770,7 +780,7 @@ public class Scratch extends Actor
                 seq.performSequence();
             }
         }
-        
+
         /* ---------- Repeat, but for Stage being clicked. ------------- */
 
         for (ListIterator<StageClickedSeq> iter = stageClickedSeqs.listIterator(); iter.hasNext(); ) {
@@ -791,7 +801,7 @@ public class Scratch extends Actor
                 seq.performSequence();
             }
         }
-        
+
         /* ---------- Repeat, but for message being received. ------------- */
 
         for (ListIterator<MesgRecvdSeq> iter = mesgRecvdSeqs.listIterator(); iter.hasNext(); ) {
@@ -833,12 +843,12 @@ public class Scratch extends Actor
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
-        
+
         // Update lastImg to current image
         if (getImage() != null) {
             lastImg = getImage();
         }
-        
+
     }
 
     /**
@@ -906,10 +916,9 @@ public class Scratch extends Actor
         cloneStartSeqs.add(cb);
         cb.start();
         System.out.println("whenIStartAsAClone: method registered for class " +
-                           this.getClass().getName() + "; sequence obj created.");
+            this.getClass().getName() + "; sequence obj created.");
     }
 
-    
     /**
      * broadcast a message to all sprites.
      */
@@ -942,7 +951,7 @@ public class Scratch extends Actor
     {
         createCloneOf(getWorld().getActorByName(spriteName));
     }
-    
+
     /**
      * createCloneOf: create a clone of the given Scratch actor.
      */
@@ -954,12 +963,11 @@ public class Scratch extends Actor
         System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
             clone.getClass().getName() + ". Now, calling addObject()");
         getWorld().addObject((Scratch)clone, super.getX(), super.getY());
-        
+
         getWorld().registerCloneSpriteName(actor.getClass().getName());
 
         System.out.println("Clone added");        
     }
-
 
     private Object callConstructor(Scratch obj)
     {
@@ -1187,15 +1195,15 @@ public class Scratch extends Actor
 
         // This code copied from Greenfoot source.
         double radians = Math.toRadians(GFdir);
-        
+
         // Calculate the cartesian movement from polar
         double dx = (Math.cos(radians) * distance);
         double dy = (Math.sin(radians) * distance);
-        
+
         // Update subpixel locations with the decimal portion of dx and dy
         subX += dx % 1;
         subY += dy % 1;
-        
+
         // If a subpixel amount is greater than 1, change that movement to standard pixel
         // movement
         if (Math.abs(subX) > 1) {
@@ -1341,7 +1349,7 @@ public class Scratch extends Actor
         currDirection = dir;
         setRotation(currDirection);
     }
-    
+
     /**
      * Override for setRotation to handle Rotation Styles more succinctly
      *
@@ -1357,7 +1365,7 @@ public class Scratch extends Actor
         }
         rotation %= 360;
         currDirection %= 360;
-        
+
         // rotation Style logic unified from all methods involving rotation
         if (rotationStyle == RotationStyle.ALL_AROUND) {
             super.setRotation(rotation - 90);
@@ -1393,9 +1401,7 @@ public class Scratch extends Actor
             isFlipped = false;
         }
     }
-    
-    
-    
+
     /**
      * return the direction the sprite is pointed in.  Note that the sprite/actor
      * may not look like it is facing this way, due to the rotation style that is set.
@@ -1447,7 +1453,7 @@ public class Scratch extends Actor
      */
     public void ifOnEdgeBounce()
     {
-        
+
         if (super.getX() + lastImg.getWidth() / 2 >= getWorld().getWidth() - 1) {
             // hitting right edge
             currDirection = (360 - currDirection) % 360;
@@ -1570,7 +1576,7 @@ public class Scratch extends Actor
         } else {
             mySprite = getImage();
         }
-        
+
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
@@ -1592,13 +1598,13 @@ public class Scratch extends Actor
         } else {
             mySprite = getImage();
         }
-        
+
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
         sayActor = new Sayer(str);
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
-        
+
         if (!isShowing) {
             sayActor.hide();
         }
@@ -1618,7 +1624,7 @@ public class Scratch extends Actor
         } else {
             mySprite = getImage();
         }
-        
+
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
         sayActor.updateLocation(super.getX() + width + 10, super.getY() - height - 5);
@@ -1635,7 +1641,7 @@ public class Scratch extends Actor
         costumes.add(new Costume(img, costumeName));
         costumesCopy.add(new GreenfootImage(costumeFile));
     }
-  
+
     /**
      * add new costume to the list of costumes for a sprite, with the
      * name Sprite# (e.g., Sprite2, Sprite3, Sprite4, ...)
@@ -1680,7 +1686,7 @@ public class Scratch extends Actor
         currCostume = costumeNum;
         displayCostume();
     }
-    
+
     /**
      * switch to the costume with the given name.  If the name is unknown,
      * no switch will happen.
@@ -1839,7 +1845,7 @@ public class Scratch extends Actor
         /*System.out.println("sst: item from getImage is " + System.identityHashCode(getImage()));
         System.out.println("sst: item in costumes array is " + System.identityHashCode(costumes.get(currCostume)));
         System.out.println("sst: item in costumesCopy array is " + System.identityHashCode(costumesCopy.get(currCostume)));
-        */
+         */
     }
 
     // private helper function
@@ -1850,8 +1856,8 @@ public class Scratch extends Actor
             // Greenfoot transparency is from 0 to 255, with 0 being fully visible and 255 being
             // fully transparent.  So, we need to do a transformation: (0, 100) -> (255, 0)
             int transparency = (int) (((-1 * ghostEffect)   // now from -100 to 0
-                                          + 100)            // now from 0 to 100
-                                           * 2.55);         // now from 0 to 255.
+                        + 100)            // now from 0 to 100
+                    * 2.55);         // now from 0 to 255.
             cost.img.setTransparency(transparency);
             setImage(cost.img);
         } else {
@@ -1872,7 +1878,7 @@ public class Scratch extends Actor
      * Sensing blocks.
      * ---------------------------------------------------------------------
      */
-    
+
     /**
      * Returns the containing scratchworld
      */
@@ -1889,7 +1895,7 @@ public class Scratch extends Actor
     {
         return intersects((Actor) other);
     }
-    
+
     /**
      * return true if this sprite is touching another sprite, with the given name.
      */
@@ -1919,20 +1925,20 @@ public class Scratch extends Actor
         image.drawImage(oldImg, (newDim - w) / 2, (newDim - h) / 2);
         int rot = getRotation();
         image.rotate(rot);
-        
+
         java.awt.image.BufferedImage bIm = image.getAwtImage();
         try {
             // This line gets the pixel color at x and y of the mouse relative to
             // the actor's position. The y value must be reversed because the y axis
             // is different for buffered images. 
             int pixel = bIm.getRGB(getMouseX() - getX() + (bIm.getWidth() / 2),
-                        bIm .getHeight() - (getMouseY() - getY() + (bIm.getHeight() / 2)));
+                    bIm .getHeight() - (getMouseY() - getY() + (bIm.getHeight() / 2)));
             if ((pixel >> 24) == 0x00) {
                 return false;   // transparent pixel: doesn't count.
             } else {
                 return true;
             }
-            
+
         } catch (ArrayIndexOutOfBoundsException e) {
             return false;   // pixel out of bounds of image
         } 
@@ -2030,7 +2036,7 @@ public class Scratch extends Actor
         int deltaY = super.getY() - other.getY();
         return (int) java.lang.Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     }
-    
+
     /**
      * return the distance in pixels to the other sprite.
      */
@@ -2038,7 +2044,7 @@ public class Scratch extends Actor
     {
         return distanceTo(getWorld().getActorByName(spriteName));
     }
-    
+
     /**
      * return the distance in pixels to the mouse pointer.
      */
@@ -2081,7 +2087,7 @@ public class Scratch extends Actor
     {
         return translateGFtoScratchX(other.getX());
     }
-    
+
     /**
      * return the x position of the given sprite.
      */
@@ -2089,7 +2095,7 @@ public class Scratch extends Actor
     {
         return xPositionOf(getWorld().getActorByName(spriteName));
     }
-    
+
     /**
      * return the y position of the given sprite.
      */
@@ -2097,7 +2103,7 @@ public class Scratch extends Actor
     {
         return translateGFtoScratchY(other.getY());
     }
-    
+
     /**
      * return the x position of the given sprite.
      */
@@ -2113,7 +2119,7 @@ public class Scratch extends Actor
     {
         return other.getDirection();
     }
-    
+
     /**
      * return the direction the given sprite is pointing to.
      */
@@ -2130,7 +2136,7 @@ public class Scratch extends Actor
     {
         return other.getCostumeNumber();
     }
-    
+
     /**
      * return the costume number of the given sprite
      */
@@ -2147,7 +2153,7 @@ public class Scratch extends Actor
     {
         return other.size();
     }
-    
+
     /**
      * return the size (in percentage of the original) of the given sprite
      */
