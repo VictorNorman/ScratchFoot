@@ -515,8 +515,8 @@ def whenIReceive(codeObj, message, tokens):
     # Add two blank lines before each method definition.
     # All cb code is at level 1
     cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
-    cbStr += block(1, tokens)
-    codeObj.addToCbCode(cbStr) + "\n"  # add blank line after defn.
+    cbStr += block(1, tokens) + "\n"  # add blank line after defn.
+    codeObj.addToCbCode(cbStr) 
 
 
 def doForever(level, tokens):
@@ -1256,7 +1256,7 @@ def genWorldCtorHeader(classname):
 
 
 def genVariablesDefnCode(listOfVars, spriteName, allChildren):
-    """Genereate code to define instance variables for this sprite.
+    """Generate code to define instance variables for this sprite.
     The listOfVars is a list of dictionaries, one per variable (see below).
     The spriteName is the sprite we are generating "local" variables for.
     The allChildren is the list of dictionaries defined for this
@@ -1326,7 +1326,15 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                              str(val) + "<--")
 
     defnCode = ""
-    initCode = "\n" + genIndent(2) + "// Variable initialization.\n"
+
+    # Initialization goes into the method addedToWorld() for Sprites, but
+    # into the ctor for World.
+    if spriteName == "Stage":
+        initCode = "\n" + genIndent(2) + "// Variable initializations.\n"
+    else:
+        initCode =  "\n" + genIndent(1) + "public void addedToWorld(World world)\n"
+        initCode += genIndent(1) + "{\n"
+        initCode += genIndent(2) + "// Variable initializations.\n"
 
     for var in listOfVars:  # var is a dictionary.
         name = var['name']
@@ -1370,16 +1378,28 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         if spriteName == "Stage":
             # Code is going into the World
             defnCode += genIndent(1) + "ScratchWorld.%sVar %s;\n" % (varType, name)
+            initCode += '%s%s = create%sVariable("%s", %s);\n' % \
+                        (genIndent(2), name, varType, label, str(value))
         else:
             defnCode += genIndent(1) + "Scratch.%sVar %s;\n" % (varType, name)
-        # Something like "score = createIntVariable("score", 0);
-        initCode += genIndent(2) + name + " = create" + varType + \
-                    'Variable("' + label + '", ' + str(value) + ");\n"
+            # Something like "score = createIntVariable((MyWorld) world, "score", 0);
+            initCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
+                        (genIndent(2), name, varType, worldClassName, label, str(value))
+
+        # initCode += genIndent(2) + name + " = create" + varType + \
+        #            'Variable("' + label + '", ' + str(value) + ");\n"
         if not visible:
             initCode += genIndent(2) + name + ".hide();\n"
 
     # Add blank line after variable definitions.
     defnCode += "\n"
+    # Add blank line after variable initializations.
+    initCode += "\n"
+
+    if spriteName != "Stage":
+        # Close the addedToWorld() method definition.
+        initCode += genIndent(1) + "}\n"
+        
     return defnCode, initCode
 
           
@@ -1585,11 +1605,13 @@ for spr in sprites:
       	# Handle variables defined for this sprite.  This has to be done
         # before handling the scripts, as the scripts may refer will the
         # variables.
+        # Variable initializations have to be done in a method called
+        # addedToWorld(), which is not necessary if no variable defns exist.
+        addedToWorldCode = ""
         if 'variables' in spr:
-            defnCode, initCode = \
+            defnCode, addedToWorldCode = \
                       genVariablesDefnCode(spr['variables'], spriteName,
                                            data['children'])
-            ctorCode += initCode
 
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
@@ -1618,6 +1640,9 @@ for spr in sprites:
         outFile.write(defnCode)   # variable definitions
 
         genConstructorCode(outFile, spriteName, ctorCode)
+
+        outFile.write(addedToWorldCode)
+
         for code in cbCode:
             outFile.write(code)
 
