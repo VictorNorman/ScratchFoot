@@ -30,23 +30,23 @@ public class ScratchWorld extends World
     // and its value.  When multiple variables are displayed, they are
     // initially tiled along the left side from top to bottom.  We need to
     // keep track of this x,y pair so we can tile the variable-display
-    // objects.
+    // objects.  The values are the upper-left corner of the images.
     private int varXloc = 5;
     private int varYloc = 10;
     private final static int VAR_Y_OFFSET = 25;
 
-    // These variable manage the list of backgrounds.
+    // These variables manage the list of backgrounds.
     private int currBackdrop = 0;
 
     // Maintain a mapping from spriteName (a String) to the sprite object.
     // TODO: need to test whether this works or should work with clones.
     HashMap<String, Scratch> sprites = new HashMap();
-    
+
     // This variable tracks whether the mouse is pressed
     private boolean isMouseDown;
 
     /*
-     * this class is just a pairing of backdrop image with its name.
+     * This class is just a pairing of backdrop image with its name.
      */
     private class Backdrop {
         GreenfootImage img;
@@ -59,10 +59,10 @@ public class ScratchWorld extends World
     }
     private ArrayList<Backdrop> backdrops = new ArrayList<Backdrop>();
 
-
     /*
      * This is used for storing bcast message in the string for handling broadcasts,
-     * and for storing the sprite to clone in the string for handling cloning.
+     * and for storing the name of the sprite to clone in the string for 
+     * handling cloning.
      */
     private class StringFrameNumPair {
         public String str;
@@ -79,7 +79,6 @@ public class ScratchWorld extends World
 
     // A list of pending clone requests.
     private LinkedList<StringFrameNumPair> sprs2Clone = new LinkedList<StringFrameNumPair>();
-
 
     // Keep an array of the classes in this world in order to support
     // changing of the "paint order" -- which objects are painted on top of
@@ -147,7 +146,7 @@ public class ScratchWorld extends World
                 }
             }
         }
-        
+
         // This tracks whether the mouse is pressed by using the fact that 
         // mouseClickCount is > 0 when the mouse is released, and drag ended works 
         // outside the greenfoot window. 
@@ -164,18 +163,6 @@ public class ScratchWorld extends World
         }
         if (pressed) {
             isMouseDown = true;
-        }
-    }
-
-    /**
-     * Override World's started() method to add variables to be displayed.
-     */
-    public void started()
-    {
-        // Add variables to be displayed to the world automatically so that
-        // code  doesn't have to do it.
-        for (Variable v : varsToDisplay) {
-            v.addToWorld(this);
         }
     }
 
@@ -204,7 +191,7 @@ public class ScratchWorld extends World
         // should execute their methods.  This frame is the *next* time
         // around -- thus we add 1 to the current frame number. 
         System.out.println("Adding message " + message +
-                           " to bcastList with frame " + (frameNumber + 1));
+            " to bcastList with frame " + (frameNumber + 1));
         StringFrameNumPair msg = new StringFrameNumPair(message, frameNumber + 1);
         mesgs.addLast(msg);
     }
@@ -232,11 +219,10 @@ public class ScratchWorld extends World
         // This frame is the *next* time around -- thus we add 1 to the
         // current frame number.  
         System.out.println("Adding sprite " + sprName +
-                           " to sprs2Clone with frame " + (frameNumber + 1));
+            " to sprs2Clone with frame " + (frameNumber + 1));
         StringFrameNumPair spr = new StringFrameNumPair(sprName, frameNumber + 1);
         sprs2Clone.addLast(spr);
     }
-
 
     /**
      *  return whether or not the mouse is currently pressed on this world
@@ -245,7 +231,7 @@ public class ScratchWorld extends World
     {
         return isMouseDown;
     }
-    
+
     /**
      * return the current number of times each Scratch Actor has had its
      * registered callbacks called. 
@@ -501,8 +487,9 @@ public class ScratchWorld extends World
         private String text;
         private boolean valChanged = true;
         private boolean display = true;           // is the variable supposed to be displayed or hidden?
-        private boolean addedToWorldYet = false;  // has this object been added to the world yet?
-        private int xLoc, yLoc;                   // initial location of the image.
+        private boolean addedToWorld = false;     // has this object been added to the world yet?
+        private int xLoc, yLoc;                   // current location of the image: the upper-lefthand
+                                                  // corner.
 
         public Variable(String varName, Object val)
         {
@@ -510,12 +497,9 @@ public class ScratchWorld extends World
             value = val;
             valChanged = true;
 
-            String dispStr = text + value + 2;   // add 2 for padding.  Remove later...
-            int stringLength = dispStr.length() * 10;
-            setImage(new GreenfootImage(stringLength, 16));      // TODO: remove this?
-            // Doing the following causes an exception because updateImage() accesses the location of
-            // variables' x/y, which haven't been set yet in the world.
-            // updateImage();
+            // Get the initial upperleft-hand corner coordinates for this variable.
+            xLoc = getDisplayVarXLoc();
+            yLoc = getDisplayVarYLoc();
         }
 
         public void act()
@@ -541,24 +525,34 @@ public class ScratchWorld extends World
             return value;
         }
 
+        public int getXLoc() { return xLoc; }
+
+        public int getYLoc() { return yLoc; }
+
         /**
          * Update the image being displayed.
          */
         private void updateImage()
         {
             if (! display) {
-                // System.out.println("Variable.updateImage: calling clear");
                 getImage().clear();
                 return;
             }
             if (valChanged) {
                 // To support the user pausing the scenario and moving the Variable display box
                 // to a new location, we will read the actual xLoc and yLoc from the actor,
-                // but also subtract the current width/height.  (Note: this has to be done before
-                // recomputing a possible new width/height in the code below.)
-                xLoc = getX() - getImage().getWidth() / 2; 
-                yLoc = getY() - getImage().getHeight() / 2;
-                
+                // but also subtract the current width/height, since
+                // Greenfoot's image reference point is the center of the
+                // image.  (Note: this has to be done before recomputing
+                // a possible new width/height in the code below.)
+                if (addedToWorld) {
+                    // getX() and getY() get the actual current location.
+                    // System.out.println("AddedToWorld is TRUE: getX, getY = " + getX() + " " + getY());
+                    xLoc = getX() - getImage().getWidth() / 2;
+                    yLoc = getY() - getImage().getHeight() / 2;
+                    // System.out.println("AddedToWorld is TRUE: xLoc, yLoc = " + xLoc + " " + yLoc);
+                } 
+
                 String dispStr = text + value;
                 int stringLength = (dispStr.length() + 1) * 7;
                 // Create a gray background under the variable's name.
@@ -580,33 +574,10 @@ public class ScratchWorld extends World
                 // on the center of the image, we have to calculate a new location for
                 // each image, each time.
                 setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
-                
-                // setLocation(getX(), getY());
+                // System.out.println("setLocation done: set to x, y = " + (xLoc + getImage().getWidth() / 2) +
+                //                   " " + (yLoc + getImage().getHeight() / 2));
                 valChanged = false;
-            }
-        }
-
-        /**
-         * Add the Variable actor to the world so that it can be displayed.
-         */
-        public void addToWorld(ScratchWorld sw)
-        {
-            super.addedToWorld(sw);
-            if (! addedToWorldYet) {
-                // Insert into the world.  Need to compute the width of the object because
-                // addObject() uses x, y as the center of the image, and we want all these
-                // displayed variable images to be lined up along the left side of the 
-                // screen.
-                int w = getImage().getWidth();
-                int h = getImage().getHeight();
-                // store the original x and y locations of the image.  These are used later
-                // when the image is resized, so that we can keep the image lined up along
-                // the left side of the screen.
-                xLoc = sw.getDisplayVarXLoc();
-                yLoc = sw.getDisplayVarYLoc();
-                sw.addObject(this, xLoc + (int) (w / 2.0), (int) (yLoc + (h / 2.0)));
-                addedToWorldYet = true;
-                show();
+                addedToWorld = true;
             }
         }
 
@@ -662,15 +633,16 @@ public class ScratchWorld extends World
         public Boolean get() { return (Boolean) super.get(); }
     }
 
-    private ArrayList<Variable> varsToDisplay = new ArrayList<Variable>();
-
     /**
      * Create an integer variable whose value will be displayed on the screen.
      */
     public IntVar createIntVariable(String varName, int initVal)
     {
         IntVar newVar = new IntVar(varName, initVal);
-        varsToDisplay.add(newVar);
+        addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
         return newVar; 
     }
 
@@ -680,7 +652,10 @@ public class ScratchWorld extends World
     public StringVar createStringVariable(String varName, String val)
     {
         StringVar newVar = new StringVar(varName, val);
-        varsToDisplay.add(newVar);
+        addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
         return newVar; 
     }
 
@@ -690,7 +665,10 @@ public class ScratchWorld extends World
     public DoubleVar createDoubleVariable(String varName, double val)
     {
         DoubleVar newVar = new DoubleVar(varName, val);
-        varsToDisplay.add(newVar);
+        addObject(newVar, newVar.getX(), newVar.getY());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
         return newVar; 
     }
 
@@ -700,7 +678,10 @@ public class ScratchWorld extends World
     public BooleanVar createBooleanVariable(String varName, boolean val)
     {
         BooleanVar newVar = new BooleanVar(varName, val);
-        varsToDisplay.add(newVar);
+        addObject(newVar, newVar.getX(), newVar.getY());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
         return newVar; 
     }
 
@@ -744,7 +725,7 @@ public class ScratchWorld extends World
         try {
             Constructor ctor = clazz.getDeclaredConstructor();
             ctor.setAccessible(true);
-            
+
             // Call the Scratch constructor here.
             sprite = (Scratch) ctor.newInstance();
         } catch (InstantiationException x) {
@@ -761,7 +742,7 @@ public class ScratchWorld extends World
             return;
         }
 
-        // Tell the Greenfoot world about this new sprite.  Put it in the middle of the canvas.
+        // Tell the Greenfoot world about this new sprite.
         addObject(sprite, translateToGreenfootX(initX), translateToGreenfootY(initY));
 
         // Add to the hashmap.
