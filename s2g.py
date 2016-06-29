@@ -1540,9 +1540,9 @@ worldCtorCode = ""
 # Determine the name of the ScratchWorld subclass.  This variable below
 # is used in some code above to generate casts.  I know this is a very bad
 # idea, but hey, what are you going to do...
-# Make first letter capitalized and remove all spaces, then add World.java
+# Take the last component of the PROJECT_DIR, remove all spaces, then add World
 # to end.
-worldClassName = PROJECT_DIR.capitalize().replace(" ", "") + "World"
+worldClassName = os.path.basename(PROJECT_DIR).replace(" ", "") + "World"
 
 
 # If there are global variables, they are defined in the outermost part
