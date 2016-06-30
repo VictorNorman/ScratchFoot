@@ -15,12 +15,6 @@ debug = False
 NUM_SPACES_PER_LEVEL = 4
 
 
-# Just print out the sprites.
-# if debug:
-#     for ch in data['children']:
-#         print("-" * 75)
-#         pprint(ch)
-
 #
 # Syntax diagrams:
 #

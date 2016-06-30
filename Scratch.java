@@ -411,6 +411,11 @@ public class Scratch extends Actor
         {
             super(obj, method);
             this.triggered = false;
+	        System.out.println("CloneStartSeq created");
+	        System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
+                                       "): for sprite " + this.getObj() +
+                                       " created.");
+	        // throw new RuntimeException();
         }
 
         public CloneStartSeq(CloneStartSeq other) {
@@ -419,10 +424,11 @@ public class Scratch extends Actor
 
         // called from act()
         public boolean isTriggered() {
-            if (getWorld().clonePending(getObj().getClass().getName())) {
+            if (getWorld().clonePending(getObj())) {
                 if (! triggered) {
-                    System.out.println("CloneStartSeq: for sprite " + getObj().getClass().getName() +
-                        " changing from NOT triggered to triggered.");
+                    System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
+                                       "): for sprite " + this.getObj() +
+                                       " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -964,7 +970,7 @@ public class Scratch extends Actor
             clone.getClass().getName() + ". Now, calling addObject()");
         getWorld().addObject((Scratch)clone, super.getX(), super.getY());
 
-        getWorld().registerCloneSpriteName(actor.getClass().getName());
+        getWorld().registerCloneSprite(actor);
 
         System.out.println("Clone added");        
     }

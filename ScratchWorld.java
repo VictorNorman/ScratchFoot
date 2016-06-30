@@ -60,25 +60,25 @@ public class ScratchWorld extends World
     private ArrayList<Backdrop> backdrops = new ArrayList<Backdrop>();
 
     /*
-     * This is used for storing bcast message in the string for handling broadcasts,
-     * and for storing the name of the sprite to clone in the string for 
-     * handling cloning.
+     * This is used for storing bcast message as a string object
+     * for handling broadcasts, and for storing the sprite object
+     * to clone in the handling cloning.
      */
-    private class StringFrameNumPair {
-        public String str;
+    private class ObjectFrameNumPair {
+        public Object obj;
         public long frameNum;   // the frame # this message should be sent in.
 
-        public StringFrameNumPair(String str, long frame) {
-            this.str = str;
+        public ObjectFrameNumPair(Object obj, long frame) {
+            this.obj = obj;
             this.frameNum = frame;
         }
     }
 
     // A list of pending broadcast messages.
-    private LinkedList<StringFrameNumPair> mesgs = new LinkedList<StringFrameNumPair>();
+    private LinkedList<ObjectFrameNumPair> mesgs = new LinkedList<ObjectFrameNumPair>();
 
     // A list of pending clone requests.
-    private LinkedList<StringFrameNumPair> sprs2Clone = new LinkedList<StringFrameNumPair>();
+    private LinkedList<ObjectFrameNumPair> sprs2Clone = new LinkedList<ObjectFrameNumPair>();
 
     // Keep an array of the classes in this world in order to support
     // changing of the "paint order" -- which objects are painted on top of
@@ -122,7 +122,7 @@ public class ScratchWorld extends World
             // Go through the messages in the bcast message list and remove the
             // first ones that are old -- with frameNumber in the past.
             while (true) {
-                StringFrameNumPair bcmsg = mesgs.peekFirst();
+                ObjectFrameNumPair bcmsg = mesgs.peekFirst();
                 if (bcmsg != null && bcmsg.frameNum < frameNumber) {
                     mesgs.removeFirst();
                 } else {
@@ -136,7 +136,7 @@ public class ScratchWorld extends World
             // Go through the messages in the bcast message list and remove the
             // first ones that are old -- with frameNumber in the past.
             while (true) {
-                StringFrameNumPair spr = sprs2Clone.peekFirst();
+                ObjectFrameNumPair spr = sprs2Clone.peekFirst();
                 if (spr != null && spr.frameNum < frameNumber) {
                     sprs2Clone.removeFirst();
                 } else {
@@ -171,9 +171,9 @@ public class ScratchWorld extends World
      */
     public boolean bcastPending(String message)
     {
-        for (StringFrameNumPair bcmsg : mesgs) {
+        for (ObjectFrameNumPair bcmsg : mesgs) {
             // Look for the correct message, to be triggered in the frame.
-            if (bcmsg.str == message && bcmsg.frameNum == frameNumber) {
+            if ((String) (bcmsg.obj) == message && bcmsg.frameNum == frameNumber) {
                 return true;
             }
         }
@@ -192,7 +192,7 @@ public class ScratchWorld extends World
         // around -- thus we add 1 to the current frame number. 
         System.out.println("Adding message " + message +
             " to bcastList with frame " + (frameNumber + 1));
-        StringFrameNumPair msg = new StringFrameNumPair(message, frameNumber + 1);
+        ObjectFrameNumPair msg = new ObjectFrameNumPair(message, frameNumber + 1);
         mesgs.addLast(msg);
     }
 
@@ -200,11 +200,11 @@ public class ScratchWorld extends World
      * Not to be called by users -- only by Scratch.
      * return true if there is a clone pending for the given sprite name.
      */
-    public boolean clonePending(String sprName)
+    public boolean clonePending(Object sprite)
     {
-        for (StringFrameNumPair spr : sprs2Clone) {
+        for (ObjectFrameNumPair spr : sprs2Clone) {
             // Look for the correct sprite name, to be triggered in the frame.
-            if (spr.str == sprName && spr.frameNum == frameNumber) {
+            if (spr.obj == sprite && spr.frameNum == frameNumber) {
                 return true;
             }
         }
@@ -212,15 +212,15 @@ public class ScratchWorld extends World
     }
 
     // add the given sprite name to the list of pending clone requests.
-    public void registerCloneSpriteName(String sprName)
+    public void registerCloneSprite(Object sprite)
     {
         // Create a new StringFrameNumPair object, saving the sprName
         // string, and the frame in which the actor should be cloned.
         // This frame is the *next* time around -- thus we add 1 to the
         // current frame number.  
-        System.out.println("Adding sprite " + sprName +
+        System.out.println("Adding sprite " + sprite +
             " to sprs2Clone with frame " + (frameNumber + 1));
-        StringFrameNumPair spr = new StringFrameNumPair(sprName, frameNumber + 1);
+        ObjectFrameNumPair spr = new ObjectFrameNumPair(sprite, frameNumber + 1);
         sprs2Clone.addLast(spr);
     }
 
@@ -669,7 +669,7 @@ public class ScratchWorld extends World
     public DoubleVar createDoubleVariable(String varName, double val)
     {
         DoubleVar newVar = new DoubleVar(varName, val);
-        addObject(newVar, newVar.getX(), newVar.getY());
+        addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
         // Call act() so that it calls updateImage() which creates/computes
         // the image that displays the variable, and places in the correct location.
         newVar.act();
@@ -682,7 +682,7 @@ public class ScratchWorld extends World
     public BooleanVar createBooleanVariable(String varName, boolean val)
     {
         BooleanVar newVar = new BooleanVar(varName, val);
-        addObject(newVar, newVar.getX(), newVar.getY());
+        addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
         // Call act() so that it calls updateImage() which creates/computes
         // the image that displays the variable, and places in the correct location.
         newVar.act();
