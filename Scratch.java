@@ -2241,6 +2241,34 @@ public class Scratch extends Actor
     }
 
     /*
+     * Sound stuff.
+     */
+
+    /**
+     * Plays a sound until it has finished
+     */
+    public void playSoundUntilDone(String name)
+    {
+        getWorld().playSoundUntilDone(name);
+    }
+    
+    /**
+     * Plays a sound, currently the same as UntilDone
+     */
+    public void playSound(String name)
+    {
+        getWorld().playSound(name);
+    }
+    
+    /**
+     * Stops all currently playing sounds
+     */
+    public void stopAllSounds()
+    {
+        getWorld().stopAllSounds();
+    }
+
+    /*
      * Miscellaneous stuff.
      */
 
