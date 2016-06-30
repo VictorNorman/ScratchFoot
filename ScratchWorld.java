@@ -1,8 +1,11 @@
 import greenfoot.*;  // (World, Actor, GreenfootImage, Greenfoot and MouseInfo)
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.HashMap;
+import java.util.Hashtable;
+import javax.sound.sampled.*;
 import java.lang.Class;
 import java.awt.Color;
 import java.lang.reflect.*;
@@ -80,6 +83,9 @@ public class ScratchWorld extends World
     // A list of pending clone requests.
     private LinkedList<StringFrameNumPair> sprs2Clone = new LinkedList<StringFrameNumPair>();
 
+    // A list of playable sounds
+    private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>();
+
     // Keep an array of the classes in this world in order to support
     // changing of the "paint order" -- which objects are painted on top of
     // others.  In Greenfoot, you can only specify this by class, not by
@@ -95,6 +101,7 @@ public class ScratchWorld extends World
     public ScratchWorld(int width, int height, int cellSize)
     {    
         super(width, height, cellSize);
+        loadSounds();
     }
 
     /**
@@ -764,4 +771,79 @@ public class ScratchWorld extends World
         return sprites.get(name);
     }
 
+    /*
+     * Sound stuff.
+     */
+
+    /**
+     * Add all sounds in the "proj/sounds/" directory to the sound dictionary. Uses filename as key.
+     * Not to be called by users
+     */
+    public void loadSounds()
+    {
+        // Access sound directory
+        File soundDir = new File("sounds");
+        AudioInputStream aIn;
+        File[] ls = soundDir.listFiles();
+        if (ls != null) {
+            for (File f : ls) {
+                try {
+                    aIn = AudioSystem.getAudioInputStream(f);
+                    Clip clip = AudioSystem.getClip();
+                    clip.open(aIn);
+                    soundList.put(f.getName(), clip);
+                } catch (UnsupportedAudioFileException e) {
+                    System.err.println("Only .wav filetypes are acceptable");
+                } catch (Exception e) {
+                     e.printStackTrace();
+                }
+            }
+        }
+    }
+    
+    /**
+     * Plays a sound until it has finished
+     */
+    public void playSoundUntilDone(String name)
+    {
+        name += ".wav";
+        Clip toPlay = soundList.get(name);
+        if (toPlay != null) {
+            if (!toPlay.isActive()) {
+                toPlay.setFramePosition(0);
+            }
+            toPlay.start();
+        } else {
+            System.err.println("Attempted to play non-existent sound");
+        }
+    }
+    
+    /**
+     * Plays a sound, restarting it if it is currently playing
+     * This currently works the same as playUntilDone because greenfoot does not restart sounds
+     * that are stopped and replayed on the same frame, and doing so causes massive performance drops.
+     */
+    public void playSound(String name)
+    {
+        name += ".wav";
+        Clip toPlay = soundList.get(name);
+        if (toPlay != null) {
+            toPlay.setFramePosition(0);
+            if (!toPlay.isActive()) {
+                toPlay.start();
+            }
+        } else {
+            System.err.println("Attempted to play non-existent sound");
+        }
+    }
+    
+    /**
+     * Stops all currently playing sounds
+     */
+    public void stopAllSounds()
+    {
+         for (Clip clip : soundList.values()) {
+             clip.stop();
+         }
+    }
 }
