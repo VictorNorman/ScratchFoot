@@ -893,7 +893,7 @@ def doAsk(level, tokens):
     assert len(tokens) == 2 and tokens[0] == "doAsk"
     quest = tokens[1]
     return genIndent(level) + "String answer = askStringAndWait(" + \
-           strExpr(quest) + ")\t\t// may want to replace variable\n"
+           strExpr(quest) + ");\t\t// may want to replace answer with a better name\n"
 
 
 def doWait(level, tokens):
