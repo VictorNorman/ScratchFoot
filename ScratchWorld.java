@@ -570,14 +570,15 @@ public class ScratchWorld extends World
                 } 
 
                 String dispStr = text + value;
-                int stringLength = (dispStr.length() + 1) * 7;
+                int stringLength = (dispStr.length() + 2) * 7;
                 // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength, 20);
                 image.setColor(bgColor);
+                image.setFont(new java.awt.Font("Courier", java.awt.Font.PLAIN, 12));
                 image.fill();
                 // Create orange background under the variable's value.
                 image.setColor(Color.decode("#EE7D16"));
-                image.fillRect((int) (text.length() * 6.5 + 1), 3, (value + "").length() * 10, 15);
+                image.fillRect((int) ((text.length() + 1 )* 7), 3, ((value + "").length()) * 7 + 3, 15);
 
                 image.setColor(textColor);
                 // System.out.println("Variable.updateImage: creating with value " + text + " " + value);

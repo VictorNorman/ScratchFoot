@@ -1596,6 +1596,9 @@ public class Scratch extends Actor
      */
     public void say(String str)
     {
+        if (str == "") {
+            return;
+        }
         if (sayActor != null) {
             if (str == null) {
                 // saying nothing means remove the sayActor
