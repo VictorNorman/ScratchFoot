@@ -1466,6 +1466,15 @@ public class Scratch extends Actor
     }
 
     /**
+     * turn the sprite to point toward the direction of the given sprite
+     */
+    public void pointToward(String spriteName)
+    {
+        Scratch other = getWorld().getActorByName(spriteName);
+        pointToward(other);
+    }
+
+    /**
      * turn the sprite to point toward the mouse.
      */
     public void pointTowardMouse()

@@ -630,9 +630,18 @@ def pointTowards(level, tokens):
     cmd, arg1 = tokens
     if arg1 == '_mouse_':
         return genIndent(level) + "pointTowardMouse();\n"
-    else:
-        # TODO
-        return "NOT IMPLEMENTED YET"
+    else:   # pointing toward a sprite
+        return genIndent(level) + 'pointToward("' + arg1 + '");\n'
+
+
+def glideTo(level, tokens):
+    """Generate code to make the sprite glide to a certain x,y position
+    in a certain amount of time.
+    Format of the cmd is: ["glideSecs:toX:y:elapsed:from:", time, x, y]
+    """
+    cmd, time, x, y = tokens
+    return genIndent(level) + "glideTo(s, %s, %d, %d);\n" % \
+           (mathExpr(time), x, y)
 
 def sayForSecs(level, tokens):
     """Generate code to handle say <str> for <n> seconds.
@@ -1106,6 +1115,7 @@ scratchStmt2genCode = {
     'bounceOffEdge': motion0Arg,    # TODO
     'setRotationStyle': motion1Arg,
     'pointTowards:': pointTowards,
+    'glideSecs:toX:y:elapsed:from:': glideTo,
 
     # Looks commands
     'say:duration:elapsed:from:': sayForSecs,
