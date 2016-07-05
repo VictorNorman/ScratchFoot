@@ -80,8 +80,8 @@ public class ScratchWorld extends World
     // A list of pending broadcast messages.
     private LinkedList<ObjectFrameNumPair> mesgs = new LinkedList<ObjectFrameNumPair>();
 
-    // A list of pending clone requests.
-    private LinkedList<ObjectFrameNumPair> sprs2Clone = new LinkedList<ObjectFrameNumPair>();
+    // A list of pending clone objects that need to be activated.
+    private LinkedList<ObjectFrameNumPair> clones2Activate = new LinkedList<ObjectFrameNumPair>();
 
     // A list of playable sounds
     private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>();
@@ -139,13 +139,15 @@ public class ScratchWorld extends World
                 }
             }
         }
-        if (sprs2Clone.size() != 0) {
+        if (clones2Activate.size() != 0) {
             // Go through the messages in the bcast message list and remove the
             // first ones that are old -- with frameNumber in the past.
             while (true) {
-                ObjectFrameNumPair spr = sprs2Clone.peekFirst();
+                ObjectFrameNumPair spr = clones2Activate.peekFirst();
                 if (spr != null && spr.frameNum < frameNumber) {
-                    sprs2Clone.removeFirst();
+                    /* System.out.println("Removing " + spr.obj + " from c2A with frame # " + spr.frameNum +
+                    " (curr Framenumber " + frameNumber + ")"); */
+                    clones2Activate.removeFirst();
                 } else {
                     // The list is empty or the pending clones are for the next
                     // iteration.
@@ -197,8 +199,8 @@ public class ScratchWorld extends World
         // frame in which the actor's registered to receive this message
         // should execute their methods.  This frame is the *next* time
         // around -- thus we add 1 to the current frame number. 
-        System.out.println("Adding message " + message +
-            " to bcastList with frame " + (frameNumber + 1));
+        /* System.out.println("Adding message " + message +
+        " to bcastList with frame " + (frameNumber + 1));  */
         ObjectFrameNumPair msg = new ObjectFrameNumPair(message, frameNumber + 1);
         mesgs.addLast(msg);
     }
@@ -209,26 +211,29 @@ public class ScratchWorld extends World
      */
     public boolean clonePending(Object sprite)
     {
-        for (ObjectFrameNumPair spr : sprs2Clone) {
+        // System.out.print("clonePending(" + sprite + "): (frameNum " + frameNumber + ") returns ");
+        for (ObjectFrameNumPair pair : clones2Activate) {
             // Look for the correct sprite name, to be triggered in the frame.
-            if (spr.obj == sprite && spr.frameNum == frameNumber) {
+            if (pair.obj == sprite && pair.frameNum == frameNumber) {
+                // System.out.println("true");
                 return true;
             }
         }
+        // System.out.println("false");
         return false;
     }
 
-    // add the given sprite name to the list of pending clone requests.
-    public void registerCloneSprite(Object sprite)
+    // add the given sprite object to the list of pending clone requests.
+    public void registerActivateClone(Object clone)
     {
-        // Create a new StringFrameNumPair object, saving the sprName
-        // string, and the frame in which the actor should be cloned.
+        // Create a new ObjectFrameNumPair object, saving the sprite
+        // and the frame in which the clone should be activated.
         // This frame is the *next* time around -- thus we add 1 to the
         // current frame number.  
-        System.out.println("Adding sprite " + sprite +
-            " to sprs2Clone with frame " + (frameNumber + 1));
-        ObjectFrameNumPair spr = new ObjectFrameNumPair(sprite, frameNumber + 1);
-        sprs2Clone.addLast(spr);
+        /* System.out.println("Adding sprite " + clone +
+        " to clones2Activate with frame " + (frameNumber + 1)); */
+        ObjectFrameNumPair pair = new ObjectFrameNumPair(clone, frameNumber + 1);
+        clones2Activate.addLast(pair);
     }
 
     /**
@@ -388,13 +393,13 @@ public class ScratchWorld extends World
 
     public void addToPaintOrder(Class cls)
     {
-        System.out.println("addToClasses called with class " + cls);
+        // System.out.println("addToClasses called with class " + cls);
         if (clses4PaintOrder.contains(cls)) {
             return;
         }
 
         clses4PaintOrder.add(cls);
-        System.out.println("addToClasses: clses list is now " + clses4PaintOrder);
+        // System.out.println("addToClasses: clses list is now " + clses4PaintOrder);
         setPaintOrderInGF();
     }
 
@@ -500,7 +505,7 @@ public class ScratchWorld extends World
         private boolean display = true;           // is the variable supposed to be displayed or hidden?
         private boolean addedToWorld = false;     // has this object been added to the world yet?
         private int xLoc, yLoc;                   // current location of the image: the upper-lefthand
-                                                  // corner.
+        // corner.
 
         public Variable(String varName, Object val)
         {
@@ -795,12 +800,12 @@ public class ScratchWorld extends World
                 } catch (UnsupportedAudioFileException e) {
                     System.err.println("Only .wav filetypes are acceptable");
                 } catch (Exception e) {
-                     e.printStackTrace();
+                    e.printStackTrace();
                 }
             }
         }
     }
-    
+
     /**
      * Plays a sound until it has finished
      */
@@ -817,7 +822,7 @@ public class ScratchWorld extends World
             System.err.println("Attempted to play non-existent sound");
         }
     }
-    
+
     /**
      * Plays a sound, restarting it if it is currently playing
      * This currently works the same as playUntilDone because greenfoot does not restart sounds
@@ -836,14 +841,14 @@ public class ScratchWorld extends World
             System.err.println("Attempted to play non-existent sound");
         }
     }
-    
+
     /**
      * Stops all currently playing sounds
      */
     public void stopAllSounds()
     {
-         for (Clip clip : soundList.values()) {
-             clip.stop();
-         }
+        for (Clip clip : soundList.values()) {
+            clip.stop();
+        }
     }
 }

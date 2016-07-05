@@ -189,9 +189,9 @@ public class Scratch extends Actor
             // System.out.println("Sequence ctor: obj " + obj + " method " + method);
         }
 
-        public String toString() {
-            return "Sequence: obj " + objToCall + " method " + methodToCall + " doneSeq " + doneSequence;
-        }
+        //        public String toString() {
+        //            return "Sequence (": obj " + objToCall + " method " + methodToCall + " doneSeq " + doneSequence;
+        //         }
 
         // These are needed only for copy constructors.
         public Object getObj() { return objToCall; }
@@ -411,25 +411,33 @@ public class Scratch extends Actor
         {
             super(obj, method);
             this.triggered = false;
-	        System.out.println("CloneStartSeq created");
-	        System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
-                                       "): for sprite " + this.getObj() +
-                                       " created.");
-	        // throw new RuntimeException();
+            /* System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
+            "): for sprite " + this.getObj() +
+            " created.");
+            try {
+            new Exception().printStackTrace();
+            } catch (Exception e) {
+            }
+             */
         }
 
         public CloneStartSeq(CloneStartSeq other) {
             this(other.getObj(), other.getMethod());
+            // System.out.println("After CloneSSeq copy constructor: triggered is " + triggered);
         }
 
         // called from act()
         public boolean isTriggered() {
+            /*System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
+            "): for sprite " + this.getObj() +
+            " calling clonePending.");
+             */
             if (getWorld().clonePending(getObj())) {
-                if (! triggered) {
+                /* if (! triggered) {
                     System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
-                                       "): for sprite " + this.getObj() +
-                                       " changing from NOT triggered to triggered.");
-                }
+                        "): for sprite " + this.getObj() +
+                        " changing from NOT triggered to triggered.");
+                } */
                 triggered = true;
             }
             return triggered;
@@ -694,10 +702,20 @@ public class Scratch extends Actor
         rotationStyle = other.rotationStyle;
 
         keySeqs = new ArrayList<KeyPressSeq>(other.keySeqs);
-        actorClickedSeqs = new ArrayList<ActorClickedSeq>(other.actorClickedSeqs);
+
+	    /* Copy the actorClicked sequences from the previous sprite, but for this one.
+	       Easiest to do this just by calling whenSpriteClicked. */
+	    for (ActorClickedSeq a: other.actorClickedSeqs) {
+	        whenSpriteClicked(a.getMethod());
+	    }
         stageClickedSeqs = new ArrayList<StageClickedSeq>(other.stageClickedSeqs);
         mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>(other.mesgRecvdSeqs);
-        cloneStartSeqs = new ArrayList<CloneStartSeq>(other.cloneStartSeqs);
+
+	    /* Copy the CloneStart sequences from the previous sprite, but for this one.
+	       Easiest to do this just by calling whenIStartAsAClone. */
+	    for (CloneStartSeq css : other.cloneStartSeqs) {
+	        whenIStartAsAClone(css.getMethod());
+	    }
 
         // Initialize everything for this new Actor in Greenfoot.
         super.setLocation(x, y);
@@ -711,7 +729,20 @@ public class Scratch extends Actor
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
 
+        /*
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
+        System.out.println("Copy constructor finished for object " + System.identityHashCode(this));
+        System.out.println("cloneStartSeqs has this in it:");
+        for (CloneStartSeq s: cloneStartSeqs) {
+        System.out.println("    " + System.identityHashCode(s));
+        }
+        System.out.println("----------");
+        System.out.println("OTHER'S cloneStartSeqs has this in it:");
+        for (CloneStartSeq s: other.cloneStartSeqs) {
+        System.out.println("    " + System.identityHashCode(s));
+        }
+        System.out.println("----------");
+         */
     }
 
     /** 
@@ -921,8 +952,8 @@ public class Scratch extends Actor
         CloneStartSeq cb = new CloneStartSeq(this, methodName);
         cloneStartSeqs.add(cb);
         cb.start();
-        System.out.println("whenIStartAsAClone: method registered for class " +
-            this.getClass().getName() + "; sequence obj created.");
+        // System.out.println("whenIStartAsAClone: method registered for class " +
+        //     this.getClass().getName() + "; sequence obj created.");
     }
 
     /**
@@ -966,13 +997,13 @@ public class Scratch extends Actor
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
 
-        System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
-            clone.getClass().getName() + ". Now, calling addObject()");
+        // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
+        //     clone.getClass().getName() + ". Now, calling addObject()");
         getWorld().addObject((Scratch)clone, super.getX(), super.getY());
 
-        getWorld().registerCloneSprite(actor);
+        getWorld().registerActivateClone(clone);
 
-        System.out.println("Clone added");        
+        // System.out.println("Clone added");        
     }
 
     private Object callConstructor(Scratch obj)
@@ -2251,7 +2282,7 @@ public class Scratch extends Actor
     {
         getWorld().playSoundUntilDone(name);
     }
-    
+
     /**
      * Plays a sound, currently the same as UntilDone
      */
@@ -2259,7 +2290,7 @@ public class Scratch extends Actor
     {
         getWorld().playSound(name);
     }
-    
+
     /**
      * Stops all currently playing sounds
      */
