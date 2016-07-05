@@ -980,8 +980,7 @@ def createCloneOf(level, tokens):
     if tokens[1] == "_myself_":
         return genIndent(level) + "createCloneOfMyself();\n"
 
-    return genIndent(level) + "createCloneOf(" + \
-           'getWorld().getActorByName("' + tokens[1] + '"));\n'
+    return genIndent(level) + 'createCloneOf("' + tokens[1] + '");\n'
 
 
 def deleteThisClone(level, tokens):

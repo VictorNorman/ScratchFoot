@@ -999,7 +999,7 @@ public class Scratch extends Actor
 
         // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
         //     clone.getClass().getName() + ". Now, calling addObject()");
-        getWorld().addObject((Scratch)clone, super.getX(), super.getY());
+        getWorld().addObject((Scratch)clone, translateToGreenfootX(actor.getX()), translateToGreenfootY(actor.getY()));
 
         getWorld().registerActivateClone(clone);
 
@@ -1012,7 +1012,7 @@ public class Scratch extends Actor
             Constructor ctor = obj.getClass().getDeclaredConstructor(obj.getClass(), int.class, int.class);
 
             ctor.setAccessible(true);
-            return ctor.newInstance(obj, super.getX(), super.getY());
+            return ctor.newInstance(obj, translateToGreenfootX(obj.getX()), translateToGreenfootY(obj.getY()));
         } catch (InstantiationException x) {
             x.printStackTrace();
         } catch (InvocationTargetException x) {
@@ -1981,7 +1981,7 @@ public class Scratch extends Actor
             // the actor's position. The y value must be reversed because the y axis
             // is different for buffered images. 
             int pixel = bIm.getRGB(getMouseX() - getX() + (bIm.getWidth() / 2),
-                    bIm .getHeight() - (getMouseY() - getY() + (bIm.getHeight() / 2)));
+                    bIm.getHeight() - (getMouseY() - getY() + (bIm.getHeight() / 2)));
             if ((pixel >> 24) == 0x00) {
                 return false;   // transparent pixel: doesn't count.
             } else {
