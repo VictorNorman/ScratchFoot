@@ -1537,7 +1537,7 @@ sprites = data['children']
 
 # We'll need to write configuration "code" to the greenfoot.project file.  Store
 # the lines to write out in this variable.
-projectFileCode = ""
+projectFileCode = []
 
 # Code to be written into the World.java file.
 worldCtorCode = ""
@@ -1578,13 +1578,12 @@ for spr in sprites:
 
         # Write out a line to the project.greenfoot file to indicate that this
         # sprite is a subclass of the Scratch class.
-        projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
+        projectFileCode.append("class." + spriteName + ".superclass=Scratch\n")
 
 
         # Extract the last position of the sprite and pass to addSprite() call.
-        worldCtorCode += genIndent(2) + 'addSprite("' + spriteName + \
-                         '", ' + str(spr['scratchX']) + ', ' + \
-                         str(spr['scratchY']) + ');\n'
+        worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
+                         (genIndent(2), spriteName, spr['scratchX'], spr['scratchY'])
 
         ctorCode = ""
         cbCode = []
@@ -1602,8 +1601,8 @@ for spr in sprites:
 	# Generate a line to the project.greenfoot file to set the image
         # file, like this: 
         #     class.Sprite1.image=1.png
-        projectFileCode += "class." + spriteName + ".image=" + \
-                           str(spr['costumes'][0]['baseLayerID']) + ".png\n"
+        projectFileCode.append("class." + spriteName + ".image=" + \
+                           str(spr['costumes'][0]['baseLayerID']) + ".png\n")
 
         ctorCode += costumeCode + initSettingsCode
 
@@ -1671,7 +1670,7 @@ spriteName = "Stage"
 
 # Write out a line to the project.greenfoot file to indicate that this
 # sprite is a subclass of the Scratch class.
-projectFileCode += "class." + spriteName + ".superclass=Scratch\n"
+projectFileCode.append("class." + spriteName + ".superclass=Scratch\n")
 
 # Create the special Stage sprite.
 worldCtorCode += genIndent(2) + 'addSprite("' + spriteName + '", 0, 0);\n'
@@ -1749,52 +1748,40 @@ worldCode += "}\n"
 outFile.write(worldCode)
 outFile.close()
 
-projectFileCode += "class." + worldClassName + ".superclass=ScratchWorld\n"
-projectFileCode += "world.lastInstantiated=" + worldClassName + "\n"
+projectFileCode.append("class." + worldClassName + ".superclass=ScratchWorld\n")
+projectFileCode.append("world.lastInstantiated=" + worldClassName + "\n")
 
 
 # ---------------------------------------------------------------------------
-# Now, add configuration information to the project.greenfoot file.
+# Now, update the project.greenfoot file with this new
+# configuration information.  If we have run this script before, then
+# the config info will be in there already.  So, for each line in
+# projectFileCode, we'll check if the line is in the file first before
+# updating/adding it.
+projectFileCode.append("class.Scratch.superclass=greenfoot.Actor\n")
+projectFileCode.append("class.ScratchWorld.superclass=greenfoot.World\n")
 
-# Open in append mode, since we'll be writing lines to the end.
-with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as projF:
-    projF.write("class.Scratch.superclass=greenfoot.Actor\n")
-    projF.write("class.ScratchWorld.superclass=greenfoot.World\n")
-    projF.write(projectFileCode)
-
+# Read all lines into variable lines.
+lines = []
+with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "r") as projF:
+    lines = projF.readlines()
+# Now, open in "w" mode which resets the file back to being empty.
+with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "w") as projF:
+    for line in lines:
+        if line in projectFileCode:
+            # Remove the line in pfcLines that matches.
+            print("DEBUG: removing " + line + " from projFileCode because already in file.")
+            projectFileCode.remove(line)
+        projF.write(line)
+    # Now write the remaining lines out from projectFileCode
+    for p in projectFileCode:
+        print("DEBUG: writing this line to project.greenfoot file:", p)
+        projF.write(p)
+        
 
 # ---------------------------------------------------------------------------
 # END
 # ---------------------------------------------------------------------------
-
-
-# TODO: if a user runs s2g.py multiple times, it will add repeated lines to
-# the project.greenfoot file.  That's bad, I imagine.
-# One solution is to back up the project.greenfoot file before editing and
-# then always use that when editing.
-
-
-# NOTES:
-# o Motion commands are done, except for glide.
-# o Operators commands are done.
-# o Looks commands are done.
-# o Pen commands are done.
-# o Events done, except broadcastAndWait and when loudness/timer/video > <n>
-# o Control commands are done.
-# 
-
-
-
-# If you create a new (empty) Scenario, then copy ScratchWorld.java and
-# Scratch.java to the folder and edit the project.greenfoot and add these
-# lines to it (without the #s)
-# class.Scratch.superclass=greenfoot.Actor
-# class.ScratchWorld.superclass=greenfoot.World
-
-# then, if you restart Greenfoot and load the Scenario, the classes show
-# up.
-
-# Could probably run s2g.py
 
 
 # User downloads Scratch project to directory above where they want the
@@ -1810,26 +1797,4 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "a") as 
 #  o s2g.py then edits Snowman/project.greenfoot to add the new files to
 #    the project.
 # Restart Greenfoot and your project should be ready to compile and run.
-
-
-# What to do about mathExpr() vs. boolExpr() vs. strExpr().
-# 
-# Some Scratch blocks obviously require numbers, strings, or bools in
-# certain places.  In that case, call the appropriate functions.
-#   o what if you require a strExpr() but the value is an expression?
-#
-
-
-# Need a dispatcher to call the appropriate method for the operators:
-# "join" --> call strExpr() on each param.
-# "say" --> ditto
-# "+", etc. --> call mathExpr() on each.
-# etc.
-
-# What if in strExpr(), the param is a method that returns an integer?
-#  o how do we know? We are generating code, so we always get a string
-#    back.  If the value generated by the code will be an int, then we should
-#    wrap it in a String constructor...
-#  o Implies we shoudl return not only a string of code to generate the
-#    value, but also the expected type of value.
 
