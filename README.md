@@ -17,7 +17,7 @@ multiple "when key clicked" scripts, etc.  These scripts all seemingly run in pa
 * use wait(), glideTo(), etc.
 * use multiple costumes, multiple backdrops, etc.
 * playing basic sound files.
-* Scratch coordinate plane layout: (0, 0) is in the center, with +x to the left, and +y up.
+* Scratch coordinate-plane layout: (0, 0) is in the center, with +x to the right, and +y up.
 * displaying variables on-screen.
 * setting the "depth" of sprites to control the layering of the display of sprites.
 
@@ -29,8 +29,34 @@ ScratchFoot does **not** currently support these features from Scratch:
 * the video stuff
 * the microphone stuff.
 
-Note that ScratchFoot does **NOT** automatically convert a Scratch project into a Greenfoot project.  This must (currently) 
-be done by hand.  The ScratchFoot wiki will contain guidance for how to do this systematically.
+----------------------
+
+#How to Convert a Scratch program to a ScratchFoot (i.e., Greenfoot) scenario.
+
+The file s2g.py is a python3 program that will try to automatically convert a downloaded Scratch project into a Greenfoot scenario. 
+NOTE NOTE NOTE: this only works for Greenfoot 2.4.2 at this time.  It does not work with Greenfoot 3 (yet).
+
+In order to make this work, you need to install these programs on your computer:
+
+* Greenfoot 2.4.2: you can get this older version from [here](http://www.greenfoot.org/download_old).
+* ImageMagick: including the legacy command-line module (you select this when you are installing ImageMagick.)
+* python3
+* The files from this repository: Scratch.java, ScratchWorld.java, and s2g.py.  You can get these files by downloading the Zip file from here and unzipping them.
+
+Procedure for converting your Scratch project to Greenfoot:
+
+* Start up Scratch in your browser and find your project.  
+  * Go into the editor so that you can see the code, etc.
+* Choose File --> Download to your computer.  This will save the program as a .sb2 file.
+* Start up Greenfoot 2.4.2
+  * Choose Scenario --> New to create a new Scenario folder.
+  * Exit Greenfoot.
+* In a terminal window (command prompt), 
+  * Copy your Scratch.java and ScratchWorld.java files to the new Greenfoot scenario folder that you just created.
+  * run the python s2g.py conversion script:   python3 s2g.py <scratch.sb2> <greenfootDir>
+    * replace <scratch.sb2> with the name of the .sb2 file you downloaded from Scratch
+    * replace <greenfootDir> with the name of the folder you created for the new Greenfoot scenario.
+* Start up Greenfoot again.  Compile.  Enjoy.
 
 ScratchFoot has been created by [Victor Norman](mailto:vtn2@calvin.edu) at [Calvin College](http://www.calvin.edu).
 
