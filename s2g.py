@@ -1522,7 +1522,10 @@ for f in files2Copy:
     fname = os.path.basename(f)
     dest = os.path.join(imagesDir, fname)
     dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
-    execOrDie("convert -background None " + f + " " + dest,
+    # background -None keeps the transparent part of the image transparent.
+    # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
+    # same size as you see on the screen with Scratch in the web browser.
+    execOrDie("convert -background None -resize 50% " + f + " " + dest,
               "convert svg file to png")
 
 
@@ -1770,12 +1773,14 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "w") as 
     for line in lines:
         if line in projectFileCode:
             # Remove the line in pfcLines that matches.
-            print("DEBUG: removing " + line + " from projFileCode because already in file.")
+            if debug:
+                print("DEBUG: removing " + line + " from projFileCode because already in file.")
             projectFileCode.remove(line)
         projF.write(line)
     # Now write the remaining lines out from projectFileCode
     for p in projectFileCode:
-        print("DEBUG: writing this line to project.greenfoot file:", p)
+        if debug:
+            print("DEBUG: writing this line to project.greenfoot file:", p)
         projF.write(p)
         
 
