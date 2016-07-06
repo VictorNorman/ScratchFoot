@@ -53,9 +53,9 @@ Procedure for converting your Scratch project to Greenfoot:
   * Exit Greenfoot.
 * In a terminal window (command prompt), 
   * Copy your Scratch.java and ScratchWorld.java files to the new Greenfoot scenario folder that you just created.
-  * run the python s2g.py conversion script:   python3 s2g.py <scratch.sb2> <greenfootDir>
-    * replace <scratch.sb2> with the name of the .sb2 file you downloaded from Scratch
-    * replace <greenfootDir> with the name of the folder you created for the new Greenfoot scenario.
+  * run the python s2g.py conversion script:   `python s2g.py <scratch.sb2> <greenfootDir>`
+    * replace `<scratch.sb2>` with the name of the .sb2 file you downloaded from Scratch
+    * replace `<greenfootDir>` with the name of the folder you created for the new Greenfoot scenario.
 * Start up Greenfoot again.  Compile.  Enjoy.
 
 
