@@ -34,7 +34,7 @@ ScratchFoot does **not** currently support these features from Scratch:
 #How to Convert a Scratch program to a ScratchFoot (i.e., Greenfoot) scenario.
 
 The file s2g.py is a python3 program that will try to automatically convert a downloaded Scratch project into a Greenfoot scenario. 
-NOTE NOTE NOTE: this only works for Greenfoot 2.4.2 at this time.  It does not work with Greenfoot 3 (yet).
+**NOTE NOTE NOTE: this only works for Greenfoot 2.4.2 at this time.  It is mostly untested with Greenfoot 3.**
 
 In order to make this work, you need to install these programs on your computer:
 
@@ -59,7 +59,7 @@ Procedure for converting your Scratch project to Greenfoot:
 * Start up Greenfoot again.  Compile.  Enjoy.
 
 
-NOTE NOTE: This project has been most extensively tested on MacOS and on Ubuntu Linux.  I have just tested it on Windows 10 with Greenfoot 3.0.3 and it actually seems to work!  I tried it [this scenario](https://scratch.mit.edu/projects/44669322/#editor).
+**NOTE NOTE: This project has been most extensively tested on MacOS and on Ubuntu Linux.**  I have just tested it on Windows 10 with Greenfoot 3.0.3 and it actually seems to work!  I tried it with [this scenario](https://scratch.mit.edu/projects/44669322/#editor).
 
 ScratchFoot has been created by [Victor Norman](mailto:vtn2@calvin.edu) at [Calvin College](http://www.calvin.edu).
 
