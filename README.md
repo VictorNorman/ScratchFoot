@@ -58,5 +58,8 @@ Procedure for converting your Scratch project to Greenfoot:
     * replace <greenfootDir> with the name of the folder you created for the new Greenfoot scenario.
 * Start up Greenfoot again.  Compile.  Enjoy.
 
+
+NOTE NOTE: This project has been most extensively tested on MacOS and on Ubuntu Linux.  I have just tested it on Windows 10 with Greenfoot 3.0.3 and it actually seems to work!  I tried it [this scenario](https://scratch.mit.edu/projects/44669322/#editor).
+
 ScratchFoot has been created by [Victor Norman](mailto:vtn2@calvin.edu) at [Calvin College](http://www.calvin.edu).
 
