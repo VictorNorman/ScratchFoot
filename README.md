@@ -1,5 +1,7 @@
-# ScratchFoot v0.1
-A Scratch emulation layer in Greenfoot.
+# ScratchFoot v0.3 
+(7 July 2016)
+
+## A Scratch emulation layer for Greenfoot.
 
 ScratchFoot provides a subclass of World and subclass of Actor which make available much of the functionality of Scratch in Greenfoot.  
 Using ScratchFoot, you should be able to convert many Scratch programs to use Greenfoot.  This may be useful for
@@ -21,20 +23,20 @@ multiple "when key clicked" scripts, etc.  These scripts all seemingly run in pa
 * displaying variables on-screen.
 * setting the "depth" of sprites to control the layering of the display of sprites.
 
-ScratchFoot does **not** currently support these features from Scratch:
-* playing different instruments or drums.
-* only the "ghost" effect of the graphics effects is implemented.
-* pen size is always width 1.
-* user ("cloud") variables.
-* the video stuff
-* the microphone stuff.
+### ScratchFoot limitations: 
+* Playing different instruments or drums is not supported.
+* Only the "ghost" effect of the graphics effects is implemented.
+* Pen size is always width 1.
+* User ("cloud") variables not supported.
+* The video stuff and microphone stuff are not supported.
 
 ----------------------
 
-#How to Convert a Scratch program to a ScratchFoot (i.e., Greenfoot) scenario.
+## How to Convert a Scratch program to a ScratchFoot (i.e., Greenfoot) scenario.
 
 The file s2g.py is a python3 program that will try to automatically convert a downloaded Scratch project into a Greenfoot scenario. 
-**NOTE NOTE NOTE: this only works for Greenfoot 2.4.2 at this time.  It is mostly untested with Greenfoot 3.**
+**NOTE NOTE NOTE: this has been primarily tested with Greenfoot 2.4.2 at this time.  It seems to work with Greenfoot 3, 
+but I need to test it more.**
 
 In order to make this work, you need to install these programs on your computer:
 
@@ -61,5 +63,10 @@ Procedure for converting your Scratch project to Greenfoot:
 
 **NOTE NOTE: This project has been most extensively tested on MacOS and on Ubuntu Linux.**  I have just tested it on Windows 10 with Greenfoot 3.0.3 and it actually seems to work!  I tried it with [this scenario](https://scratch.mit.edu/projects/44669322/#editor).
 
-ScratchFoot has been created by [Victor Norman](mailto:vtn2@calvin.edu) at [Calvin College](http://www.calvin.edu).
+
+#### For more information about the API provided by ScratchFoot and what to expect when you convert a Scratch project to a Greenfoot scenario, see [this wiki page](https://github.com/VictorNorman/ScratchFoot/wiki/Mapping-between-Scratch-Block-and-ScratchFoot-generated-Code).
+
+
+
+#### ScratchFoot has been created by [Victor Norman](mailto:vtn2@calvin.edu) at [Calvin College](http://www.calvin.edu).
 
