@@ -158,6 +158,8 @@ def boolExpr(tokenList):
     False	when the boolean expression was left empty in Scratch
     """
     resStr = ""
+    if tokenList == False:  # means no condition was provided in Scratch.
+        return "(false)"
     firstOp = tokenList[0]
     if firstOp in ('&', '|'):
         assert len(tokenList) == 3
