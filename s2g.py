@@ -34,34 +34,13 @@ debug = False
 NUM_SPACES_PER_LEVEL = 4
 
 
-#
-# Syntax diagrams:
-#
-# block        ::= [list of <stmt>]
-# stmt         ::= [<cmd>, <expr>, <expr>, ... ]   # may be 0 expressions.  Is in a list.
-# cmd          ::= <defined-cmd>        ??? 
-# defined-cmd  ::= <doForever> | 'gotoX:y:' | etc., etc., etc.
-# doIf         ::= ['doIf', <boolExpr>, <block>]
-# doIfElse     ::= ['doIfElse', <boolExpr>, <block>, <block>]
-# doForever    ::= ['doForever', <block>]
-# boolExpr     ::= [<cmp>, <expr>, <expr>]
-# expr         ::= <literal> | <func> | [operator, value, value]
-# func         ::= [<I think a func is in a list>]
-# 
-# LOTS more!
-
-# Expressions:
-# "&" used for "and", "|" for "or"
-# All values to "=", "<", ">" are strings.
-# "*" for multiplication: values are numbers, not strings.
-
-
 # A global dictionary mapping (spriteName, variableName) --> variableType.
 # We need this so we can generate code that calls the correct
 # functions to generate the correct type of results.
 # E.g., if a variable is boolean, we'll call boolExpr()
 # from setVariables(), not mathExpr().
 varTypes = {}
+
 
 class CodeAndCb:
     """This class binds together code, and possibly code that that code
@@ -98,6 +77,29 @@ def execOrDie(cmd, descr):
         print("Command to " + descr + ": Execution failed:", e, \
               file=sys.stderr)
         sys.exit(1)
+
+
+def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
+    """Convert the given string s to a legal java identifier,
+    by removing all non-alphanumeric characters (spaces,
+    pound signs, etc.).  If noLeadingNumber is true, then
+    convert a leading digit to its corresponding name.
+    """
+    res = ""
+    # Drop everything except letters and numbers.
+    for ch in id:
+        if ch.isalpha() or ch.isdigit():
+            res += ch
+
+    # Look to see if res starts with a digit.
+    if noLeadingNumber and res[0].isdigit():
+        digit2name = ("zero", "one", "two", "three", "four", "five",
+                      "six", "seven", "eight", "nine")
+        res = digit2name[int(res[0])] + res[1:]
+
+    if capitalizeFirst and not res[0].isdigit():
+        res = res[0].upper() + res[1:]
+    return res
 
 
 def genIndent(level):
@@ -516,10 +518,7 @@ def whenIReceive(codeObj, message, tokens):
     scriptNum = codeObj.getNextScriptId()
 
     # Build a name like whenIReceiveMessage1Cb0
-    # TODO: convert key to a legal java identifier: no spaces, etc.
-
-    # This code converts the first letter to uppercase only.
-    messageId = message[0].upper() + message[1:]
+    messageId = convertToJavaId(message, noLeadingNumber=False, capitalizeFirst=True)
     cbName = 'whenIReceive' + messageId + 'Cb' + str(scriptNum)
 
     # Code in the constructor is always level 2.
@@ -903,7 +902,7 @@ def broadcast(level, tokens):
     """
     cmd, arg1 = tokens
     assert cmd == "broadcast:"
-    return genIndent(level) + "broadcast( " + strExpr(arg1) + ");\n"
+    return genIndent(level) + "broadcast(" + strExpr(arg1) + ");\n"
 
 
 def broadcastAndWait(level, tokens):
@@ -1567,9 +1566,9 @@ worldCtorCode = ""
 # Determine the name of the ScratchWorld subclass.  This variable below
 # is used in some code above to generate casts.  I know this is a very bad
 # idea, but hey, what are you going to do...
-# Take the last component of the PROJECT_DIR, remove all spaces, then add World
-# to end.
-worldClassName = os.path.basename(PROJECT_DIR).replace(" ", "") + "World"
+# Take the last component of the PROJECT_DIR, convert it to a legal
+# Java identifier, then add World to end.
+worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""), True, True) + "World"
 
 
 # If there are global variables, they are defined in the outermost part
@@ -1593,15 +1592,15 @@ for spr in sprites:
     if 'objName' in spr:
         spriteName = spr['objName']
 
-        # TODO: need to handle sprites with names that are illegal Java identifiers.
+        # Handle sprites with names that are illegal Java identifiers.
         # E.g., the sprite could be called "1", but we cannot create a "class 1".
+        spriteName = convertToJavaId(spriteName, True, True)
 
-        print("\n----------- Sprite: {} ----------------".format(spriteName))
+        print("\n----------- Sprite: %s ----------------" % spriteName)
 
         # Write out a line to the project.greenfoot file to indicate that this
         # sprite is a subclass of the Scratch class.
         projectFileCode.append("class." + spriteName + ".superclass=Scratch\n")
-
 
         # Extract the last position of the sprite and pass to addSprite() call.
         worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
@@ -1801,24 +1800,3 @@ with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "w") as 
         if debug:
             print("DEBUG: writing this line to project.greenfoot file:", p)
         projF.write(p)
-        
-
-# ---------------------------------------------------------------------------
-# END
-# ---------------------------------------------------------------------------
-
-
-# User downloads Scratch project to directory above where they want the
-# Greenfoot project to exist, say ~/snowman.sb2, and want to make a
-# grenfoot project in ~/Snowman/
-# Put scratchfoot.gfar in ~ and open it with Greenfoot:
-#  o it creates ~/scratchfoot/... with all the greenfoot stuff in it.
-# Exit Greenfoot.
-# change name of scratchfoot/ to Snowman/
-# Run s2g.py snowman.sb2 Snowman
-#  o s2g.py unzips snowman.sb2 into Snowman/scratch_code/
-#  o s2g.py then creates Greenfoot .java files in Snowman/
-#  o s2g.py then edits Snowman/project.greenfoot to add the new files to
-#    the project.
-# Restart Greenfoot and your project should be ready to compile and run.
-
