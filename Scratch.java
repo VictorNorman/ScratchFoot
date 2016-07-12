@@ -1018,11 +1018,6 @@ public class Scratch extends Actor
     {
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
-        if (clone == null) {
-            // This may happen when a scratch script creates a clone but the target
-            // sprite has no "when I start as a clone" script defined.
-            return;
-        }
 
         // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
         //     clone.getClass().getName() + ". Now, calling addObject()");
@@ -1047,11 +1042,24 @@ public class Scratch extends Actor
         } catch (IllegalAccessException x) {
             x.printStackTrace();
         } catch (java.lang.NoSuchMethodException x) {
-            // This can happen if a Scratch script calls createClone() but the Sprite does
-            // not have a whenIStartAsAClone script defined.
-            System.err.println("Warning: a Scratch script tried to create a clone, "
-                               + "but the target Sprite does not have a " +
-                               "\"when I start as a clone\" block defined.");
+            try {
+                // This can happen if a Scratch script calls createClone() but the Sprite does
+                // not have a whenIStartAsAClone script defined.  In this case, we do want to
+                // create a clone, but no copy constructor exists.  So, find the copy constructor
+                // in Scratch (the super class) and call that.
+                Constructor ctor = obj.getClass().getSuperclass().getDeclaredConstructor(obj.getClass().getSuperclass(), int.class, int.class);
+
+                ctor.setAccessible(true);
+                return ctor.newInstance(obj, translateToGreenfootX(obj.getX()), translateToGreenfootY(obj.getY()));
+            } catch (InstantiationException y) {
+                y.printStackTrace();
+            } catch (InvocationTargetException y) {
+                y.printStackTrace();
+            } catch (IllegalAccessException y) {
+                y.printStackTrace();
+            } catch (java.lang.NoSuchMethodException y) {
+                y.printStackTrace();
+            }
         }
         return null;
     }
