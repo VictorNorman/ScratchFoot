@@ -475,6 +475,16 @@ def whenSpriteCloned(codeObj, tokens):
     cbStr += block(1, tokens) + "\n"  # add blank line after defn.
     codeObj.addToCbCode(cbStr)
 
+    # Generate a copy constructor too.
+    cbStr = "\n\n" + genIndent(1) + "// copy constructor, required for cloning\n"
+    cbStr += genIndent(1) + "public " + spriteName + "(" + \
+             spriteName + " other, int x, int y) {\n"
+    cbStr += genIndent(2) + "super(other, x, y);\n"
+    cbStr += genIndent(2) + "// add code here to copy any instance variables'\n"
+    cbStr += genIndent(2) + "// values from other to this.\n"
+    cbStr += genIndent(1) + "}\n\n"
+    codeObj.addToCbCode(cbStr)
+
 
 def whenKeyPressed(codeObj, key, tokens):
     """Generate code to handle the whenKeyPressed block.  key is
@@ -1195,7 +1205,7 @@ def genHeaderCode(outFile, spriteName):
 
 
 def genConstructorCode(outFile, spriteName, code):
-    """Generate code for the constructor and copy constructor.
+    """Generate code for the constructor.
     This code will include calls to initialize data, etc., followed by code
     to register callbacks for whenFlagClicked,
     whenKeyPressed, etc.
@@ -1205,13 +1215,6 @@ def genConstructorCode(outFile, spriteName, code):
     outFile.write(genIndent(1) + "{\n")
     # Write out the code that registers the callbacks.
     outFile.write(code)
-    outFile.write(genIndent(1) + "}\n\n");
-    # Add a copy constructor
-    outFile.write(genIndent(1) + "public " + spriteName + "(" + spriteName + " other, int x, int y)\n")
-    outFile.write(genIndent(1) + "{\n")
-    outFile.write(genIndent(2) + "super(other, x, y);\n")
-    outFile.write(genIndent(2) + "// add code here to copy any instance variables'\n")
-    outFile.write(genIndent(2) + "// values from other to this.\n")
     outFile.write(genIndent(1) + "}\n")
 
 def genLoadCostumesCode(costumes, isBackdrop=False):
