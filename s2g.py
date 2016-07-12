@@ -1244,6 +1244,8 @@ def genInitialSettingsCode(spr):
 
     # Set the initial costume (NOTE: could use the name of the costume instead of index...)
     resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex']) + ');\n'
+    if spr['scale'] != 1:
+        resStr += genIndent(2) + 'setSizeTo((int)' + str(spr['scale'] * 100) + ');\n'
     if not spr['visible']:
         resStr += genIndent(2) + 'hide();\n';
     resStr += genIndent(2) + 'pointInDirection((int) ' + str(spr['direction']) + ');\n';
@@ -1545,7 +1547,7 @@ for f in files2Copy:
     # background -None keeps the transparent part of the image transparent.
     # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
     # same size as you see on the screen with Scratch in the web browser.
-    execOrDie("convert -background None -resize 50% " + f + " " + dest,
+    execOrDie("convert -background None " + f + " " + dest,
               "convert svg file to png")
 
 
