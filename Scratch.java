@@ -479,7 +479,7 @@ public class Scratch extends Actor
         private boolean display = true;           // is the variable supposed to be displayed or hidden?
         private boolean addedToWorld = false;     // has this object been added to the world yet?
         private int xLoc, yLoc;                   // current location of the image: the upper-lefthand
-        // corner.
+                                                  // corner.
 
         public Variable(ScratchWorld w, String varName, Object val)
         {
@@ -724,19 +724,19 @@ public class Scratch extends Actor
 
         keySeqs = new ArrayList<KeyPressSeq>(other.keySeqs);
 
-	    /* Copy the actorClicked sequences from the previous sprite, but for this one.
-	       Easiest to do this just by calling whenSpriteClicked. */
-	    for (ActorClickedSeq a: other.actorClickedSeqs) {
-	        whenSpriteClicked(a.getMethod());
-	    }
+        /* Copy the actorClicked sequences from the previous sprite, but for this one.
+           Easiest to do this just by calling whenSpriteClicked. */
+        for (ActorClickedSeq a: other.actorClickedSeqs) {
+            whenSpriteClicked(a.getMethod());
+        }
         stageClickedSeqs = new ArrayList<StageClickedSeq>(other.stageClickedSeqs);
         mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>(other.mesgRecvdSeqs);
 
-	    /* Copy the CloneStart sequences from the previous sprite, but for this one.
-	       Easiest to do this just by calling whenIStartAsAClone. */
-	    for (CloneStartSeq css : other.cloneStartSeqs) {
-	        whenIStartAsAClone(css.getMethod());
-	    }
+        /* Copy the CloneStart sequences from the previous sprite, but for this one.
+           Easiest to do this just by calling whenIStartAsAClone. */
+        for (CloneStartSeq css : other.cloneStartSeqs) {
+            whenIStartAsAClone(css.getMethod());
+        }
 
         // Initialize everything for this new Actor in Greenfoot.
         super.setLocation(x, y);
@@ -1017,6 +1017,11 @@ public class Scratch extends Actor
     {
         // Create a new Object, which is a subclass of Scratch (the same class as "this").
         Object clone = callConstructor(actor);
+        if (clone == null) {
+            // This may happen when a scratch script creates a clone but the target
+            // sprite has no "when I start as a clone" script defined.
+            return;
+        }
 
         // System.out.println("createCloneOfMyself: called copy constructor to get object of type " + 
         //     clone.getClass().getName() + ". Now, calling addObject()");
@@ -1041,7 +1046,11 @@ public class Scratch extends Actor
         } catch (IllegalAccessException x) {
             x.printStackTrace();
         } catch (java.lang.NoSuchMethodException x) {
-            x.printStackTrace();
+            // This can happen if a Scratch script calls createClone() but the Sprite does
+            // not have a whenIStartAsAClone script defined.
+            System.err.println("Warning: a Scratch script tried to create a clone, "
+                               + "but the target Sprite does not have a " +
+                               "\"when I start as a clone\" block defined.");
         }
         return null;
     }
