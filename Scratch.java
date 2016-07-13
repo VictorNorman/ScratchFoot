@@ -2094,6 +2094,8 @@ public class Scratch extends Actor
         GreenfootImage im = getImage();
         int height = im.getHeight();
         int width = im.getWidth();
+        int x = getX();
+        int y = getY();
         // get the coordinates of the upper left corner for awt interaction
         int cx = getX() - (width / 2);
         int cy = getY() + (height / 2);
@@ -2107,12 +2109,31 @@ public class Scratch extends Actor
                 if ((pixel >> 24) == 0x00) {
                     continue;   // transparent pixel: skip it.
                 }
+                int wr, hr;
+                // If necessary, rotate the pixel to the one it should look at
+                if (rotationStyle == RotationStyle.ALL_AROUND && getRotation() != 90) {
+                    // get a vector from the center to current pixel. Y and cy are negative because greenfoot
+                    // y axis goes the opposite direction
+                    double vx = changeRelativePoint(w, cx, x);
+                    double vy = changeRelativePoint(h, -cy, -y);
+                    
+                    // rotate the current point around the center
+                    double rx = vx * Math.cos(Math.toRadians(getRotation())) - vy * Math.sin(Math.toRadians(getRotation()));
+                    double ry = vx * Math.sin(Math.toRadians(getRotation())) + vy * Math.cos(Math.toRadians(getRotation()));
+                    
+                    // put the new point back into the awt coordinate format
+                    wr = changeRelativePoint((int)rx, x, cx);
+                    hr = changeRelativePoint((int)ry, -y, -cy);
+                } else {
+                    wr = w;
+                    hr = h;
+                }
                 // Catching exceptions is very slow, so instead we skip iterations that might throw one.
-                if (translateToGreenfootX(cx + w) < 0 || translateToGreenfootX(cx + w) >= worldW || translateToGreenfootY(cy - h) >= worldH || translateToGreenfootY(cy - h) < 0) {
+                if (translateToGreenfootX(cx + wr) < 0 || translateToGreenfootX(cx + wr) >= worldW || translateToGreenfootY(cy - hr) >= worldH || translateToGreenfootY(cy - hr) < 0) {
                     continue;
                 }
                 // See if the pixel at this location in the background is of the given color.
-                if (getWorld().getColorAt(translateToGreenfootX(cx + w), translateToGreenfootY(cy - h)).equals(color)) {
+                if (getWorld().getColorAt(translateToGreenfootX(cx + wr), translateToGreenfootY(cy - hr)).equals(color)) {
                     // Not sure this is correct, as it checks the transparency value as well...
                     return true;
                 }
