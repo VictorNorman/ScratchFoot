@@ -2405,6 +2405,31 @@ public class Scratch extends Actor
     /*
      * Miscellaneous stuff.
      */
+    
+    /**
+     * Takes a coordinate r relative to an absolute coordinate p and returns the relative
+     * coordinate to the new absolute coordinate p
+     */
+    public int changeRelativePoint(int r, int p, int n)
+    {
+        return absToRel(relToAbs(r, p), n);
+    }
+    
+    /**
+     * Takes an absolute coordinate a and returns the relative position to the coordinate p.
+     */
+    private int absToRel(int a, int p)
+    {
+        return a - p;
+    }
+    
+    /**
+     * Takes a coordinate r relative to the absolute coordinate p and returns the absolute position 
+     */
+    private int relToAbs(int r, int p)
+    {
+        return r + p;
+    }
 
     /**
      * offer the CPU to other Sequences.
