@@ -2094,8 +2094,12 @@ public class Scratch extends Actor
         GreenfootImage im = getImage();
         int height = im.getHeight();
         int width = im.getWidth();
-        int x = getX();
-        int y = getY();
+        // get the coordinates of the upper left corner for awt interaction
+        int cx = getX() - (width / 2);
+        int cy = getY() + (height / 2);
+        // get world width and height to avoid constant calls to world
+        int worldH = getWorld().getHeight();
+        int worldW = getWorld().getWidth();
         java.awt.image.BufferedImage bIm = im.getAwtImage();
         for (int w = 0; w < width; w++) {
             for (int h = 0; h < height; h++) {
@@ -2103,8 +2107,12 @@ public class Scratch extends Actor
                 if ((pixel >> 24) == 0x00) {
                     continue;   // transparent pixel: skip it.
                 }
+                // Catching exceptions is very slow, so instead we skip iterations that might throw one.
+                if (translateToGreenfootX(cx + w) < 0 || translateToGreenfootX(cx + w) >= worldW || translateToGreenfootY(cy - h) >= worldH || translateToGreenfootY(cy - h) < 0) {
+                    continue;
+                }
                 // See if the pixel at this location in the background is of the given color.
-                if (getWorld().getColorAt(x + (w / 2), y + (h / 2)).equals(color)) {
+                if (getWorld().getColorAt(translateToGreenfootX(cx + w), translateToGreenfootY(cy - h)).equals(color)) {
                     // Not sure this is correct, as it checks the transparency value as well...
                     return true;
                 }
