@@ -24,6 +24,7 @@ import greenfoot.*;  // (getWorld(), Actor, GreenfootImage, Greenfoot and MouseI
 import java.util.ArrayList;
 import java.util.ListIterator;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.awt.Color;
 import java.lang.String;
 import java.lang.reflect.*;
@@ -150,7 +151,18 @@ public class Scratch extends Actor
     private boolean inCbScript = false;
 
     // Actor that is showing what is being said OR thought by this sprite.
-    Sayer sayActor = null;
+    private Sayer sayActor = null;
+
+    // If this object is a clone, the parent is set to the object that was cloned.
+    // This is needed because we need to get the values of the parent's local
+    // variables and set them in the variables in the clone.
+    private Scratch parent = null;
+
+    // A mapping of variable name to the Variable itself.  This is needed only
+    // when a clone is made and the clone has local variables.  During initialization
+    // the code has to get the values of the parent's local variables to initialize
+    // the new copies.
+    private HashMap<String, Variable> variables = new HashMap<String, Variable>();
 
     /**
      *  Turn the sprite to face the direction depending on the rotation style:
@@ -629,6 +641,8 @@ public class Scratch extends Actor
 
     /**
      * Create an integer variable whose value will be displayed on the screen.
+     * If this variable "belongs" to a clone, then hide it and update its value
+     * to the value from its parent.  This is how Scratch operates.
      */
     public IntVar createIntVariable(ScratchWorld w, String varName, int initVal)
     {
@@ -637,7 +651,12 @@ public class Scratch extends Actor
         // Call act() so that it calls updateImage() which creates/computes
         // the image that displays the variable, and places in the correct location.
         newVar.act();
-        return newVar; 
+        variables.put(varName, newVar);
+        if (this.isClone) {
+            newVar.set(((Scratch.IntVar) parent.getVariable(varName)).get());
+            newVar.hide();
+        }	
+        return newVar;
     }
 
     /**
@@ -650,6 +669,11 @@ public class Scratch extends Actor
         // Call act() so that it calls updateImage() which creates/computes
         // the image that displays the variable, and places in the correct location.
         newVar.act();
+        variables.put(varName, newVar);
+        if (this.isClone) {
+            newVar.set(((Scratch.StringVar) parent.getVariable(varName)).get());
+            newVar.hide();
+        }	
         return newVar; 
     }
 
@@ -663,6 +687,11 @@ public class Scratch extends Actor
         // Call act() so that it calls updateImage() which creates/computes
         // the image that displays the variable, and places in the correct location.
         newVar.act();
+        variables.put(varName, newVar);
+        if (this.isClone) {
+            newVar.set(((Scratch.DoubleVar) parent.getVariable(varName)).get());
+            newVar.hide();
+        }	
         return newVar; 
     }
 
@@ -676,6 +705,11 @@ public class Scratch extends Actor
         // Call act() so that it calls updateImage() which creates/computes
         // the image that displays the variable, and places in the correct location.
         newVar.act();
+        variables.put(varName, newVar);
+        if (this.isClone) {
+            newVar.set(((Scratch.BooleanVar) parent.getVariable(varName)).get());
+            newVar.hide();
+        }	
         return newVar;
     }
 
@@ -750,6 +784,9 @@ public class Scratch extends Actor
         inCbScript = false;
         // a cloned Scratch actor does not say or think anything even if its clonee was saying something.
         sayActor = null;
+
+        // Set the parent reference to the original Scratch object.
+        parent = other;
 
         /*
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
@@ -1077,6 +1114,13 @@ public class Scratch extends Actor
         if (isClone) {        
             getWorld().removeObject(this);
         }
+    }
+
+    /**
+     * Not to be called by users.  For internal use only.  May return null.
+     */
+    public Variable getVariable(String name) {
+        return variables.get(name);
     }
 
     /**

@@ -253,8 +253,9 @@ def strExpr(tokenOrList):
             return "backdropName()"
         elif op == "username":
             return "username NOT IMPLEMENTED"
-        else:
-            raise ValueError("Unknown string operator " + op)
+    if len(tokenOrList) == 2:
+        if tokenOrList[0] == "readVariable":
+            return readVariable(tokenOrList[1])
     if len(tokenOrList) == 3:
         op, tok1, tok2 = tokenOrList	
         if op == "concatenate:with:":
@@ -1430,18 +1431,12 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     return defnCode, initCode
 
           
-def genScriptCode(script, scrName):
+def genScriptCode(script):
     """Generate code (and callback code) for the given script, which may be
     associated with a sprite or the main stage.
     """
 
     codeObj = CodeAndCb()	# Holds all the code that is generated.
-
-    # Add a comment to each section of code indicating where
-    # the code came from -- if we aren't generating code for a
-    # custom block.
-    if not (isinstance(script[0], list) and script[0][0] == 'procDef'):
-        codeObj.code += genIndent(2) + "// Code from Script " + str(scrNum) + "\n"
 
     # script is a list of these: [[cmd] [arg] [arg]...]
     # The script starts with whenGreenFlag, whenSpriteClicked, etc. --
@@ -1650,11 +1645,7 @@ for spr in sprites:
                 # screen of the script. 
                 # We don't care about that, obviously.  Item 2 is the actual code.
                 script = spr['scripts'][scrNum][2]
-                scrName = "Script" + str(scrNum)
-                if debug:
-                    print(scrName + ":", script)
-
-                codeObj = genScriptCode(script, scrName)
+                codeObj = genScriptCode(script)
                 ctorCode += codeObj.code
                 if codeObj.cbCode != "":
                     # The script generate callback code.
@@ -1712,11 +1703,7 @@ if 'scripts' in data:
         # items 0 and 1 in the sublist are the location on the screen of the script.
         # We don't care about that, obviously.  Item 2 is the actual code.
         script = stageScrs[scrNum][2]
-        scrName = "Script" + str(scrNum)
-        if debug:
-            print(scrName + ":", script)
-
-        codeObj = genScriptCode(script, scrName)
+        codeObj = genScriptCode(script)
         ctorCode += codeObj.code
         if codeObj.cbCode != "":
             # The script generate callback code.
