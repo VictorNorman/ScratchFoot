@@ -1339,6 +1339,23 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
 
     def deriveType(val):
         if isinstance(val, str):
+
+            #
+            # See if the string value is a legal integer or floating point number.
+            # If it is, assume it should be that.  This seems to be what Scratch
+            # does -- represents things as strings, but if legal, treats them
+            # as numbers.
+            # 
+            try:
+                i = int(val)
+                return i, 'Int'
+            except:
+                pass
+            try:
+                f = float(val)
+                return f, 'Double'
+            except:
+                pass
             return '"' + val + '"', 'String'
         elif isinstance(val, bool):
             if val:
