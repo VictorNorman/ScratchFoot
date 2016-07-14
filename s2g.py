@@ -1561,6 +1561,19 @@ for f in files2Copy:
     # same size as you see on the screen with Scratch in the web browser.
     execOrDie("convert -background None " + f + " " + dest,
               "convert svg file to png")
+try: 
+    if not os.path.isfile(os.path.join(PROJECT_DIR, "Scratch.java")):
+        shutil.copyfile("Scratch.java", os.path.join(PROJECT_DIR, "Scratch.java"))
+        print("Scratch.java copied successfully")
+    else:
+        print("Scratch.java was already in the project directory")
+    if not os.path.isfile(os.path.join(PROJECT_DIR, "ScratchWorld.java")):
+        shutil.copyfile("ScratchWorld.java", os.path.join(PROJECT_DIR, "ScratchWorld.java"))
+        print("ScratchWorld.java copied successfully")
+    else:
+        print("ScratchWorld.java was already in the project directory")
+except:
+    print("\n\tScratch.java and ScratchWorld.java were NOT copied!")
 
 
 # TODO: move sounds files.
