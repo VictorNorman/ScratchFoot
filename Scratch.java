@@ -1761,7 +1761,7 @@ public class Scratch extends Actor
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
-        sayActor.updateLocation(super.getX() + width + 10, super.getY() - height - 5);
+        sayActor.updateLocation(super.getX() + width / 2 + 10, super.getY() - height / 2 - 5);
     }
 
     /**
