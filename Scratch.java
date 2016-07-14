@@ -1712,6 +1712,9 @@ public class Scratch extends Actor
                 sayActor = null;
             } else {
                 sayActor.setString(str);
+                if (!isShowing()) {
+                    sayActor.hide();
+                }
             }
             return;
         }
