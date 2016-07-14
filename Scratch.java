@@ -1637,7 +1637,15 @@ public class Scratch extends Actor
         displayCostume();
         setRotation(currDirection);
     }
-
+    
+    /**
+     * Get the current rotation style
+     */
+    public RotationStyle getRotationStyle()
+    {
+        return rotationStyle;
+    }
+    
     /**
      * return x coordinate of this sprite.
      */
@@ -2073,7 +2081,7 @@ public class Scratch extends Actor
                 int oy = changeRelativePoint(hr, -cy, -other.getY() - (other.getImage().getHeight()/2));
                 // If the other object is rotated, rotate the current point backwards to match
                 // TODO add a method to get rotationStyle so other's style can be checked.
-                if (other.getRotation() != 0 /*&& other.getRotationStyle() == RotationStyle.ALL_AROUND*/) {
+                if (other.getRotation() != 0 && other.getRotationStyle() == RotationStyle.ALL_AROUND) {
                     // get a vector from the center to current pixel. y and cy are negative because greenfoot
                     // y axis goes the opposite direction
                     double vx = changeRelativePoint(ox, ocx, other.getX());
