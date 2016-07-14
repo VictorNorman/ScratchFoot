@@ -1524,6 +1524,15 @@ shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
 
 # Copy png image files to images dir.
 imagesDir = os.path.join(PROJECT_DIR, "images")
+soundsDir = os.path.join(PROJECT_DIR, "sounds")
+
+# Make directories if they don't exist yet
+if not os.path.exists(imagesDir):
+    os.makedirs(imagesDir)
+
+if not os.path.exists(soundsDir):
+    os.makedirs(soundsDir)
+
 print("Copying image files to " + imagesDir)
 
 files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
@@ -1806,6 +1815,19 @@ projectFileCode.append("world.lastInstantiated=" + worldClassName + "\n")
 projectFileCode.append("class.Scratch.superclass=greenfoot.Actor\n")
 projectFileCode.append("class.ScratchWorld.superclass=greenfoot.World\n")
 
+# If there's no project.greenfoot in the project directory, create one with
+# default values.
+if not os.path.isfile(os.path.join(PROJECT_DIR, "project.greenfoot")):
+    with open(os.path.join(PROJECT_DIR, "project.greenfoot"), "w") as projF:
+        projF.write("mainWindow.height=500\n")
+        projF.write("mainWindow.width=750\n")
+        projF.write("mainWindow.x=40\n")
+        projF.write("mainWindow.y=40\n")
+        projF.write("package.numDependencies=0\n")
+        projF.write("package.numTargets=0\n")
+        projF.write("project.charset=UTF-8\n")
+        projF.write("version=2.7.1\n")
+    
 # Read all lines into variable lines.
 lines = []
 with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "r") as projF:
