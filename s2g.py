@@ -1561,7 +1561,10 @@ for f in files2Copy:
     # same size as you see on the screen with Scratch in the web browser.
     execOrDie("convert -background None " + f + " " + dest,
               "convert svg file to png")
+# Copy Scratch.java and ScratchWorld.java to GF project directory
+# They must be in the same directory as s2g.py
 try: 
+    # If the file already exists, skip copying it
     if not os.path.isfile(os.path.join(PROJECT_DIR, "Scratch.java")):
         shutil.copyfile("Scratch.java", os.path.join(PROJECT_DIR, "Scratch.java"))
         print("Scratch.java copied successfully")
