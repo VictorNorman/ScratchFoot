@@ -2025,7 +2025,78 @@ public class Scratch extends Actor
      */
     public boolean isTouching(Scratch other)
     {
-        return intersects((Actor) other);
+        // TODO it's very likely that this code can be refined/optimized
+        if (!intersects((Actor) other)) {
+            return false;
+        }
+        System.out.println(other.getImage().getHeight());
+        GreenfootImage im = getImage();
+        int height = im.getHeight();
+        int width = im.getWidth();
+        int x = getX();
+        int y = getY();
+        // get the coordinates of the upper left corners for awt interaction
+        int cx = getX() - (width / 2);
+        int cy = getY() + (height / 2);
+        int ocx = other.getX() - (other.getImage().getWidth()/2);
+        int ocy = other.getY() + (other.getImage().getHeight()/2);
+        // get world width and height to avoid constant calls to world
+        int worldH = getWorld().getHeight();
+        int worldW = getWorld().getWidth();
+        java.awt.image.BufferedImage bIm = im.getAwtImage();
+        for (int w = 0; w < width; w++) {
+            for (int h = 0; h < height; h++) {
+                int pixel = bIm.getRGB(w, h);
+                if ((pixel >> 24) == 0x00) {
+                    continue;   // transparent pixel: skip it.
+                }
+                int wr, hr;
+                // If necessary, rotate the pixel to the one it should look at
+                if (rotationStyle == RotationStyle.ALL_AROUND && getRotation() != 0) {
+                    // get a vector from the center to current pixel. y and cy are negative because greenfoot
+                    // y axis goes the opposite direction
+                    double vx = changeRelativePoint(w, cx, x);
+                    double vy = changeRelativePoint(h, -cy, -y);
+                    // rotate the current point around the center
+                    double rx = vx * Math.cos(Math.toRadians(getRotation())) - vy * Math.sin(Math.toRadians(getRotation()));
+                    double ry = vx * Math.sin(Math.toRadians(getRotation())) + vy * Math.cos(Math.toRadians(getRotation()));
+                    // put the new point back into the awt coordinate format 
+                    // TODO round rather than cast? May not be necessary
+                    wr = changeRelativePoint((int)rx, x, cx);
+                    hr = changeRelativePoint((int)ry, -y, -cy);
+                } else {
+                    // If rotation is not necessary just pass the point on
+                    wr = w;
+                    hr = h;
+                }
+                int ox = changeRelativePoint(wr, cx, other.getX() - (other.getImage().getWidth()/2));
+                int oy = changeRelativePoint(hr, -cy, -other.getY() - (other.getImage().getHeight()/2));
+                // If the other object is rotated, rotate the current point backwards to match
+                // TODO add a method to get rotationStyle so other's style can be checked.
+                if (other.getRotation() != 0 /*&& other.getRotationStyle() == RotationStyle.ALL_AROUND*/) {
+                    // get a vector from the center to current pixel. y and cy are negative because greenfoot
+                    // y axis goes the opposite direction
+                    double vx = changeRelativePoint(ox, ocx, other.getX());
+                    double vy = changeRelativePoint(oy, -ocy, -other.getY());
+                    // rotate the current point around the center
+                    double rx = vx * Math.cos(Math.toRadians(-other.getRotation())) - vy * Math.sin(Math.toRadians(-other.getRotation()));
+                    double ry = vx * Math.sin(Math.toRadians(-other.getRotation())) + vy * Math.cos(Math.toRadians(-other.getRotation()));
+                    // put the new point back into the awt coordinate format
+                    // TODO round rather than cast? May not be necessary
+                    ox = changeRelativePoint((int)rx, other.getX(), ocx);
+                    oy = changeRelativePoint((int)ry, -other.getY(), -ocy);
+                }
+                // Skip any iterations that might throw an out of bounds exception
+                if (ox < 0 || ox >= other.getImage().getWidth() || oy < 0 || oy >= other.getImage().getHeight()) {
+                    continue;
+                }
+                pixel = other.getImage().getAwtImage().getRGB(ox, oy);
+                if ((pixel >> 24) != 0x00) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
