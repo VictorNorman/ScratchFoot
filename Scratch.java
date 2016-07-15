@@ -22,6 +22,7 @@
 import greenfoot.*;  // (getWorld(), Actor, GreenfootImage, Greenfoot and MouseInfo)
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -2040,83 +2041,105 @@ public class Scratch extends Actor
     }
 
     /**
-     * return true if this sprite is touching the other given sprite,
-     * false otherwise.
+     * return true if this sprite is touching a sprite that is an instance of
+     * other's class.  This includes the "original" sprite and any clones.
+     * return false otherwise.
      */
     public boolean isTouching(Scratch other)
     {
         // TODO it's very likely that this code can be refined/optimized
         // TODO this if statement should use a general algorithm rather than intersects(), as
         // intersects() does not work if either actor is hidden
-        if (!intersects((Actor) other) && isShowing && other.isShowing()) {
-            return false;
-        }
-        GreenfootImage im = getCurrImage();
-        int height = im.getHeight();
-        int width = im.getWidth();
-        int x = getX();
-        int y = getY();
-        // get the coordinates of the upper left corners for awt interaction
-        int cx = getX() - (width / 2);
-        int cy = getY() + (height / 2);
-        int ocx = other.getX() - (other.getCurrImage().getWidth()/2);
-        int ocy = other.getY() + (other.getCurrImage().getHeight()/2);
-        // get world width and height to avoid constant calls to world
-        int worldH = getWorld().getHeight();
-        int worldW = getWorld().getWidth();
-        java.awt.image.BufferedImage bIm = im.getAwtImage();
-        for (int w = 0; w < width; w++) {
-            for (int h = 0; h < height; h++) {
-                int pixel = bIm.getRGB(w, h);
-                if ((pixel >> 24) == 0x00) {
-                    continue;   // transparent pixel: skip it.
-                }
-                int wr, hr;
-                // If necessary, rotate the pixel to the one it should look at
-                if (rotationStyle == RotationStyle.ALL_AROUND && getRotation() != 0) {
-                    // get a vector from the center to current pixel. y and cy are negative because greenfoot
-                    // y axis goes the opposite direction
-                    double vx = changeRelativePoint(w, cx, x);
-                    double vy = changeRelativePoint(h, -cy, -y);
-                    // rotate the current point around the center
-                    double rx = vx * Math.cos(Math.toRadians(getRotation())) - vy * Math.sin(Math.toRadians(getRotation()));
-                    double ry = vx * Math.sin(Math.toRadians(getRotation())) + vy * Math.cos(Math.toRadians(getRotation()));
-                    // put the new point back into the awt coordinate format 
-                    // TODO round rather than cast? May not be necessary
-                    wr = changeRelativePoint((int)rx, x, cx);
-                    hr = changeRelativePoint((int)ry, -y, -cy);
-                } else {
-                    // If rotation is not necessary just pass the point on
-                    wr = w;
-                    hr = h;
-                }
-                int ox = changeRelativePoint(wr, cx, other.getX() - (other.getCurrImage().getWidth()/2));
-                int oy = changeRelativePoint(hr, -cy, -other.getY() - (other.getCurrImage().getHeight()/2));
-                // If the other object is rotated, rotate the current point backwards to match
-                // TODO add a method to get rotationStyle so other's style can be checked.
-                if (other.getRotation() != 0 && other.getRotationStyle() == RotationStyle.ALL_AROUND) {
-                    // get a vector from the center to current pixel. y and cy are negative because greenfoot
-                    // y axis goes the opposite direction
-                    double vx = changeRelativePoint(ox, ocx, other.getX());
-                    double vy = changeRelativePoint(oy, -ocy, -other.getY());
-                    // rotate the current point around the center
-                    double rx = vx * Math.cos(Math.toRadians(-other.getRotation())) - vy * Math.sin(Math.toRadians(-other.getRotation()));
-                    double ry = vx * Math.sin(Math.toRadians(-other.getRotation())) + vy * Math.cos(Math.toRadians(-other.getRotation()));
-                    // put the new point back into the awt coordinate format
-                    // TODO round rather than cast? May not be necessary
-                    ox = changeRelativePoint((int)rx, other.getX(), ocx);
-                    oy = changeRelativePoint((int)ry, -other.getY(), -ocy);
-                }
-                // Skip any iterations that might throw an out of bounds exception
-                if (ox < 0 || ox >= other.getCurrImage().getWidth() || oy < 0 || oy >= other.getCurrImage().getHeight()) {
-                    continue;
-                }
-                pixel = other.getCurrImage().getAwtImage().getRGB(ox, oy);
-                if ((pixel >> 24) != 0x00) {
-                    return true;
+
+        /* Get all intersecting objects of other's class.  To Greenfoot, "intersecting" means
+           the images' bounding boxes overlap.  */
+        java.lang.Class clazz = other.getClass();
+        List<Actor> nbrs = getIntersectingObjects(clazz);
+        /* Scratch's definition of "intersecting" (or "touching") is that the images'
+           non-transparent pixels overlap.  So, we need to go through each neighbor
+           and find the first with this criterion. */
+
+        /* VTN2: I don't understand the logic below...
+           if (!intersects((Actor) other) && isShowing && other.isShowing()) {
+           return false;
+           }
+        */
+        System.out.println("isTouching: # intersecting neighbors: " + nbrs.size());
+
+        for (Actor anbr: nbrs) {
+            Scratch nbr = (Scratch) anbr;
+            System.out.println("isTouching: top of loop");
+        
+            GreenfootImage im = getCurrImage();
+            int height = im.getHeight();
+            int width = im.getWidth();
+            int x = getX();
+            int y = getY();
+            // get the coordinates of the upper left corners for awt interaction
+            int cx = getX() - (width / 2);
+            int cy = getY() + (height / 2);
+            int ocx = nbr.getX() - (nbr.getCurrImage().getWidth()/2);
+            int ocy = nbr.getY() + (nbr.getCurrImage().getHeight()/2);
+            // get world width and height to avoid constant calls to world
+            int worldH = getWorld().getHeight();
+            int worldW = getWorld().getWidth();
+            java.awt.image.BufferedImage bIm = im.getAwtImage();
+            for (int w = 0; w < width; w++) {
+                for (int h = 0; h < height; h++) {
+                    int pixel = bIm.getRGB(w, h);
+                    if ((pixel >> 24) == 0x00) {
+                        continue;   // transparent pixel: skip it.
+                    }
+                    int wr, hr;
+                    // If necessary, rotate the pixel to the one it should look at
+                    if (rotationStyle == RotationStyle.ALL_AROUND && getRotation() != 0) {
+                        // get a vector from the center to current pixel. y and cy are negative because greenfoot
+                        // y axis goes the opposite direction
+                        double vx = changeRelativePoint(w, cx, x);
+                        double vy = changeRelativePoint(h, -cy, -y);
+                        // rotate the current point around the center
+                        double rx = vx * Math.cos(Math.toRadians(getRotation())) - vy * Math.sin(Math.toRadians(getRotation()));
+                        double ry = vx * Math.sin(Math.toRadians(getRotation())) + vy * Math.cos(Math.toRadians(getRotation()));
+                        // put the new point back into the awt coordinate format 
+                        // TODO round rather than cast? May not be necessary
+                        wr = changeRelativePoint((int)rx, x, cx);
+                        hr = changeRelativePoint((int)ry, -y, -cy);
+                    } else {
+                        // If rotation is not necessary just pass the point on
+                        wr = w;
+                        hr = h;
+                    }
+                    int ox = changeRelativePoint(wr, cx, nbr.getX() - (nbr.getCurrImage().getWidth()/2));
+                    int oy = changeRelativePoint(hr, -cy, -nbr.getY() - (nbr.getCurrImage().getHeight()/2));
+                    // If the nbr object is rotated, rotate the current point backwards to match
+                    // TODO add a method to get rotationStyle so nbr's style can be checked.
+                    if (nbr.getRotation() != 0 && nbr.getRotationStyle() == RotationStyle.ALL_AROUND) {
+                        // get a vector from the center to current pixel. y and cy are negative because greenfoot
+                        // y axis goes the opposite direction
+                        double vx = changeRelativePoint(ox, ocx, nbr.getX());
+                        double vy = changeRelativePoint(oy, -ocy, -nbr.getY());
+                        // rotate the current point around the center
+                        double rx = vx * Math.cos(Math.toRadians(-nbr.getRotation())) - vy * Math.sin(Math.toRadians(-nbr.getRotation()));
+                        double ry = vx * Math.sin(Math.toRadians(-nbr.getRotation())) + vy * Math.cos(Math.toRadians(-nbr.getRotation()));
+                        // put the new point back into the awt coordinate format
+                        // TODO round rather than cast? May not be necessary
+                        ox = changeRelativePoint((int)rx, nbr.getX(), ocx);
+                        oy = changeRelativePoint((int)ry, -nbr.getY(), -ocy);
+                    }
+                    // Skip any iterations that might throw an out of bounds exception
+                    if (ox < 0 || ox >= nbr.getCurrImage().getWidth() || oy < 0 || oy >= nbr.getCurrImage().getHeight()) {
+                        continue;
+                    }
+                    pixel = nbr.getCurrImage().getAwtImage().getRGB(ox, oy);
+                    if ((pixel >> 24) != 0x00) {
+                        System.out.println("isTouching: return true");
+                        return true;
+                    }
                 }
             }
         }
+        // No pixels in any of the intersecting neighbors overlap.
+        System.out.println("isTouching: return false");
         return false;
     }
 
