@@ -1407,6 +1407,16 @@ public class Scratch extends Actor
     }
 
     /**
+     * move to a random position on the stage.
+     */
+    public void goToRandomPosition()
+    {
+        int w = getWorld().getWidth();
+        int h = getWorld().getHeight();
+        goTo(pickRandom(-w / 2, w / 2), pickRandom(-h / 2, h / 2));
+    }
+
+    /**
      * set the sprite's x position.  (left or right)
      */
     public void setXTo(int x) { 
