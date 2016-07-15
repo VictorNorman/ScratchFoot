@@ -562,13 +562,12 @@ def doIf(level, tokens):
     return resStr
 
 
-def doIfElse(tokens, level):
+def doIfElse(level, tokens):
     """Generate code for if <test> : <block> else: <block>.  Format of tokens is
     'doIfElse' [test expression] [true-block] [else-block]
     """
-    assert len(tokens) == 4 and tokens[0] == 'doIfElse'
 
-    # TODO: if bool expression was left empty, then it will contain False
+    assert len(tokens) == 4 and tokens[0] == 'doIfElse'
 
     resStr = genIndent(level) + "if "
     resStr += boolExpr(tokens[1])
