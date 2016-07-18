@@ -329,17 +329,22 @@ public class Scratch extends Actor
 
     private class KeyPressSeq extends Sequence {
         private String key;
-
+        public boolean retrigger;
+        public int waitframes;
         public KeyPressSeq(String key, Object obj, String method)
         {
             super(obj, method);
             this.key = key;
             // A key press sequence is not triggered until the key is hit.
-            this.triggered = false;
+            triggered = false;
+            retrigger = true;
+            waitframes = 0;
         }
 
         public KeyPressSeq(KeyPressSeq other) {
             this(other.key, other.getObj(), other.getMethod());
+            retrigger = other.retrigger;
+            waitframes = other.waitframes;
         }
 
         // Called from act().
@@ -350,6 +355,10 @@ public class Scratch extends Actor
                         " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
+            } else {
+                retrigger = true;
+                triggered = false;
+                waitframes = -1;
             }
             return triggered;
         }
@@ -395,7 +404,7 @@ public class Scratch extends Actor
     private class StageClickedSeq extends ActorOrStageClickedSeq {
         StageClickedSeq(Object obj, String method) {
             super(obj, method);
-        }        
+        }
 
         public StageClickedSeq(StageClickedSeq other) {
             this(other.getObj(), other.getMethod());
@@ -656,7 +665,7 @@ public class Scratch extends Actor
         if (this.isClone) {
             newVar.set(((Scratch.IntVar) parent.getVariable(varName)).get());
             newVar.hide();
-        }	
+        }
         return newVar;
     }
 
@@ -674,7 +683,7 @@ public class Scratch extends Actor
         if (this.isClone) {
             newVar.set(((Scratch.StringVar) parent.getVariable(varName)).get());
             newVar.hide();
-        }	
+        }
         return newVar; 
     }
 
@@ -692,7 +701,7 @@ public class Scratch extends Actor
         if (this.isClone) {
             newVar.set(((Scratch.DoubleVar) parent.getVariable(varName)).get());
             newVar.hide();
-        }	
+        }
         return newVar; 
     }
 
@@ -710,7 +719,7 @@ public class Scratch extends Actor
         if (this.isClone) {
             newVar.set(((Scratch.BooleanVar) parent.getVariable(varName)).get());
             newVar.hide();
-        }	
+        }
         return newVar;
     }
 
@@ -850,9 +859,23 @@ public class Scratch extends Actor
 
         /* Loop through sequences that have been invoked already. */
         for (KeyPressSeq seq: keySeqs) {
+            // Prevents the sequence from being repeated until 30 frames after the initial
+            // press. Releasing the button will reset this.
+            if (seq.waitframes > 0) {
+                    seq.waitframes--;
+                    seq.retrigger = false;
+                } else {
+                    seq.retrigger = true;
+                }
             // isTriggered returns true if a sequence has seen its key press done already, or
             // if the sequence is seeing its key press done right now.
-            if (seq.isTriggered()) {
+            if (seq.isTriggered() && seq.retrigger) {
+                // If this is the first frame of a press, wait 30 frames, 1/2 a second.
+                // TODO: To match scratch, this should be based on the OS keypress repeat delay/speed.
+                // TODO: To isolate from the "speed" bar, this should use millisecond timing rather than frames.
+                if (seq.waitframes == -1) {
+                    seq.waitframes = 30;
+                }
                 seq.performSequence();
             }
         }
@@ -916,7 +939,7 @@ public class Scratch extends Actor
             if (seq.isTriggered()) {
                 seq.performSequence();
             }
-        }        
+        }
 
         /* ---------- Repeat, but for clone requests. ------------- */
 
