@@ -613,7 +613,7 @@ def motion1Arg(level, tokens):
         elif arg == "_random_":
             return genIndent(level) + "goToRandomPosition();\n"
         else:
-            return genIndent(level) + "// goToSprite(): not implemented yet.\n"
+            return genIndent(level) + "goTo(\"" + arg + "\");\n"
         # TODO: Looks like there is something new: gotoRandomPosition()
     elif cmd == "changeXposBy:":
         return genIndent(level) + "changeXBy((int) " + mathExpr(arg) + ");\n"

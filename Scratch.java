@@ -1406,6 +1406,15 @@ public class Scratch extends Actor
     {
         goTo(other.getX(), other.getY());
     }
+    
+    /**
+     * move to the location of another sprite
+     */
+    public void goTo(String name)
+    {
+        Scratch other = getWorld().getActorByName(name);
+        goTo(other.getX(), other.getY());
+    }
 
     /**
      * move to a random position on the stage.
