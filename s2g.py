@@ -616,11 +616,11 @@ def motion1Arg(level, tokens):
             return genIndent(level) + "goTo(\"" + arg + "\");\n"
         # TODO: Looks like there is something new: gotoRandomPosition()
     elif cmd == "changeXposBy:":
-        return genIndent(level) + "changeXBy((int) " + mathExpr(arg) + ");\n"
+        return genIndent(level) + "changeXBy(" + mathExpr(arg) + ");\n"
     elif cmd == "xpos:":
         return genIndent(level) + "setXTo((int) " + mathExpr(arg) + ");\n" 
     elif cmd == "changeYposBy:":
-        return genIndent(level) + "changeYBy((int) " + mathExpr(arg) + ");\n"
+        return genIndent(level) + "changeYBy(" + mathExpr(arg) + ");\n"
     elif cmd == "ypos:":
         return genIndent(level) + "setYTo((int) " + mathExpr(arg) + ");\n"
     elif cmd == "setRotationStyle":

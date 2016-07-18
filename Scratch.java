@@ -1471,6 +1471,19 @@ public class Scratch extends Actor
     { 
         goTo(getX() + val, getY()); 
     }
+    
+    /**
+     * change the x position of the sprite by the given value.
+     */
+    public void changeXBy(double val) 
+    { 
+        goTo(getX() + (int)val, getY()); 
+        subX += val % 1;
+        if (Math.abs(subX) > 1) {
+            changeXBy((int) subX);
+            subX %= 1;
+        }
+    }
 
     /**
      * change the y position of the sprite by the given value.
@@ -1479,6 +1492,19 @@ public class Scratch extends Actor
     public void changeYBy(int val) 
     { 
         goTo(getX(), getY() + val); 
+    }
+    
+    /**
+     * change the y position of the sprite by the given value.
+     */
+    public void changeYBy(double val) 
+    { 
+        goTo(getX(), getY() + (int)val); 
+        subY += val % 1;
+        if (Math.abs(subY) > 1) {
+            changeXBy((int) subY);
+            subY %= 1;
+        }
     }
 
     /**
