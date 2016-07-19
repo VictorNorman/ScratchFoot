@@ -2273,6 +2273,9 @@ public class Scratch extends Actor
         int worldH = getWorld().getHeight();
         int worldW = getWorld().getWidth();
         java.awt.image.BufferedImage bIm = im.getAwtImage();
+        // Calculate rotation unit vectors
+        double cos = Math.cos(Math.toRadians(getRotation()));
+        double sin = Math.sin(Math.toRadians(getRotation()));
         for (int w = 0; w < width; w++) {
             for (int h = 0; h < height; h++) {
                 int pixel = bIm.getRGB(w, h);
@@ -2288,8 +2291,8 @@ public class Scratch extends Actor
                     double vy = changeRelativePoint(h, -cy, -y);
                     
                     // rotate the current point around the center
-                    double rx = vx * Math.cos(Math.toRadians(getRotation())) - vy * Math.sin(Math.toRadians(getRotation()));
-                    double ry = vx * Math.sin(Math.toRadians(getRotation())) + vy * Math.cos(Math.toRadians(getRotation()));
+                    double rx = vx * cos - vy * sin;
+                    double ry = vx * sin + vy * cos;
                     
                     // put the new point back into the awt coordinate format
                     wr = changeRelativePoint((int)rx, x, cx);
