@@ -1879,14 +1879,15 @@ public class Scratch extends Actor
     }
 
     /**
-     * switch to the costume with the given number.
+     * switch to the costume with the given number, loops.
      */
     public void switchToCostume(int costumeNum)
     {
-        if (costumeNum < 0 || costumeNum > costumes.size() - 1) {
-            return;     // can't switch to the desired costume, so do nothing.
-        }
+        costumeNum--;
+        costumeNum = Math.floorMod(costumeNum, costumes.size() - 1);
+        costumeNum++;
         currCostume = costumeNum;
+        
         displayCostume();
     }
 

@@ -379,6 +379,16 @@ public class ScratchWorld extends World
         // Do nothing if the given backdropName is not found.  (Should
         // perhaps issue a warning/error?) 
     }
+    
+    /**
+     * switch backdrop to the one with the given number, loops.
+     */
+    public void switchBackdropTo(int num)
+    {
+        num = Math.floorMod(num, backdrops.size());
+        currBackdrop = num;
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+    }
 
     /**
      * rename the default backdrop.  (Only available through the GUI in scratch.)
