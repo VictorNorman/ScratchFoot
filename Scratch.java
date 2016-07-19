@@ -2116,31 +2116,33 @@ public class Scratch extends Actor
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
-
-        /* VTN2: I don't understand the logic below...
-           if (!intersects((Actor) other) && isShowing && other.isShowing()) {
-           return false;
-           }
-        */
+        
+        GreenfootImage im = getCurrImage();
+        int height = im.getHeight();
+        int width = im.getWidth();
+        int x = getX();
+        int y = getY();
+        // get the coordinates of the upper left corners for awt interaction
+        int cx = getX() - (width / 2);
+        int cy = getY() + (height / 2);
+        // get world width and height to avoid constant calls to world
+        int worldH = getWorld().getHeight();
+        int worldW = getWorld().getWidth();
+        // calculate rotation unit vectors
+        double cos = Math.cos(Math.toRadians(getRotation()));
+        double sin = Math.sin(Math.toRadians(getRotation()));
+           
         System.out.println("isTouching: # intersecting neighbors: " + nbrs.size());
 
         for (Actor anbr: nbrs) {
             Scratch nbr = (Scratch) anbr;
             System.out.println("isTouching: top of loop");
         
-            GreenfootImage im = getCurrImage();
-            int height = im.getHeight();
-            int width = im.getWidth();
-            int x = getX();
-            int y = getY();
-            // get the coordinates of the upper left corners for awt interaction
-            int cx = getX() - (width / 2);
-            int cy = getY() + (height / 2);
             int ocx = nbr.getX() - (nbr.getCurrImage().getWidth()/2);
             int ocy = nbr.getY() + (nbr.getCurrImage().getHeight()/2);
-            // get world width and height to avoid constant calls to world
-            int worldH = getWorld().getHeight();
-            int worldW = getWorld().getWidth();
+            // Calculate the other's rotation unit vectors
+            double ocos = Math.cos(Math.toRadians(-nbr.getRotation()));
+            double osin = Math.sin(Math.toRadians(-nbr.getRotation()));
             java.awt.image.BufferedImage bIm = im.getAwtImage();
             for (int w = 0; w < width; w++) {
                 for (int h = 0; h < height; h++) {
@@ -2156,8 +2158,8 @@ public class Scratch extends Actor
                         double vx = changeRelativePoint(w, cx, x);
                         double vy = changeRelativePoint(h, -cy, -y);
                         // rotate the current point around the center
-                        double rx = vx * Math.cos(Math.toRadians(getRotation())) - vy * Math.sin(Math.toRadians(getRotation()));
-                        double ry = vx * Math.sin(Math.toRadians(getRotation())) + vy * Math.cos(Math.toRadians(getRotation()));
+                        double rx = vx * cos - vy * sin;
+                        double ry = vx * sin + vy * cos;
                         // put the new point back into the awt coordinate format 
                         // TODO round rather than cast? May not be necessary
                         wr = changeRelativePoint((int)rx, x, cx);
@@ -2177,8 +2179,8 @@ public class Scratch extends Actor
                         double vx = changeRelativePoint(ox, ocx, nbr.getX());
                         double vy = changeRelativePoint(oy, -ocy, -nbr.getY());
                         // rotate the current point around the center
-                        double rx = vx * Math.cos(Math.toRadians(-nbr.getRotation())) - vy * Math.sin(Math.toRadians(-nbr.getRotation()));
-                        double ry = vx * Math.sin(Math.toRadians(-nbr.getRotation())) + vy * Math.cos(Math.toRadians(-nbr.getRotation()));
+                        double rx = vx * ocos - vy * osin;
+                        double ry = vx * osin + vy * ocos;
                         // put the new point back into the awt coordinate format
                         // TODO round rather than cast? May not be necessary
                         ox = changeRelativePoint((int)rx, nbr.getX(), ocx);
