@@ -1245,7 +1245,7 @@ def genInitialSettingsCode(spr):
     resStr = ""
 
     # Set the initial costume (NOTE: could use the name of the costume instead of index...)
-    resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex']) + ');\n'
+    resStr = genIndent(2) + 'switchToCostume(' + str(spr['currentCostumeIndex'] + 1) + ');\n'
     if spr['scale'] != 1:
         resStr += genIndent(2) + 'setSizeTo((int)' + str(spr['scale'] * 100) + ');\n'
     if not spr['visible']:
