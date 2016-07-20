@@ -1675,10 +1675,10 @@ for spr in sprites:
 
         # Move all of this sprites sounds to project/sounds/[spritename]
         addedToWorldCode = ""
-        if 'sounds' in data:
+        if 'sounds' in spr:
             if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', spriteName)):
                 os.makedirs(os.path.join(PROJECT_DIR, 'sounds', spriteName))
-            for sound in data['sounds']:
+            for sound in spr['sounds']:
                 soundName = sound['soundName']
                 id = sound['soundID']
                 shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
@@ -1753,13 +1753,13 @@ cbCode = []
 
 # Move all of the stage's sounds to project/sounds/stage
 if 'sounds' in data:
-    if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', 'stage')):
-        os.makedirs(os.path.join(PROJECT_DIR, 'sounds', 'stage'))
+    if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', 'Stage')):
+        os.makedirs(os.path.join(PROJECT_DIR, 'sounds', 'Stage'))
     for sound in data['sounds']:
         name = sound['soundName']
         id = sound['soundID']
         shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
-                        os.path.join(PROJECT_DIR, 'sounds', 'stage', name + '.wav'))
+                        os.path.join(PROJECT_DIR, 'sounds', 'Stage', name + '.wav'))
 
 # The value of the 'scripts' key is the list of the scripts.  It may be
 # a list of 1 or of many.

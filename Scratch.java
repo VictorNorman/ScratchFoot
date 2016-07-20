@@ -21,15 +21,18 @@
 
 import greenfoot.*;  // (getWorld(), Actor, GreenfootImage, Greenfoot and MouseInfo)
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.awt.Color;
 import java.lang.String;
 import java.lang.reflect.*;
 import javax.swing.JOptionPane;
+import javax.sound.sampled.*;
 import java.awt.geom.RoundRectangle2D;
 
 /**
@@ -91,6 +94,8 @@ public class Scratch extends Actor
     private int currCostume = 0;
     private GreenfootImage lastImg = getImage();
     private boolean isFlipped = false;      // tracks whether the image is flipped due to LEFT_RIGHT rotation.
+    private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
+    private String name;                    // Sprite's class name, for sound lookup
 
     /*
      * this class is just a pairing of costume image with its name.
@@ -741,6 +746,11 @@ public class Scratch extends Actor
         costumesCopy.add(new GreenfootImage(getImage()));  
         // System.out.println("item in costumesCopy array is " + System.identityHashCode(costumesCopy.get(0)));
         // System.out.println("Scratch(): constructor finished for object " + System.identityHashCode(this));
+        
+        // Get this class's name
+        name = this.getClass().getName();
+        // Load sounds in this class's directory
+        loadSounds();
     }
 
     /**
@@ -2572,21 +2582,69 @@ public class Scratch extends Actor
     /*
      * Sound stuff.
      */
+    
+    /**
+     * Add all sounds in the "proj/sounds/[spritename]" directory to the sound dictionary. Uses filename as key.
+     * Not to be called by users
+     */
+    public void loadSounds()
+    {
+        // Access sound directory
+        File soundDir = new File("sounds/" + name);
+        System.out.println("Looking for sounds in: " + soundDir.getAbsolutePath());
+        AudioInputStream aIn;
+        File[] ls = soundDir.listFiles();
+        if (ls != null) {
+            for (File f : ls) {
+                try {
+                    aIn = AudioSystem.getAudioInputStream(f);
+                    Clip clip = AudioSystem.getClip();
+                    clip.open(aIn);
+                    soundList.put(f.getName(), clip);
+                    System.out.println("Added clip: " + f.getName() + " for sprite: " + name);
+                } catch (UnsupportedAudioFileException e) {
+                    System.err.println("Only .wav filetypes are acceptable");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 
     /**
      * Plays a sound until it has finished
      */
     public void playSoundUntilDone(String name)
     {
-        getWorld().playSoundUntilDone(name);
+        name += ".wav";
+        Clip toPlay = soundList.get(name);
+        if (toPlay != null) {
+            if (!toPlay.isActive()) {
+                toPlay.setFramePosition(0);
+            }
+            toPlay.start();
+        } else {
+            System.err.println("Attempted to play non-existent sound");
+        }
     }
 
     /**
-     * Plays a sound, currently the same as UntilDone
+     * Plays a sound, restarting it if it is currently playing
+     * This currently works the same as playUntilDone because greenfoot does not restart sounds
+     * that are stopped and replayed on the same frame, and doing so causes massive performance drops.
      */
     public void playSound(String name)
     {
-        getWorld().playSound(name);
+        name += ".wav";
+        Clip toPlay = soundList.get(name);
+        if (toPlay != null) {
+            toPlay.setFramePosition(0);
+            if (!toPlay.isActive()) {
+                toPlay.start();
+            }
+        } else {
+            System.err.println("Attempted to play non-existent sound");
+        }
     }
 
     /**
@@ -2594,7 +2652,9 @@ public class Scratch extends Actor
      */
     public void stopAllSounds()
     {
-        getWorld().stopAllSounds();
+        for (Clip clip : soundList.values()) {
+            clip.stop();
+        }
     }
 
     /*
