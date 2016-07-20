@@ -1395,13 +1395,20 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                aDict.get('param') == name and \
                aDict.get('target') == spriteName:
                 varInfo = aDict
+                # If variable definition dictionary found, use it
+                label = varInfo['label']
+                x = varInfo['x']    # Not used at this time.
+                y = varInfo['y']    # Not used at this time.
+                visible = varInfo['visible']
                 break
         else:
-            raise ValueError("No variable definition dictionary found in script json")
-        label = varInfo['label']
-        x = varInfo['x']    # Not used at this time.
-        y = varInfo['y']    # Not used at this time.
-        visible = varInfo['visible']
+            # If no variable dict could be found, this variable is never shown
+            # so these values don't matter
+            label = "unknown: " + name
+            x = 0
+            y = 0
+            visible = False
+            print("No variable definition dictionary found in script json:", name)
 
         # Record this variable in the global variables dictionary.
         # We need this so we can generate code that calls the correct
@@ -1589,9 +1596,6 @@ except:
     print("\n\tScratch.java and ScratchWorld.java were NOT copied!")
 
 
-# TODO: move sounds files.
-
-
 # Now, (finally!), open the project.json file and start processing it.
 with open(os.path.join(scratch_dir, "project.json")) as data_file:
     data = json.load(data_file)
@@ -1669,12 +1673,22 @@ for spr in sprites:
 
         ctorCode += costumeCode + initSettingsCode
 
-      	# Handle variables defined for this sprite.  This has to be done
+        # Move all of this sprites sounds to project/sounds/[spritename]
+        addedToWorldCode = ""
+        if 'sounds' in data:
+            if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', spriteName)):
+                os.makedirs(os.path.join(PROJECT_DIR, 'sounds', spriteName))
+            for sound in data['sounds']:
+                soundName = sound['soundName']
+                id = sound['soundID']
+                shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
+                                os.path.join(PROJECT_DIR, 'sounds', spriteName, soundName + '.wav'))
+
+        # Handle variables defined for this sprite.  This has to be done
         # before handling the scripts, as the scripts may refer will the
         # variables.
         # Variable initializations have to be done in a method called
         # addedToWorld(), which is not necessary if no variable defns exist.
-        addedToWorldCode = ""
         if 'variables' in spr:
             defnCode, addedToWorldCode = \
                       genVariablesDefnCode(spr['variables'], spriteName,
@@ -1736,6 +1750,16 @@ worldCtorCode += genIndent(2) + 'addSprite("' + spriteName + '", 0, 0);\n'
 
 ctorCode = ""
 cbCode = []
+
+# Move all of the stage's sounds to project/sounds/stage
+if 'sounds' in data:
+    if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', 'stage')):
+        os.makedirs(os.path.join(PROJECT_DIR, 'sounds', 'stage'))
+    for sound in data['sounds']:
+        name = sound['soundName']
+        id = sound['soundID']
+        shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
+                        os.path.join(PROJECT_DIR, 'sounds', 'stage', name + '.wav'))
 
 # The value of the 'scripts' key is the list of the scripts.  It may be
 # a list of 1 or of many.
