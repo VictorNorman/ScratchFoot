@@ -1117,6 +1117,17 @@ def callABlock(level, tokens):
     resStr += mathExpr(tokens[-1]) + ");\n"
     return resStr
 
+def playSound(level, tokens):
+    """ Play the given sound
+    """
+    assert len(tokens) == 2 and tokens[0] == "playSound:"
+    return genIndent(level) + "playSound(\"" + tokens[1] + "\");\n"
+
+def playSoundUntilDone(level, tokens):
+    """ Play the given sound without interrupting it.
+    """
+    assert len(tokens) == 2 and tokens[0] == "doPlaySoundAndWait"
+    return genIndent(level) + "playSoundUntilDone(\"" + tokens[1] + "\");\n"
 
 scratchStmt2genCode = {
     'doIf': doIf,
@@ -1187,6 +1198,10 @@ scratchStmt2genCode = {
 
     # Blocks commands
     'call': callABlock,
+    
+    # Sound commands
+    'playSound:': playSound,
+    'doPlaySoundAndWait': playSoundUntilDone,
 
     }
 
@@ -1513,8 +1528,12 @@ if not os.path.exists(SCRATCH_FILE):
     print("Scratch download file " + SCRATCH_FILE + " not found.")
     sys.exit(1)
 if not os.path.exists(PROJECT_DIR):
-    print("Greenfoot folder " + PROJECT_DIR + " not found.")
-    sys.exit(1)
+    if (input("Project directory not found, generate it? (y/n) ") == "y"):
+        print("Generating new project directory...")
+        os.makedirs(PROJECT_DIR)
+    else:
+        print("Project directory could not be found")
+        sys.exit(1)
 if not os.path.isdir(PROJECT_DIR):
     print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
     sys.exit(1)
@@ -1681,6 +1700,8 @@ for spr in sprites:
             for sound in spr['sounds']:
                 soundName = sound['soundName']
                 id = sound['soundID']
+                if sound['format'] == 'adpcm':
+                    print("Warning: Sound is in adpcm format and will not work:", soundName)
                 shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
                                 os.path.join(PROJECT_DIR, 'sounds', spriteName, soundName + '.wav'))
 
@@ -1758,6 +1779,8 @@ if 'sounds' in data:
     for sound in data['sounds']:
         name = sound['soundName']
         id = sound['soundID']
+        if sound['format'] == 'adpcm':
+            print("Warning: Sound is in adpcm format and will not work:", name)
         shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
                         os.path.join(PROJECT_DIR, 'sounds', 'Stage', name + '.wav'))
 
