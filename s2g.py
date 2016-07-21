@@ -1499,17 +1499,15 @@ def genScriptCode(script):
     elif isinstance(script[0], list) and script[0][0] == 'procDef':
         # Defining a procedure in Scratch.
         genProcDefCode(codeObj, script)
-    else:
-        raise ValueError(script[0])
+
+    # If not in one of the above "hat blocks", then it is an
+    # orphaned bit of code that will not be run in either Scratch
+    # or ScratchFoot.
 
 
     # TODO: need to implement whenSwitchToBackdrop in
     # Scratch.java and add code here to handle it.
-    # TODO: need to handle scripts for the stage, not a sprite.
 
-
-    # TODO: filter out scripts that are "left over" -- don't start
-    # with whenGreenFlag, etc.
     return codeObj
 
 
