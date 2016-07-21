@@ -1260,7 +1260,7 @@ public class Scratch extends Actor
     public void setPenSize(int size)
     {
         penSize = size;
-        // getWorld().getBackground().setPenWidth(size);
+        // Stage.getBackground().setPenWidth(size);
 
     }
 
@@ -1314,7 +1314,7 @@ public class Scratch extends Actor
         image.rotate(rot);
 
         // System.out.println("stamp: x " + super.getX() + " y " + super.getY());
-        getWorld().getBackground().drawImage(image, super.getX() - newDim / 2, 
+        Stage.getBackground().drawImage(image, super.getX() - newDim / 2, 
             super.getY() - newDim / 2);
         // System.out.println("stamp: drawing at x " + (super.getX() - newDim / 2) +
         //     " y " + (super.getY() - newDim / 2));
@@ -1370,8 +1370,8 @@ public class Scratch extends Actor
 
         /* pen is down, so we need to draw a line from the current point to the new point */
         if (isPenDown) {
-            getWorld().getBackground().setColor(penColor);
-            getWorld().getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
+            Stage.getBackground().setColor(penColor);
+            Stage.getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
         }
     }
 
@@ -1748,8 +1748,8 @@ public class Scratch extends Actor
         int oldX = super.getX();
         int oldY = super.getY();
         super.setLocation(x, y);
-        getWorld().getBackground().setColor(penColor);
-        getWorld().getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
+        Stage.getBackground().setColor(penColor);
+        Stage.getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
     }
 
     // private helper function

@@ -1811,12 +1811,31 @@ print("Writing code to " + filename + ".")
 outFile = open(filename, "w")
 genHeaderCode(outFile, spriteName)
 
-# Set the image for the Stage to nothing.  Backdrops are
+# Set the image for the Stage to bgImg -- a transparent image.  Backdrops are
 # part of the World in Greenfoot, not the Stage object.
-ctorCode = genIndent(2) + "setImage((GreenfootImage) null);\t\t// No image for the stage.\n" + ctorCode
+ctorCode = genIndent(2) + "bgImg.clear();\n" + \
+           genIndent(2) + "setImage(bgImg);\n" + ctorCode
 genConstructorCode(outFile, spriteName, ctorCode)
 for code in cbCode:
     outFile.write(code)
+
+#
+# Create the static variable "bgImg" which is a transparent image
+# for the stage onto which all drawing will be done.  That way
+# the background image can be changed but the drawing remains, just
+# like in Scratch.
+#
+bgImgCode = genIndent(1) + \
+            "static GreenfootImage bgImg = new GreenfootImage(ScratchWorld.SCRATCH_WIDTH,\n" + genIndent(1) + \
+            "                                                 ScratchWorld.SCRATCH_HEIGHT);\n"
+outFile.write(bgImgCode)
+
+# Generate the accessor for the static background image.
+outFile.write(genIndent(1) + "// The background image here is a transparent image\n")
+outFile.write(genIndent(1) + "// that Scratch draws on to, instead of drawing on \n")
+outFile.write(genIndent(1) + "// on the greenfoot image.  This way we can switch \n")
+outFile.write(genIndent(1) + "// backgrounds and keep the stuff that has been drawn.\n")
+outFile.write(genIndent(1) + "static public GreenfootImage getBackground() { return bgImg; }\n")
 
 outFile.write("}\n")
 outFile.close()

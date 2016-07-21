@@ -36,6 +36,9 @@ import java.lang.reflect.*;
  */
 public class ScratchWorld extends World
 {
+    // Default sizes of the world for Scratch
+    static public int SCRATCH_WIDTH = 480;
+    static public int SCRATCH_HEIGHT = 360;
 
     // Keep track of the number of times act() is called here and in all the Actors.
     // This "frameNumber" is used for handling broadcast messages.
@@ -123,7 +126,7 @@ public class ScratchWorld extends World
      */
     public ScratchWorld()
     {
-        this(480, 360, 1);
+        this(SCRATCH_WIDTH, SCRATCH_HEIGHT, 1);
     }
 
     public final void act() 
