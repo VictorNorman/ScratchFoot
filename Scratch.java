@@ -62,11 +62,11 @@ public class Scratch extends Actor
             "#00FF19", "#00FF21", "#00FF28", "#00FF30", "#00FF38",        // indices 70 - 74
             "#00FF3F", "#00FF47", "#00FF4F", "#00FF56", "#00FF5E",        // indices 75 - 79
             "#00FF65", "#00FF6D", "#00FF75", "#00FF7C", "#00FF84",        // indices 80 - 84
-            "#00FF8C", "#00FF93", "#00FF9B", "#00FFA3", "#00FFAA",        // indices 15 - 19
+            "#00FF8C", "#00FF93", "#00FF9B", "#00FFA3", "#00FFAA",        // indices 85 - 89
             "#00FFB2", "#00FFBA", "#00FFC1", "#00FFC9", "#00FFD1",        // indices 90 - 94
             "#00FFD8", "#00FFE0", "#00FFE8", "#00FFEF", "#00FFF7",        // indices 95 - 99
             "#00FFFF", "#00F7FF", "#00EFFF", "#00E8FF", "#00E0FF",        // indices 100 - 104
-            "#00D8FF", "#00D1FF", "#00C9FF", "#00C1FF", "#00BAFF",        // indices 15 - 19
+            "#00D8FF", "#00D1FF", "#00C9FF", "#00C1FF", "#00BAFF",        // indices 105 - 109
             "#00B2FF", "#00AAFF", "#00A3FF", "#0098FF", "#0093FF",        // indices 110 - 114
             "#008CFF", "#0084FF", "#007CFF", "#0075FF", "#006DFF",        // indices 115 - 119
             "#0065FF", "#005EFF", "#0056FF", "#004FFF", "#0047FF",        // indices 120 - 124

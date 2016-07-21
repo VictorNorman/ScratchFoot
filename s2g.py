@@ -438,24 +438,29 @@ def whenFlagClicked(codeObj, tokens):
     codeObj.addToCbCode(cbStr)
 
 
-def whenSpriteClicked(codeObj, tokens):
+def whenSpriteOrStageClicked(codeObj, tokens):
     """Generate code to handle the whenClicked block.
     All code in tokens goes into a callback.
     """
+
+    global spriteName
+    
     scriptNum = codeObj.getNextScriptId()
-    # Build a name like whenSpriteClickedCb0 
-    cbName = 'whenSpriteClickedCb' + str(scriptNum)
-
-    # Code in the constructor is always level 2.
-    codeObj.addToCode(genIndent(2) + 'whenSpriteClicked("' + cbName + '");\n')
-
-    level = 1    # all callbacks are at level 1.
+    # Build a name like whenSpriteClickedCb0
+    if spriteName == "Stage":
+        cbName = 'whenStageClickedCb' + str(scriptNum)
+        # Code in the constructor is always level 2.
+        codeObj.addToCode(genIndent(2) + 'whenStageClicked("' + cbName + '");\n')
+    else:
+        cbName = 'whenSpriteClickedCb' + str(scriptNum)
+        # Code in the constructor is always level 2.
+        codeObj.addToCode(genIndent(2) + 'whenSpriteClicked("' + cbName + '");\n')
 
     # Generate callback code, into the codeObj's cbCode string.
     # Add two blank lines before each method definition.
-    cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+    cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
                     "(Sequence s)\n"
-    cbStr += block(level, tokens) + "\n"  # add blank line after defn.
+    cbStr += block(1, tokens) + "\n"  # add blank line after defn.
     codeObj.addToCbCode(cbStr)
 
 
@@ -1486,7 +1491,7 @@ def genScriptCode(script):
     elif script[0] == ['whenCloned']:
         whenSpriteCloned(codeObj, script[1:])
     elif script[0] == ['whenClicked']:
-        whenSpriteClicked(codeObj, script[1:])
+        whenSpriteOrStageClicked(codeObj, script[1:])
     elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
         whenKeyPressed(codeObj, script[0][1], script[1:])
     elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
