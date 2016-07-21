@@ -2123,7 +2123,7 @@ public class Scratch extends Actor
         /* Get all intersecting objects of other's class.  To Greenfoot, "intersecting" means
            the images' bounding boxes overlap.  */
         java.lang.Class clazz = other.getClass();
-        List<Actor> nbrs = getIntersectingObjects(clazz);
+        List<Scratch> nbrs = getIntersectingActors(clazz);
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
@@ -2603,7 +2603,10 @@ public class Scratch extends Actor
                     soundList.put(f.getName(), clip);
                     System.out.println("Added clip: " + f.getName() + " for sprite: " + name);
                 } catch (UnsupportedAudioFileException e) {
-                    System.err.println("Only .wav filetypes are acceptable");
+                    System.err.println("Only pcm .wav filetypes are acceptable: " + f.getName());
+                    //e.printStackTrace();
+                } catch (LineUnavailableException e) {
+                    System.err.println("Sounds did not unload properly, Please restart Greenfoot");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -2660,6 +2663,38 @@ public class Scratch extends Actor
     /*
      * Miscellaneous stuff.
      */
+    
+    /**
+     * Determines whether two objects have intersecting bounding boxes
+     */
+    public boolean intersects(Scratch other) {
+        int w = getCurrImage().getWidth()/2;
+        int h = getCurrImage().getHeight()/2;
+        int ow = other.getCurrImage().getWidth()/2;
+        int oh = other.getCurrImage().getHeight()/2;
+        
+        if (getX() + w > other.getX() - ow || getX() - w > other.getX() + w) {
+            if (getY() + h > other.getY() - oh || getY() - h > other.getY() + h) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Returns a list of all intersecting actors of the given class.
+     * Use the class Scratch to get all actors.
+     */
+    public List<Scratch> getIntersectingActors(Class type) {
+        List<? extends Scratch> actors = getWorld().getObjects(type);
+        List<Scratch> ret = new ArrayList<Scratch>();
+        for (Scratch actor : actors) {
+            if (intersects(actor)) {
+                ret.add(actor);
+            }
+        }
+        return ret;
+    }
     
     /**
      * Takes a coordinate r relative to an absolute coordinate p and returns the relative
