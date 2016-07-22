@@ -23,6 +23,7 @@ import glob
 import json
 import os, os.path
 import platform
+import argparse
 from pprint import pprint
 import shutil
 from subprocess import call, getstatusoutput
@@ -30,6 +31,7 @@ import sys
 
 # TODO: make debug on/off a command-line arg
 debug = False
+inference = False
 
 NUM_SPACES_PER_LEVEL = 4
 
@@ -1362,9 +1364,40 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
 
     global varTypes	# global dictionary
 
-    def deriveType(val):
+    def deriveType(name, val):
+        while not inference:
+            try:
+                print("\n\nWhat type of variable should " + name + ": " + str(val) + " be?")
+                type = input("\tINT: A number that won't have decimals\n\tFLOAT:" + \
+                             " A number that can have decimals\n\tSTRING: Text or letters\n\t?:" + \
+                             " Determine automatically\n>").capitalize()
+                # Try to convert the value to the chosen type, only the first character needs to be entered
+                if type[0] == 'I':
+                    return int(val), 'Int'
+                elif type[0] == 'F':
+                    return float(val), 'Double'
+                elif type[0] == 'S':
+                    return '"' + str(val) + '"', "String"
+                # If ? is chosen, continue with automatic derivation
+                elif type == "?":
+                    break
+                print(type, "not recognized, please choose one of these (int,float,string,?)")
+            except IndexError:
+                # Nothing was entered
+                continue
+            except:
+                # If val is not able to be converted to type, it will be set to default, or the user may choose
+                # a different type.
+                if input("Could not convert " + str(val) + " to " + type +\
+                         " Set to default value? (y/n)\n>") == "y":
+                    if type[0] == 'I':
+                        return 0, 'Int'
+                    elif type[0] == 'F':
+                        return 0.0, 'Double'
+                    elif type[0] == 'S':
+                        return '""', "String"
+                    
         if isinstance(val, str):
-
             #
             # See if the string value is a legal integer or floating point number.
             # If it is, assume it should be that.  This seems to be what Scratch
@@ -1412,7 +1445,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         # return the varType and the value converted to a java equivalent
         # for that type. (e.g., False --> false)
         # varType is one of 'Boolean', 'Double', 'Int', 'String'
-        value, varType = deriveType(value)
+        value, varType = deriveType(name, value)
 
         for aDict in allChildren:
             if aDict.get('cmd') == 'getVar:' and \
@@ -1519,15 +1552,21 @@ def genScriptCode(script):
 #                ----------------- main -------------------
 # ---------------------------------------------------------------------------
 
-usage = 'Usage: python3 s2g.py <scratchFile.sb2> <GreenfootProjDir>'
-
-if len(sys.argv) != 3:
-    print(usage)
-    sys.exit(1)
-
-SCRATCH_FILE = sys.argv[1].strip()
+# Set up arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
+parser.add_argument("scratch", help="Location of scratch sb2 file")
+parser.add_argument("greenfoot", help="Location of greenfoot project directory")
+args = parser.parse_args()
+# Apply arguments
+if args.verbose:
+    debug = True
+if args.dotypeinference:
+    inference = True
+SCRATCH_FILE = args.scratch.strip()
 # Take off spaces and a possible trailing "/"
-PROJECT_DIR = sys.argv[2].strip().rstrip("/")
+PROJECT_DIR = args.greenfoot.strip().rstrip("/")
 
 SCRATCH_PROJ_DIR = "scratch_code"
 
@@ -1535,7 +1574,7 @@ if not os.path.exists(SCRATCH_FILE):
     print("Scratch download file " + SCRATCH_FILE + " not found.")
     sys.exit(1)
 if not os.path.exists(PROJECT_DIR):
-    if (input("Project directory not found, generate it? (y/n) ") == "y"):
+    if (input("Project directory not found, generate it? (y/n)\n>") == "y"):
         print("Generating new project directory...")
         os.makedirs(PROJECT_DIR)
     else:
