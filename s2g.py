@@ -357,6 +357,10 @@ def mathExpr(tokenOrList):
     if op == 'randomFrom:to:':
         # tok1 and tok2 may be math expressions.
         return "pickRandom(" + mathExpr(tok1) + ", " + mathExpr(tok2) + ")"
+    elif op == 'getParam':
+        # getting a parameter value in a custom block.
+        # format is ["getParam", "varname", 'r'] -- not sure what the 'r' is for.
+        return tok1	# it is already a str
     elif op == "computeFunction:of:":
         assert tok1 in ("abs", "floor", "ceiling", "sqrt", "sin", "cos", "tan",
                       "asin", "acos", "atan", "ln", "log", "e ^", "10 ^")
