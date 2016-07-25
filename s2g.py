@@ -569,6 +569,7 @@ def doIf(level, tokens):
     # We don't generate parens around the boolExpr as it will put them there.
     resStr = genIndent(level) + "if "
     resStr += boolExpr(tokens[1])
+    resStr += "\n"
     resStr += block(level, tokens[2])
     return resStr
 
@@ -582,7 +583,7 @@ def doIfElse(level, tokens):
 
     resStr = genIndent(level) + "if "
     resStr += boolExpr(tokens[1])
-
+    resStr += "\n"
     resStr += block(level, tokens[2])
     resStr += genIndent(level) + "else\n"
     resStr += block(level, tokens[3])
