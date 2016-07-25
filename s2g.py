@@ -1364,28 +1364,29 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     #     location.   TODO
 
     global varTypes	# global dictionary
-
-    def deriveType(name, val):
+    def chooseType(name, val):
+        i, typechosen = deriveType(name, val)
         while not inference:
             try:
                 print("\n\nWhat type of variable should \"" + name + "\": " + str(val) + " be?")
-                type = input("\tINT: A number that won't have decimals\n\tFLOAT:" + \
-                             " A number that can have decimals\n\tSTRING: Text or letters\n\t?:" + \
-                             " Try to determine automatically\n>").capitalize()
+                type = input("\tInt: A number that won't have decimals\n\tDouble:" + \
+                             " A number that can have decimals\n\tString: Text or letters\n" + \
+                             "This varaible looks like: " + typechosen +\
+                             "\nPress enter without typing anything to use suggested type\n>").capitalize()
                 # Try to convert the value to the chosen type, only the first character needs to be entered
                 if type[0] == 'I':
                     return int(val), 'Int'
-                elif type[0] == 'F':
+                elif type[0] == 'D':
                     return float(val), 'Double'
                 elif type[0] == 'S':
                     return '"' + str(val) + '"', "String"
                 # If ? is chosen, continue with automatic derivation
                 elif type == "?":
                     break
-                print(type, "not recognized, please choose one of these (int,float,string,?)")
+                print(type, "not recognized, please choose one of these (Int,Double,String)")
             except IndexError:
                 # Nothing was entered
-                continue
+                break
             except:
                 # If val is not able to be converted to type, it will be set to default, or the user may choose
                 # a different type.
@@ -1397,7 +1398,8 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                         return 0.0, 'Double'
                     elif type[0] == 'S':
                         return '""', "String"
-                    
+        return deriveType(name, val)
+    def deriveType(name, val):           
         if isinstance(val, str):
             #
             # See if the string value is a legal integer or floating point number.
@@ -1446,7 +1448,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         # return the varType and the value converted to a java equivalent
         # for that type. (e.g., False --> false)
         # varType is one of 'Boolean', 'Double', 'Int', 'String'
-        value, varType = deriveType(name, value)
+        value, varType = chooseType(name, value)
 
         for aDict in allChildren:
             if aDict.get('cmd') == 'getVar:' and \
