@@ -32,6 +32,7 @@ import sys
 # TODO: make debug on/off a command-line arg
 debug = False
 inference = False
+name_resolution = False
 
 NUM_SPACES_PER_LEVEL = 4
 
@@ -1310,6 +1311,25 @@ def genWorldCtorHeader(classname):
 """
     return boilerplate % classname
 
+def resolveName(name):
+    """Ask the user what each variable should be named if it is not a
+    legal identifier
+    """
+    while True:
+        try:
+            print("\"" + name + "\" is not a valid java variable name.")
+            n = input("Java variables must start with a letter and contain only letters and numbers.\n" +\
+                  "Enter a new name, or type nothing to use \"" + convertToJavaId(name, True, False) + "\"\n>")
+            if n == "":
+                return convertToJavaId(name, True, False)
+            name = n
+            if convertToJavaId(n, True, False) == n:
+                return n;
+        except IndexError:
+            # The variable name has no valid characters
+            print("\"" + name + "\" must have some alphanumeric character in order to suggest a name")
+            name = "variable:" + name
+        
 
 def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     """Generate code to define instance variables for this sprite.
@@ -1449,7 +1469,14 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         # for that type. (e.g., False --> false)
         # varType is one of 'Boolean', 'Double', 'Int', 'String'
         value, varType = chooseType(name, value)
-
+        try:
+            if name_resolution:
+                name = convertToJavaId(name, True, False)
+            elif not convertToJavaId(name, True, False) == name:
+                name = resolveName(name)
+        except:
+            print("Error converting variable to java id")
+            sys.exit(0)
         for aDict in allChildren:
             if aDict.get('cmd') == 'getVar:' and \
                aDict.get('param') == name and \
@@ -1559,6 +1586,7 @@ def genScriptCode(script):
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
+parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
 parser.add_argument("scratch", help="Location of scratch sb2 file")
 parser.add_argument("greenfoot", help="Location of greenfoot project directory")
 args = parser.parse_args()
@@ -1567,6 +1595,8 @@ if args.verbose:
     debug = True
 if args.dotypeinference:
     inference = True
+if args.resolvevariablenames:
+    name_resolution = True
 SCRATCH_FILE = args.scratch.strip()
 # Take off spaces and a possible trailing "/"
 PROJECT_DIR = args.greenfoot.strip().rstrip("/")
