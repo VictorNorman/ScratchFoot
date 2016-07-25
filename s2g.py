@@ -736,7 +736,7 @@ def changeSizeBy(level, tokens):
     """Generate code to change the size of the sprite
     """
     cmd, arg1 = tokens
-    assert cmd == "changeSizeBy"
+    assert cmd == "changeSizeBy:"
     return genIndent(level) + "changeSizeBy((int) " + mathExpr(arg1) + ");\n"
 
 def setSizeTo(level, tokens):
@@ -1168,7 +1168,7 @@ scratchStmt2genCode = {
     'lookLike:': switchCostumeTo,
     'nextCostume': nextCostume,
     'startScene': switchBackdropTo,
-    'changeSizeBy': changeSizeBy,
+    'changeSizeBy:': changeSizeBy,
     'setSizeTo:': setSizeTo,
     'comeToFront': goToFront,
     'goBackByLayers:': goBackNLayers,
