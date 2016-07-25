@@ -1367,10 +1367,10 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     def deriveType(name, val):
         while not inference:
             try:
-                print("\n\nWhat type of variable should " + name + ": " + str(val) + " be?")
+                print("\n\nWhat type of variable should \"" + name + "\": " + str(val) + " be?")
                 type = input("\tINT: A number that won't have decimals\n\tFLOAT:" + \
                              " A number that can have decimals\n\tSTRING: Text or letters\n\t?:" + \
-                             " Determine automatically\n>").capitalize()
+                             " Try to determine automatically\n>").capitalize()
                 # Try to convert the value to the chosen type, only the first character needs to be entered
                 if type[0] == 'I':
                     return int(val), 'Int'
