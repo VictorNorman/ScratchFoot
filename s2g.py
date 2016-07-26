@@ -44,6 +44,9 @@ NUM_SPACES_PER_LEVEL = 4
 # from setVariables(), not mathExpr().
 varTypes = {}
 
+# A global dictionary mapping scratch variable names to the name chosen
+# by convertToJavaID or the user.
+varNames = {}
 
 class CodeAndCb:
     """This class binds together code, and possibly code that that code
@@ -845,7 +848,7 @@ def setVariable(level, tokens):
     global spriteName, worldClassName
     global varTypes
 
-    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    varType, isGlobal = getTypeAndLocalGlobal(varNames[tokens[1]])
     if varType == 'Boolean':
         val = boolExpr(tokens[2])
     elif varType in ('Int', 'Double'):
@@ -874,7 +877,7 @@ def readVariable(varname):
     global spriteName, worldClassName
     global varTypes
 
-    varType, isGlobal = getTypeAndLocalGlobal(varname)
+    varType, isGlobal = getTypeAndLocalGlobal(varNames[varname])
     if isGlobal:
         # Something like: ((AWorld)getWorld()).counter.get();
         return "((%s)getWorld()).%s.get()" % (worldClassName, varname)
@@ -911,7 +914,7 @@ def changeVarBy(level, tokens):
     Code will be like this:
     aVar.set(aVar.get() + 3);
     """
-    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    varType, isGlobal = getTypeAndLocalGlobal(varNames[tokens[1]])
     if isGlobal:
         # Something like:
         # ((AWorld)getWorld()).counter.set(((AWorld)getWorld()).counter.get() + 1);
@@ -1480,12 +1483,13 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         value, varType = chooseType(name, value)
         try:
             if name_resolution:
-                name = convertToJavaId(name, True, False)
+                varNames[name] = convertToJavaId(name, True, False)
             elif not convertToJavaId(name, True, False) == name:
-                name = resolveName(name)
+                varNames[name] = resolveName(name)
         except:
             print("Error converting variable to java id")
             sys.exit(0)
+        name = varNames[name]
         for aDict in allChildren:
             if aDict.get('cmd') == 'getVar:' and \
                aDict.get('param') == name and \
