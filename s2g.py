@@ -857,9 +857,9 @@ def setVariable(level, tokens):
         val = strExpr(tokens[2])
 
     if isGlobal:
-        # Something like: ((AWorld)getWorld()).counter.set(0);
-        return genIndent(level) + "((%s)getWorld()).%s.set(%s);\n" % \
-               (worldClassName, tokens[1], val)
+        # Something like: world.counter.set(0);
+        return genIndent(level) + "world.%s.set(%s);\n" % \
+               (tokens[1], val)
     else:
         return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
 
@@ -868,7 +868,7 @@ def readVariable(varname):
     """Get a variable's value from within the code.
     Generate code like this:
     var.get() or
-    ((ScratchWorld)getWorld()).varname.get()
+    world.varname.get()
 
     The variable may be sprite-specific or global.  We have to check
     both dictionaries to figure it out.
@@ -879,8 +879,8 @@ def readVariable(varname):
 
     varType, isGlobal = getTypeAndLocalGlobal(varNames[varname])
     if isGlobal:
-        # Something like: ((AWorld)getWorld()).counter.get();
-        return "((%s)getWorld()).%s.get()" % (worldClassName, varname)
+        # Something like: world.counter.get();
+        return "world.%s.get()" % (varname)
     else:
         return varname + ".get()"
 
@@ -890,8 +890,8 @@ def hideVariable(level, tokens):
     """
     varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
     if isGlobal:
-        # Something like: ((AWorld)getWorld()).counter.hide();
-        return genIndent(level) + "((%s)getWorld()).%s.hide();\n" % \
+        # Something like: world.counter.hide();
+        return genIndent(level) + "world.%s.hide();\n" % \
                (worldClassName, tokens[1])
     else:
         return genIndent(level) + tokens[1] + ".hide();\n"
@@ -902,9 +902,9 @@ def showVariable(level, tokens):
     """
     varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
     if isGlobal:
-        # Something like: ((AWorld)getWorld()).counter.show();
-        return genIndent(level) + "((%s)getWorld()).%s.show();\n" % \
-               (worldClassName, tokens[1])
+        # Something like: world.counter.show();
+        return genIndent(level) + "world.%s.show();\n" % \
+               (tokens[1])
     else:
         return genIndent(level) + tokens[1] + ".show();\n"
 
@@ -917,11 +917,10 @@ def changeVarBy(level, tokens):
     varType, isGlobal = getTypeAndLocalGlobal(varNames[tokens[1]])
     if isGlobal:
         # Something like:
-        # ((AWorld)getWorld()).counter.set(((AWorld)getWorld()).counter.get() + 1);
+        # world.counter.set(world.counter.get() + 1);
         return genIndent(level) + \
-               "((%s)getWorld()).%s.set(((%s)getWorld()).%s.get() + %s);\n" % \
-               (worldClassName, tokens[1],
-                worldClassName, tokens[1], mathExpr(tokens[2]))
+               "world.%s.set(world.%s.get() + %s);\n" % \
+               (tokens[1], tokens[1], mathExpr(tokens[2]))
     else:
         return genIndent(level) + tokens[1] + ".set(" + \
                tokens[1] + ".get() + " + mathExpr(tokens[2]) + ");\n"
@@ -1470,8 +1469,10 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     if spriteName == "Stage":
         initCode = "\n" + genIndent(2) + "// Variable initializations.\n"
     else:
-        initCode =  "\n" + genIndent(1) + "public void addedToWorld(World world)\n"
+        initCode = "\n" + genIndent(1) + "private " + worldClassName + " world;"
+        initCode +=  "\n" + genIndent(1) + "public void addedToWorld(World w)\n"
         initCode += genIndent(1) + "{\n"
+        initCode += genIndent(2) + "world = (" + worldClassName + ")w;\n"
         initCode += genIndent(2) + "// Variable initializations.\n"
 
     for var in listOfVars:  # var is a dictionary.
@@ -1806,6 +1807,15 @@ for spr in sprites:
             defnCode, addedToWorldCode = \
                       genVariablesDefnCode(spr['variables'], spriteName,
                                            data['children'])
+        else:
+            # Default "addedToWorld" code to simplify getting/setting variables
+            addedToWorldCode = genIndent(1) + "private " + worldClassName + " world;\n"
+            addedToWorldCode += genIndent(1) + "public void addedToWorld(World w)\n"
+            addedToWorldCode += genIndent(1) + "{\n"
+            addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ")w;\n"
+            addedToWorldCode += genIndent(2) + "// What should happen when the sprite is added to the world\n"
+            addedToWorldCode += genIndent(1) + "}\n"
+            
 
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
