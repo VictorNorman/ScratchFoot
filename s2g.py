@@ -1933,6 +1933,9 @@ outFile.write(genIndent(1) + "// that Scratch draws on to, instead of drawing on
 outFile.write(genIndent(1) + "// on the greenfoot image.  This way we can switch \n")
 outFile.write(genIndent(1) + "// backgrounds and keep the stuff that has been drawn.\n")
 outFile.write(genIndent(1) + "static public GreenfootImage getBackground() { return bgImg; }\n")
+outFile.write(genIndent(1) + "private " + worldClassName + " world;\n")
+outFile.write(genIndent(1) + "public void addedToWorld(" + worldClassName +\
+                             " w) { world = (" + worldClassName + ")w; }\n")
 
 outFile.write("}\n")
 outFile.close()
