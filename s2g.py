@@ -83,16 +83,25 @@ def execOrDie(cmd, descr):
 
 
 def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
-    """Convert the given string s to a legal java identifier,
+    """Convert the given string id to a legal java identifier,
     by removing all non-alphanumeric characters (spaces,
     pound signs, etc.).  If noLeadingNumber is true, then
     convert a leading digit to its corresponding name.
     """
     res = ""
     # Drop everything except letters and numbers.
+    # Upper case letters in the middle that follow a space,
+    # so that we get CamelCase-like results.
+    lastWasSpace = False
     for ch in id:
-        if ch.isalpha() or ch.isdigit():
+        if ch.isspace():
+            lastWasSpace = True
+        elif ch.isalpha() or ch.isdigit():
+            if lastWasSpace:
+                ch = ch.upper()		# does nothing if isdigit.
+                lastWasSpace = False
             res += ch
+                
 
     # Look to see if res starts with a digit.
     if noLeadingNumber and res[0].isdigit():
@@ -1391,7 +1400,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                 print("\n\nWhat type of variable should \"" + name + "\": " + str(val) + " be?")
                 type = input("\tInt: A number that won't have decimals\n\tDouble:" + \
                              " A number that can have decimals\n\tString: Text or letters\n" + \
-                             "This varaible looks like: " + typechosen +\
+                             "This variable looks like: " + typechosen +\
                              "\nPress enter without typing anything to use suggested type\n>").capitalize()
                 # Try to convert the value to the chosen type, only the first character needs to be entered
                 if type[0] == 'I':
