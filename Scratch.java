@@ -2127,7 +2127,9 @@ public class Scratch extends Actor
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
-        
+        if (!isShowing) {
+            return false;
+        }
         GreenfootImage im = getCurrImage();
         int height = im.getHeight();
         int width = im.getWidth();
@@ -2147,6 +2149,9 @@ public class Scratch extends Actor
 
         for (Actor anbr: nbrs) {
             Scratch nbr = (Scratch) anbr;
+            if (!nbr.isShowing()) {
+                continue;
+            }
             System.out.println("isTouching: top of loop");
         
             int ocx = nbr.getX() - (nbr.getCurrImage().getWidth()/2);
