@@ -2148,8 +2148,7 @@ public class Scratch extends Actor
         double cos = Math.cos(Math.toRadians(getRotation()));
         double sin = Math.sin(Math.toRadians(getRotation()));
 
-        for (Scratch anbr: nbrs) {
-            Scratch nbr = anbr;
+        for (Scratch nbr: nbrs) {
             if (!nbr.isShowing()) {
                 continue;
             }
