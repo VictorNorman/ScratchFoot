@@ -1934,8 +1934,7 @@ outFile.write(genIndent(1) + "// on the greenfoot image.  This way we can switch
 outFile.write(genIndent(1) + "// backgrounds and keep the stuff that has been drawn.\n")
 outFile.write(genIndent(1) + "static public GreenfootImage getBackground() { return bgImg; }\n")
 outFile.write(genIndent(1) + "private " + worldClassName + " world;\n")
-outFile.write(genIndent(1) + "public void addedToWorld(" + worldClassName +\
-                             " w) { world = (" + worldClassName + ")w; }\n")
+outFile.write(genIndent(1) + "public void addedToWorld(World w) { world = (" + worldClassName + ")w; }\n")
 
 outFile.write("}\n")
 outFile.close()
