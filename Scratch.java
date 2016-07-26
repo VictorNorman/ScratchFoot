@@ -2124,6 +2124,9 @@ public class Scratch extends Actor
            the images' bounding boxes overlap.  */
         java.lang.Class clazz = other.getClass();
         List<Scratch> nbrs = getIntersectingActors(clazz);
+        if (nbrs.isEmpty()) {
+            return false;
+        }
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
@@ -2144,16 +2147,12 @@ public class Scratch extends Actor
         // calculate rotation unit vectors
         double cos = Math.cos(Math.toRadians(getRotation()));
         double sin = Math.sin(Math.toRadians(getRotation()));
-           
-        System.out.println("isTouching: # intersecting neighbors: " + nbrs.size());
 
-        for (Actor anbr: nbrs) {
-            Scratch nbr = (Scratch) anbr;
+        for (Scratch anbr: nbrs) {
+            Scratch nbr = anbr;
             if (!nbr.isShowing()) {
                 continue;
             }
-            System.out.println("isTouching: top of loop");
-        
             int ocx = nbr.getX() - (nbr.getCurrImage().getWidth()/2);
             int ocy = nbr.getY() + (nbr.getCurrImage().getHeight()/2);
             // Calculate the other's rotation unit vectors
@@ -2208,14 +2207,12 @@ public class Scratch extends Actor
                     }
                     pixel = nbr.getCurrImage().getAwtImage().getRGB(ox, oy);
                     if ((pixel >> 24) != 0x00) {
-                        System.out.println("isTouching: return true");
                         return true;
                     }
                 }
             }
         }
         // No pixels in any of the intersecting neighbors overlap.
-        System.out.println("isTouching: return false");
         return false;
     }
 
@@ -2673,17 +2670,31 @@ public class Scratch extends Actor
      * Determines whether two objects have intersecting bounding boxes
      */
     public boolean intersects(Scratch other) {
+        
         int w = getCurrImage().getWidth()/2;
         int h = getCurrImage().getHeight()/2;
         int ow = other.getCurrImage().getWidth()/2;
         int oh = other.getCurrImage().getHeight()/2;
+        // 1st rectangle's lower left point coords
+        int l1x = getX() - w;
+        int l1y = getY() - h;
+        // 1st rect's upper left point
+        int r1x = getX() + w;
+        int r1y = getY() + h;
+        // 2nd rect's lower left
+        int l2x = other.getX() - ow;
+        int l2y = other.getY() - oh;
+        // 2nd rect's upper right
+        int r2x = other.getX() + ow;
+        int r2y = other.getY() + oh;
         
-        if (getX() + w > other.getX() - ow || getX() - w > other.getX() + w) {
-            if (getY() + h > other.getY() - oh || getY() - h > other.getY() + h) {
-                return true;
-            }
+        if (l1x> r2x || l2x > r1x) {
+            return false;
         }
-        return false;
+        if (l1y > r2y || l2y > r1y) {
+            return false;
+        }
+        return true;
     }
     
     /**
