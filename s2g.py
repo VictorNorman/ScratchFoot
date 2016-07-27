@@ -775,7 +775,22 @@ def goBackNLayers(level, tokens):
     assert cmd == "goBackByLayers:"
     return genIndent(level) + "goBackNLayers((int) " + mathExpr(arg1) + ");\n"
 
-
+def changeGraphicBy(level, tokens):
+    cmd, arg1, arg2 = tokens
+    assert(cmd == "changeGraphicEffect:by:")
+    if arg1 == "ghost":
+        return genIndent(level) + "changeGhostEffectBy(" + mathExpr(arg2) + ");\n"
+    else:
+        return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
+    
+def setGraphicTo(level, tokens):
+    cmd, arg1, arg2 = tokens
+    assert(cmd == "setGraphicEffect:to:")
+    if arg1 == "ghost":
+        return genIndent(level) + "setGhostEffectTo(" + mathExpr(arg2) + ");\n"
+    else:
+        return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
+    
 def pen0Arg(level, tokens):
     """Generate code to handle Pen blocks with 0 arguments"""
     assert len(tokens) == 1
@@ -1189,6 +1204,8 @@ scratchStmt2genCode = {
     'comeToFront': goToFront,
     'goBackByLayers:': goBackNLayers,
     'nextScene': nextBackdrop,
+    'changeGraphicEffect:by:':changeGraphicBy,
+    'setGraphicEffect:to:':setGraphicTo,
 
     # Pen commands
     'clearPenTrails': pen0Arg,
