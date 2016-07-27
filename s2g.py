@@ -400,6 +400,10 @@ def mathExpr(tokenOrList):
         return getAttributeOf(tok1, tok2)
     else:
         assert op in ('+', '-', '*', '/', '%')
+    
+    if op == '%':
+        resStr = "Math.floorMod(" + mathExpr(tok1) + ", " + mathExpr(tok2) + ")"
+        return resStr
 
     resStr = "(" + mathExpr(tok1)
     if op == '+':
@@ -410,8 +414,6 @@ def mathExpr(tokenOrList):
         resStr += " * "
     elif op == '/':
         resStr += " / "		# TODO: handle floating pt/int div.
-    elif op == '%':
-        resStr += " % "
     else:
         raise ValueError(op)
     resStr += mathExpr(tok2) + ")"
