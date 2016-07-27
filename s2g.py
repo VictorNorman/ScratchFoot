@@ -687,8 +687,8 @@ def glideTo(level, tokens):
     Format of the cmd is: ["glideSecs:toX:y:elapsed:from:", time, x, y]
     """
     cmd, time, x, y = tokens
-    return genIndent(level) + "glideTo(s, %s, %d, %d);\n" % \
-           (mathExpr(time), x, y)
+    return genIndent(level) + "glideTo(s, %s, %s, %s);\n" % \
+           (mathExpr(time), mathExpr(x), mathExpr(y))
 
 def sayForSecs(level, tokens):
     """Generate code to handle say <str> for <n> seconds.
@@ -859,9 +859,9 @@ def setVariable(level, tokens):
     if isGlobal:
         # Something like: world.counter.set(0);
         return genIndent(level) + "world.%s.set(%s);\n" % \
-               (tokens[1], val)
+               (varNames[tokens[1]], val)
     else:
-        return genIndent(level) + tokens[1] + ".set(" + val + ");\n"
+        return genIndent(level) + varNames[tokens[1]] + ".set(" + val + ");\n"
 
 
 def readVariable(varname):
@@ -880,9 +880,9 @@ def readVariable(varname):
     varType, isGlobal = getTypeAndLocalGlobal(varNames[varname])
     if isGlobal:
         # Something like: world.counter.get();
-        return "world.%s.get()" % (varname)
+        return "world.%s.get()" % (varNames[varname])
     else:
-        return varname + ".get()"
+        return varNames[varname] + ".get()"
 
 
 def hideVariable(level, tokens):
@@ -892,9 +892,9 @@ def hideVariable(level, tokens):
     if isGlobal:
         # Something like: world.counter.hide();
         return genIndent(level) + "world.%s.hide();\n" % \
-               (worldClassName, tokens[1])
+               (varNames[tokens[1]])
     else:
-        return genIndent(level) + tokens[1] + ".hide();\n"
+        return genIndent(level) + varNames[tokens[1]] + ".hide();\n"
 
 
 def showVariable(level, tokens):
@@ -904,9 +904,9 @@ def showVariable(level, tokens):
     if isGlobal:
         # Something like: world.counter.show();
         return genIndent(level) + "world.%s.show();\n" % \
-               (tokens[1])
+               (varNames[tokens[1]])
     else:
-        return genIndent(level) + tokens[1] + ".show();\n"
+        return genIndent(level) + varNames[tokens[1]] + ".show();\n"
 
 
 def changeVarBy(level, tokens):
@@ -920,10 +920,10 @@ def changeVarBy(level, tokens):
         # world.counter.set(world.counter.get() + 1);
         return genIndent(level) + \
                "world.%s.set(world.%s.get() + %s);\n" % \
-               (tokens[1], tokens[1], mathExpr(tokens[2]))
+               (varNames[tokens[1]], varNames[tokens[1]], mathExpr(tokens[2]))
     else:
-        return genIndent(level) + tokens[1] + ".set(" + \
-               tokens[1] + ".get() + " + mathExpr(tokens[2]) + ");\n"
+        return genIndent(level) + varNames[tokens[1]] + ".set(" + \
+               varNames[tokens[1]] + ".get() + " + mathExpr(tokens[2]) + ");\n"
 
 def broadcast(level, tokens):
     """Generate code to handle sending a broacast message.
@@ -1087,6 +1087,7 @@ def genProcDefCode(codeObj, tokens):
         idx += 1
     # Trim off any trailing spaces in blockName
     blockName = blockName.strip()
+    blockName = convertToJavaId(blockName, True, False)
 
     # Now, scanning through %? and words, which we'll drop for now.
     while idx < len(blockAndParamTypes):
@@ -1131,11 +1132,11 @@ def callABlock(level, tokens):
     firstPercent = func2Call.find("%")
     if firstPercent == -1:
         assert len(tokens) == 2    # just "call" and "blockToCall"
-        return genIndent(level) + func2Call + "();\n"
+        return genIndent(level) + convertToJavaId(func2Call, True, False) + "();\n"
     func2Call = func2Call[0:firstPercent]
     func2Call = func2Call.strip()	# remove trailing blanks.
 
-    resStr = genIndent(level) + func2Call + "("
+    resStr = genIndent(level) + convertToJavaId(func2Call, True, False) + "("
     for i in range(2, len(tokens) - 1):
         resStr += mathExpr(tokens[i]) + ", "
     resStr += mathExpr(tokens[-1]) + ");\n"
@@ -1487,6 +1488,8 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                 varNames[name] = convertToJavaId(name, True, False)
             elif not convertToJavaId(name, True, False) == name:
                 varNames[name] = resolveName(name)
+            else:
+                varNames[name] = convertToJavaId(name, True, False)
         except:
             print("Error converting variable to java id")
             sys.exit(0)
