@@ -774,6 +774,9 @@ public class Scratch extends Actor
         currDirection = other.currDirection;
         lastMouseX = other.lastMouseX;
         lastMouseY = other.lastMouseY;
+        lastImg = other.lastImg;
+        
+        name = other.name;
 
         rotationStyle = other.rotationStyle;
 
@@ -2779,37 +2782,7 @@ public class Scratch extends Actor
      * --------------------------------------------------------------
      */
 
-    public String join(String a, String b) { return a + b; }
-
-    public String join(String a, int b) { return a + b; }
-
-    public String join(String a, double b) { return a + b; }
-
-    public String join(String a, float b) { return a + b; }
-
-    public String join(int a, String b) { return Integer.toString(a) + b; }
-
-    public String join(double a, String b) { return Double.toString(a) + b; }
-
-    public String join(float a, String b) { return Float.toString(a) + b; }
-
-    public String join(int a, int b) { return Integer.toString(a) + Integer.toString(b); }
-
-    public String join(double a, double b) { return Double.toString(a) + Double.toString(b); }
-
-    public String join(float a, float b) { return Float.toString(a) + Float.toString(b); }
-
-    public String join(int a, double b) { return Integer.toString(a) + Double.toString(b); }
-
-    public String join(int a, float b) { return Integer.toString(a) + Float.toString(b); }
-
-    public String join(float a, int b) { return Float.toString(a) + Integer.toString(b); }
-
-    public String join(double a, int b) { return Double.toString(a) + Integer.toString(b); }
-
-    public String join(float a, double b) { return Float.toString(a) + Double.toString(b); }
-
-    public String join(double a, float b) { return Double.toString(a) + Float.toString(b); }
+    public String join(Object a, Object b) { return a.toString() + b.toString(); }
 
     public String letterNOf(String s, int n) 
     {
