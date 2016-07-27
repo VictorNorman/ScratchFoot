@@ -1811,6 +1811,7 @@ public class Scratch extends Actor
         if (!isShowing) {
             sayActor.hide();
         }
+        getWorld().moveClassToFront(sayActor.getClass());
     }
 
     /**
@@ -1829,6 +1830,7 @@ public class Scratch extends Actor
         if (!isShowing) {
             sayActor.hide();
         }
+        getWorld().moveClassToFront(sayActor.getClass());
 
         wait(s, duration);
 
