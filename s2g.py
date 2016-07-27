@@ -1474,6 +1474,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
         initCode +=  "\n" + genIndent(1) + "public void addedToWorld(World w)\n"
         initCode += genIndent(1) + "{\n"
         initCode += genIndent(2) + "world = (" + worldClassName + ")w;\n"
+        initCode += genIndent(2) + "super.addedToWorld(w);\n";
         initCode += genIndent(2) + "// Variable initializations.\n"
 
     for var in listOfVars:  # var is a dictionary.
@@ -1816,6 +1817,7 @@ for spr in sprites:
             addedToWorldCode += genIndent(1) + "public void addedToWorld(World w)\n"
             addedToWorldCode += genIndent(1) + "{\n"
             addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ")w;\n"
+            addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n"
             addedToWorldCode += genIndent(2) + "// What should happen when the sprite is added to the world\n"
             addedToWorldCode += genIndent(1) + "}\n"
             
@@ -1937,7 +1939,8 @@ outFile.write(genIndent(1) + "// on the greenfoot image.  This way we can switch
 outFile.write(genIndent(1) + "// backgrounds and keep the stuff that has been drawn.\n")
 outFile.write(genIndent(1) + "static public GreenfootImage getBackground() { return bgImg; }\n")
 outFile.write(genIndent(1) + "private " + worldClassName + " world;\n")
-outFile.write(genIndent(1) + "public void addedToWorld(World w) { world = (" + worldClassName + ")w; }\n")
+outFile.write(genIndent(1) + "public void addedToWorld(World w) {\nworld = (" + worldClassName +
+                             ")w;\n super.addedToWorld(w);\n}\n")
 
 outFile.write("}\n")
 outFile.close()
