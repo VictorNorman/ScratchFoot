@@ -186,7 +186,7 @@ def boolExpr(tokenList):
         resStr += boolExpr(tokenList[2]) + ")"
     elif firstOp == 'not':
         assert len(tokenList) == 2
-        resStr += "! " + boolExpr(tokenList[1])
+        resStr += "(! " + boolExpr(tokenList[1]) + ")"
     elif firstOp in ('<', '>', '='):
         assert len(tokenList) == 3
         resStr += "(" + mathExpr(tokenList[1])
