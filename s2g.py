@@ -1124,8 +1124,11 @@ def genProcDefCode(codeObj, tokens):
         # eat up everything else.
         idx += 1
     assert len(paramTypes) == len(paramNames)
-
-    codeObj.addToCbCode(genIndent(1) + "private void " + blockName + "(")
+    
+    if len(paramTypes) == 0:
+        codeObj.addToCbCode(genIndent(1) + "private void " + blockName + "(Sequence s")
+    else:
+        codeObj.addToCbCode(genIndent(1) + "private void " + blockName + "(Sequence s, ")
 
     for i in range(len(paramTypes)):
         codeObj.addToCbCode(paramTypes[i] + " " + paramNames[i])
@@ -1149,11 +1152,11 @@ def callABlock(level, tokens):
     firstPercent = func2Call.find("%")
     if firstPercent == -1:
         assert len(tokens) == 2    # just "call" and "blockToCall"
-        return genIndent(level) + convertToJavaId(func2Call, True, False) + "();\n"
+        return genIndent(level) + convertToJavaId(func2Call, True, False) + "(s);\n"
     func2Call = func2Call[0:firstPercent]
     func2Call = func2Call.strip()	# remove trailing blanks.
 
-    resStr = genIndent(level) + convertToJavaId(func2Call, True, False) + "("
+    resStr = genIndent(level) + convertToJavaId(func2Call, True, False) + "(s, "
     for i in range(2, len(tokens) - 1):
         resStr += mathExpr(tokens[i]) + ", "
     resStr += mathExpr(tokens[-1]) + ");\n"
