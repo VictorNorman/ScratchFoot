@@ -778,6 +778,8 @@ public class Scratch extends Actor
         currDirection = other.currDirection;
         lastMouseX = other.lastMouseX;
         lastMouseY = other.lastMouseY;
+        subX = other.subX;
+        subY = other.subY;
         lastImg = other.lastImg;
         
         name = other.name;
