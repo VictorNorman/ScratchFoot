@@ -1702,7 +1702,9 @@ for f in files2Copy:
         execOrDie("convert -resize 480x360 " + f + " " + dest,
               "copy and resize png file")
     else:
-        shutil.copy2(f, imagesDir)
+        dest = os.path.join(imagesDir, os.path.basename(f))
+        execOrDie("convert -resize 50% " + f + " " + dest,
+              "copy and resize png file")
 
 # Convert svg images files to png files in the images dir.
 files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
