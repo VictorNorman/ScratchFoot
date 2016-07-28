@@ -571,8 +571,13 @@ public class Scratch extends Actor
                 } else {
                     // System.out.println("addedToWorld is FALSE: var, xLoc, yLoc = " + text + " " + xLoc + " " + yLoc);
                 }
-
-                String dispStr = text + value;
+                Object v;
+                if (value instanceof Double) {
+                    v = new java.text.DecimalFormat("#.######").format((Double)value);
+                } else {
+                    v = value;
+                }
+                String dispStr = text + v;
                 int stringLength = (dispStr.length() + 2) * 7;
                 // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength, 20);
@@ -581,11 +586,11 @@ public class Scratch extends Actor
                 image.fill();
                 // Create orange background under the variable's value.
                 image.setColor(Color.decode("#EE7D16"));
-                image.fillRect((int) ((text.length() + 1 )* 7), 3, ((value + "").length()) * 7 + 3, 15);
+                image.fillRect((int) ((text.length() + 1 )* 7), 3, ((v + "").length()) * 7 + 3, 15);
 
                 image.setColor(textColor);
                 // System.out.println("Variable.updateImage: creating with value " + text + " " + value);
-                image.drawString(text + " " + value, 1, 15);
+                image.drawString(text + " " + v, 1, 15);
                 setImage(image);
 
                 // Because the size of the image may have changed (to accommodate a longer
