@@ -1339,6 +1339,13 @@ public class Scratch extends Actor
      * Motion commands.
      * ---------------------------------------------------------------------
      */
+    
+    /**
+     * Override for Greenfoot method. Call the general method.
+     */
+    public void move(int distance) {
+        move(new Double(distance));
+    }
 
     /**
      * move the given distance in the direction the sprite is facing.
