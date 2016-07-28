@@ -1343,7 +1343,7 @@ public class Scratch extends Actor
     /**
      * move the given distance in the direction the sprite is facing.
      */
-    public void move(int distance) 
+    public void move(Number distance) 
     {
         int oldX = super.getX();
         int oldY = super.getY();
@@ -1359,8 +1359,8 @@ public class Scratch extends Actor
         double radians = Math.toRadians(GFdir);
 
         // Calculate the cartesian movement from polar
-        double dx = (Math.cos(radians) * distance);
-        double dy = (Math.sin(radians) * distance);
+        double dx = (Math.cos(radians) * distance.doubleValue());
+        double dy = (Math.sin(radians) * distance.doubleValue());
 
         // Update subpixel locations with the decimal portion of dx and dy
         subX += dx % 1;
@@ -1392,20 +1392,20 @@ public class Scratch extends Actor
     /**
      * glide the sprite to the given x, y coordinates over the given time period.
      */
-    public void glideTo(Sequence s, double duration, int x, int y)
+    public void glideTo(Sequence s, Number duration, Number x, Number y)
     {
-        if (duration < .02) {
+        if (duration.doubleValue() < .02) {
             goTo(x, y);
             return;
         }
-        duration *= 1000.0;   // convert to milliseconds.
+        duration = 1000.0 * duration.doubleValue();   // convert to milliseconds.
         int begX = super.getX();  // get original X, Y in Greenfoot coordinates
         int begY = super.getY();
-        int endX = translateToGreenfootX(x);   // get end destination in GF coordinates.
-        int endY = translateToGreenfootY(y);
+        int endX = translateToGreenfootX(x.intValue());   // get end destination in GF coordinates.
+        int endY = translateToGreenfootY(y.intValue());
         // System.out.println("glideTo: beg " + begX + ", " + begY + " end " + endX + ", " + endY);
         double begTime = System.currentTimeMillis();
-        double endTime = begTime + duration;
+        double endTime = begTime + duration.doubleValue();
         double currTime;
         while ((currTime = System.currentTimeMillis()) < endTime) {
             try {
@@ -1414,7 +1414,7 @@ public class Scratch extends Actor
                 ie.printStackTrace();
             }
             // Compute how far along we are in the duration time.
-            double diff = (currTime - begTime) / duration;
+            double diff = (currTime - begTime) / duration.doubleValue();
             int newX = begX + (int) ((endX - begX) * diff);
             int newY = begY + (int) ((endY - begY) * diff);
             goToGF(newX, newY);
@@ -1425,13 +1425,15 @@ public class Scratch extends Actor
      * move the sprite to the location on the screen, where (0, 0) is the center and x increases
      * to the right and y increases up.
      */
-    public void goTo(int x, int y) 
+    public void goTo(Number x, Number y) 
     {
-        int newX = translateToGreenfootX(x);
-        int newY = translateToGreenfootY(y);
+        int newX = translateToGreenfootX(x.intValue());
+        int newY = translateToGreenfootY(y.intValue());
         // Call goToGF() which assumes greenfoot coordinates.
         // System.out.println("goTo: got x, y = " + x + ", " + y + " which are " + newX + ", " + newY);
         goToGF(newX, newY);
+        subX = x.doubleValue() % 1;
+        subY = y.doubleValue() % 1;
     }
 
     /**
@@ -1476,55 +1478,38 @@ public class Scratch extends Actor
     /**
      * set the sprite's x position.  (left or right)
      */
-    public void setXTo(int x) { 
-        goTo(x, getY()); 
+    public void setXTo(Number x) { 
+        goTo(x.doubleValue(), getY()); 
     }
 
     /**
      * set the sprite's y position.  (up or down)
      */
-    public void setYTo(int y) 
+    public void setYTo(Number y) 
     { 
-        goTo(getX(), y); 
-    }
-
-    /**
-     * change the x position of the sprite by the given value.
-     */
-    public void changeXBy(int val) 
-    { 
-        goTo(getX() + val, getY()); 
+        goTo(getX(), y.doubleValue()); 
     }
     
     /**
      * change the x position of the sprite by the given value.
      */
-    public void changeXBy(double val) 
+    public void changeXBy(Number val) 
     { 
-        goTo(getX() + (int)val, getY()); 
-        subX += val % 1;
+        goTo(getX() + val.intValue(), getY()); 
+        subX += val.doubleValue() % 1;
         if (Math.abs(subX) > 1) {
             changeXBy((int) subX);
             subX %= 1;
         }
     }
-
-    /**
-     * change the y position of the sprite by the given value.
-     */
-    // subtract val from y since y increases upward in Scratch
-    public void changeYBy(int val) 
-    { 
-        goTo(getX(), getY() + val); 
-    }
     
     /**
      * change the y position of the sprite by the given value.
      */
-    public void changeYBy(double val) 
+    public void changeYBy(Number val) 
     { 
-        goTo(getX(), getY() + (int)val); 
-        subY += val % 1;
+        goTo(getX(), getY() + val.intValue()); 
+        subY += val.doubleValue() % 1;
         if (Math.abs(subY) > 1) {
             changeXBy((int) subY);
             subY %= 1;
@@ -1534,16 +1519,16 @@ public class Scratch extends Actor
     /**
      * turn the sprite clockwise by the given degrees.
      */
-    public void turnRightDegrees(int degrees) {
-        currDirection += degrees;
+    public void turnRightDegrees(Number degrees) {
+        currDirection += degrees.intValue();
         setRotation(currDirection);
     }
 
     /**
      * turn the sprite counter-clockwise by the given degrees.
      */
-    public void turnLeftDegrees(int degrees) { 
-        currDirection -= degrees;
+    public void turnLeftDegrees(Number degrees) { 
+        currDirection -= degrees.intValue();
         setRotation(currDirection);
     }
 
@@ -1551,9 +1536,9 @@ public class Scratch extends Actor
      * point the sprite in the given direction.  0 is up, 
      * 90 is to the right, -90 to the left, 180 is down.
      */
-    public void pointInDirection(int dir) 
+    public void pointInDirection(Number dir) 
     {
-        currDirection = dir;
+        currDirection = dir.intValue();
         setRotation(currDirection);
     }
 
@@ -1828,7 +1813,7 @@ public class Scratch extends Actor
     /**
      * display the given string for <n> seconds next to the sprite.
      */
-    public void sayForNSeconds(Sequence s, String str, double duration)
+    public void sayForNSeconds(Sequence s, String str, Number duration)
     {
         GreenfootImage mySprite = getCurrImage();
 
@@ -1843,7 +1828,7 @@ public class Scratch extends Actor
         }
         getWorld().moveClassToFront(sayActor.getClass());
 
-        wait(s, duration);
+        wait(s, duration.doubleValue());
 
         getWorld().removeObject(sayActor);
         sayActor = null;
@@ -2003,9 +1988,9 @@ public class Scratch extends Actor
     /**
      * change the size of this sprite by the given percent.
      */
-    public void changeSizeBy(int percent)
+    public void changeSizeBy(Number percent)
     {
-        setSizeTo(costumeSize + percent);
+        setSizeTo(costumeSize + percent.intValue());
     }
 
     /**
@@ -2064,9 +2049,9 @@ public class Scratch extends Actor
     /**
      * Set the sprite size to a percentage of the original size.
      */
-    public void setSizeTo(int percent)
+    public void setSizeTo(Number percent)
     {
-        float perc = percent / 100.0F;
+        float perc = percent.floatValue() / 100.0F;
         // Take the original image and make a new copy of it.
         GreenfootImage img = new GreenfootImage(costumesCopy.get(currCostume));
         // System.out.println("sst: Making copy of the costumesCopy and scaling it.");
@@ -2078,7 +2063,7 @@ public class Scratch extends Actor
         Costume tempCost = new Costume(img, costumes.get(currCostume).name);
         costumes.set(currCostume, tempCost);
         displayCostume();
-        costumeSize = percent;
+        costumeSize = percent.intValue();
 
         /*System.out.println("sst: item from getImage is " + System.identityHashCode(getImage()));
         System.out.println("sst: item in costumes array is " + System.identityHashCode(costumes.get(currCostume)));
@@ -2797,9 +2782,9 @@ public class Scratch extends Actor
      * is running at: it tries to wait exactly duration seconds, regardless of how fast
      * the speed is set.
      */
-    public void wait(Sequence s, double duration) 
+    public void wait(Sequence s, Number duration) 
     {
-        double endTime = System.currentTimeMillis() + duration * 1000.0;
+        double endTime = System.currentTimeMillis() + duration.doubleValue() * 1000.0;
         while (System.currentTimeMillis() < endTime) {
             try {
                 s.waitForNextSequence();
