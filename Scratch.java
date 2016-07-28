@@ -1972,14 +1972,14 @@ public class Scratch extends Actor
      * set the ghost effect (transparency) to a value from 0 to 100.  
      * 0 is fully visible; 100 is completely invisible.
      */
-    public void setGhostEffectTo(int amount)
+    public void setGhostEffectTo(Number amount)
     {
-        if (amount < 0) {
+        if (amount.intValue() < 0) {
             amount = 0;
         } else if (amount > 100) {
             amount = 100;
         }
-        ghostEffect = amount;
+        ghostEffect = amount.intValue();
         displayCostume();
     }
 
@@ -1987,9 +1987,9 @@ public class Scratch extends Actor
      * change the ghost effect (transparency) by the given amount.
      * 0 is full visible; 100 is fully invisible.
      */
-    public void changeGhostEffectBy(int amount)
+    public void changeGhostEffectBy(Number amount)
     {
-        setGhostEffectTo(ghostEffect + amount);
+        setGhostEffectTo(ghostEffect + amount.intValue());
     }
 
     /**
@@ -2801,10 +2801,6 @@ public class Scratch extends Actor
         }
     }
 
-    public void wait(Sequence s, int duration) {  wait(s, (double) duration); }
-
-    public void wait(Sequence s, float duration) {  wait(s, (double) duration); }
-
     /*
      * --------------------------------------------------------------
      * Operator Blocks
@@ -2813,8 +2809,9 @@ public class Scratch extends Actor
 
     public String join(Object a, Object b) { return a.toString() + b.toString(); }
 
-    public String letterNOf(String s, int n) 
+    public String letterNOf(Object o, int n) 
     {
+        String s = o.toString();
         if (n < 0) {
             return "";
         }
@@ -2824,22 +2821,11 @@ public class Scratch extends Actor
         return "" + s.charAt(n);
     }
 
-    public String letterNOf(int i, int n) { return letterNOf(Integer.toString(i), n); }
-
-    public String letterNOf(double d, int n) { return letterNOf(Double.toString(d), n); }
-
-    public String letterNOf(float f, int n) { return letterNOf(Float.toString(f), n); }
-
-    public int lengthOf(String s) 
+    public int lengthOf(Object o) 
     {
+        String s = o.toString();
         return s.length();
     }
-
-    public int lengthOf(int i) { return lengthOf(Integer.toString(i)); }
-
-    public int lengthOf(double d) { return lengthOf(Double.toString(d)); }
-
-    public int lengthOf(float f) { return lengthOf(Float.toString(f)); }
 
     /**
      * return a random number between low and high, inclusive (for both).
