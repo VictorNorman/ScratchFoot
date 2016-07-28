@@ -291,7 +291,11 @@ def mathExpr(tokenOrList):
         # This is to cover cases like if you have (in Scratch) x position <
         # 0: Scratch give us "0" in the json.
         # (Convert to str() because everything we return is a str.)
-        return str(int(tokenOrList))
+        try:
+            return str(int(tokenOrList))
+        except ValueError:
+            # The literal value is not an integer, so it should be a float
+            return str(float(tokenOrList))
 
     if not isinstance(tokenOrList, list):
         # It is NOT an expression and not a string (handled above).
@@ -905,7 +909,7 @@ def readVariable(varname):
 def hideVariable(level, tokens):
     """Generate code to hide a variable.
     """
-    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    varType, isGlobal = getTypeAndLocalGlobal(varNames[tokens[1]])
     if isGlobal:
         # Something like: world.counter.hide();
         return genIndent(level) + "world.%s.hide();\n" % \
@@ -917,7 +921,7 @@ def hideVariable(level, tokens):
 def showVariable(level, tokens):
     """Generate code to hide a variable.
     """
-    varType, isGlobal = getTypeAndLocalGlobal(tokens[1])
+    varType, isGlobal = getTypeAndLocalGlobal(varNames[tokens[1]])
     if isGlobal:
         # Something like: world.counter.show();
         return genIndent(level) + "world.%s.show();\n" % \
