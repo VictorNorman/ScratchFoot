@@ -651,6 +651,7 @@ public class ScratchWorld extends World
         }
 
         public Integer get() { return (Integer) super.get(); }
+        public void set(Number newVal) { super.set(newVal.intValue()); }
     }
     public class StringVar extends Variable {
 
@@ -659,6 +660,7 @@ public class ScratchWorld extends World
         }
 
         public String get() { return (String) super.get(); }
+        public void set(Object newVal) { super.set(newVal.toString()); }
     }
     public class DoubleVar extends Variable {
 
@@ -667,6 +669,7 @@ public class ScratchWorld extends World
         }
 
         public Double get() { return (Double) super.get(); }
+        public void set(Number newVal) { super.set(newVal.doubleValue()); }
     }
     public class BooleanVar extends Variable {
 
@@ -675,6 +678,7 @@ public class ScratchWorld extends World
         }
 
         public Boolean get() { return (Boolean) super.get(); }
+        public void set(Object newVal) { super.set((Boolean) newVal); }
     }
 
     /**

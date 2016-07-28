@@ -633,7 +633,7 @@ public class Scratch extends Actor
         }
 
         public Integer get() { return (Integer) super.get(); }
-        public void set(Object newVal) { super.set((Integer) newVal); }
+        public void set(Number newVal) { super.set(newVal.intValue()); }
     }
     public class StringVar extends Variable {
 
@@ -642,7 +642,7 @@ public class Scratch extends Actor
         }
 
         public String get() { return (String) super.get(); }
-        public void set(Object newVal) { super.set((String) newVal); }
+        public void set(Object newVal) { super.set(newVal.toString()); }
     }
     public class DoubleVar extends Variable {
 
@@ -651,7 +651,7 @@ public class Scratch extends Actor
         }
 
         public Double get() { return (Double) super.get(); }
-        public void set(Object newVal) { super.set((Double) newVal); }
+        public void set(Number newVal) { super.set(newVal.doubleValue()); }
     }
     public class BooleanVar extends Variable {
 
