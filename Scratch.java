@@ -1296,9 +1296,7 @@ public class Scratch extends Actor
      */
     public void clear()
     {
-        // This call actually rewrites the backdrop onto the background, without
-        // all the pen drawing, stamping, etc.
-        getWorld().clearBackdrop();
+        Stage.getBackground().clear();
     }
 
     /**
