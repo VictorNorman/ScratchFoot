@@ -791,15 +791,24 @@ public class Scratch extends Actor
 
         rotationStyle = other.rotationStyle;
 
-        keySeqs = new ArrayList<KeyPressSeq>(other.keySeqs);
+        /* Copy the keyPress sequences.  whenKeyPressed does the work. */
+        for (KeyPressSeq k: other.keySeqs) {
+            whenKeyPressed(k.key, k.getMethod());
+        }
 
         /* Copy the actorClicked sequences from the previous sprite, but for this one.
            Easiest to do this just by calling whenSpriteClicked. */
         for (ActorClickedSeq a: other.actorClickedSeqs) {
             whenSpriteClicked(a.getMethod());
         }
-        stageClickedSeqs = new ArrayList<StageClickedSeq>(other.stageClickedSeqs);
-        mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>(other.mesgRecvdSeqs);
+        
+        for (StageClickedSeq s: other.stageClickedSeqs) {
+            whenStageClicked(s.getMethod());
+        }
+        
+        for (MesgRecvdSeq m: other.mesgRecvdSeqs) {
+            whenRecvMessage(m.mesg, m.getMethod());
+        }
 
         /* Copy the CloneStart sequences from the previous sprite, but for this one.
            Easiest to do this just by calling whenIStartAsAClone. */
@@ -886,11 +895,11 @@ public class Scratch extends Actor
             // Prevents the sequence from being repeated until 30 frames after the initial
             // press. Releasing the button will reset this.
             if (seq.waitframes > 0) {
-                    seq.waitframes--;
-                    seq.retrigger = false;
-                } else {
-                    seq.retrigger = true;
-                }
+                seq.waitframes--;
+                seq.retrigger = false;
+            } else {
+                seq.retrigger = true;
+            }
             // isTriggered returns true if a sequence has seen its key press done already, or
             // if the sequence is seeing its key press done right now.
             if (seq.isTriggered() && seq.retrigger) {
