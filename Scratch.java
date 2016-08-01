@@ -102,11 +102,17 @@ public class Scratch extends Actor
      */
     private class Costume {
         GreenfootImage img;
+        GreenfootImage baseImg;
         String name;
 
         public Costume(GreenfootImage img, String name) {
+            baseImg = new GreenfootImage(img);
             this.img = img;
             this.name = name;
+        }
+        public Costume(GreenfootImage img, String name, GreenfootImage base) {
+            this(img, name);
+            baseImg = new GreenfootImage(base);
         }
     }
     private ArrayList<Costume> costumes = new ArrayList<Costume>();
@@ -114,9 +120,7 @@ public class Scratch extends Actor
     // costumesCopy holds the original unaltered costume images.  So, if
     // the code alters the costume by, e.g., scaling it, the copy stays
     // unchanged.
-
-    // TODO TODO: need to figure out if this is really necessary.
-    private ArrayList<GreenfootImage> costumesCopy = new ArrayList<GreenfootImage>();   
+ 
 
     private boolean isShowing = true;  // do we show the image or not?
     private int ghostEffect;           // image transparency.
@@ -751,8 +755,6 @@ public class Scratch extends Actor
         // System.out.println("item from getImage is " + System.identityHashCode(getImage()));
         // System.out.println("item in costumes array is " + System.identityHashCode(costumes.get(0)));
 
-        // make sure the copy is a new copy of the image.
-        costumesCopy.add(new GreenfootImage(getImage()));  
         // System.out.println("item in costumesCopy array is " + System.identityHashCode(costumesCopy.get(0)));
         // System.out.println("Scratch(): constructor finished for object " + System.identityHashCode(this));
         
@@ -775,7 +777,6 @@ public class Scratch extends Actor
         penSize = other.penSize;
         currCostume = other.currCostume;
         costumes = new ArrayList<Costume>(other.costumes);     
-        costumesCopy = new ArrayList<GreenfootImage>(other.costumesCopy);
         isShowing = other.isShowing;
         ghostEffect = other.ghostEffect;
         currentLayer = other.currentLayer;
@@ -1709,7 +1710,7 @@ public class Scratch extends Actor
         rotationStyle = rs;
 
         // Take the original image and make a new copy of it.
-        GreenfootImage img = new GreenfootImage(costumesCopy.get(currCostume));
+        GreenfootImage img = new GreenfootImage(costumes.get(currCostume).baseImg);
         // Now scale it.
         if (costumeSize != 100) {
             img.scale((int) (img.getWidth() * (costumeSize / 100.0F)),
@@ -1719,7 +1720,9 @@ public class Scratch extends Actor
         // No need to rotate the image.  Rotation is a property of the Actor, not the image,
         // so when you switch images they are rotated automatically (just like Scratch as
         // it turns out).
-        costumes.set(currCostume, new Costume(img, costumes.get(currCostume).name));
+        Costume tempCost = new Costume(img, costumes.get(currCostume).name,
+                           new GreenfootImage(costumes.get(currCostume).baseImg));
+        costumes.set(currCostume, tempCost);
         displayCostume();
         setRotation(currDirection);
     }
@@ -1867,7 +1870,6 @@ public class Scratch extends Actor
         // Name the new costume with the # of items in the array: Sprite2, Sprite3, etc.
         GreenfootImage img = new GreenfootImage(costumeFile);
         costumes.add(new Costume(img, costumeName));
-        costumesCopy.add(new GreenfootImage(costumeFile));
     }
 
     /**
@@ -2067,14 +2069,15 @@ public class Scratch extends Actor
     {
         float perc = percent.floatValue() / 100.0F;
         // Take the original image and make a new copy of it.
-        GreenfootImage img = new GreenfootImage(costumesCopy.get(currCostume));
+        GreenfootImage img = new GreenfootImage(costumes.get(currCostume).baseImg);
         // System.out.println("sst: Making copy of the costumesCopy and scaling it.");
         // Now scale it, store it and display it.
         img.scale((int) (img.getWidth() * perc), (int) (img.getHeight() * perc));
         // No need to rotate the image.  Rotation is a property of the Actor, not the image, 
         // so when you switch images they are rotated automatically (just like Scratch as
         // it turns out).
-        Costume tempCost = new Costume(img, costumes.get(currCostume).name);
+        Costume tempCost = new Costume(img, costumes.get(currCostume).name,
+                           new GreenfootImage(costumes.get(currCostume).baseImg));
         costumes.set(currCostume, tempCost);
         displayCostume();
         costumeSize = percent.intValue();
