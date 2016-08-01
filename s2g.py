@@ -656,9 +656,9 @@ def motion1Arg(level, tokens):
         return genIndent(level) + "setYTo((int) " + mathExpr(arg) + ");\n"
     elif cmd == "setRotationStyle":
         resStr = genIndent(level) + "setRotationStyle("
-        if arg == "left-right":
+        if arg in ("left-right", "leftRight"):
             return resStr + "RotationStyle.LEFT_RIGHT);\n"
-        elif arg == "don't rotate":
+        elif arg in ("don't rotate", "none"):
             return resStr + "RotationStyle.DONT_ROTATE);\n"
         elif arg in ("all around", "normal"):
             return resStr + "RotationStyle.ALL_AROUND);\n"
