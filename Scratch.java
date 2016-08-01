@@ -2713,8 +2713,8 @@ public class Scratch extends Actor
     /**
      * Determines whether two objects have intersecting bounding boxes
      */
-    public boolean intersects(Scratch other) {
-        
+    public boolean intersects(Scratch other)
+    {
         int w = getCurrImage().getWidth()/2;
         int h = getCurrImage().getHeight()/2;
         int ow = other.getCurrImage().getWidth()/2;
@@ -2732,13 +2732,21 @@ public class Scratch extends Actor
         int r2x = other.getX() + ow;
         int r2y = other.getY() + oh;
         
-        if (l1x> r2x || l2x > r1x) {
+        if (l1x > r2x || l2x > r1x) {
             return false;
         }
         if (l1y > r2y || l2y > r1y) {
             return false;
         }
         return true;
+    }
+    
+    /**
+     * Determines whether two objects have intersecting bounding boxes
+     */
+    public boolean intersects(String name)
+    {
+        return intersects(getWorld().getActorByName(name));
     }
     
     /**
