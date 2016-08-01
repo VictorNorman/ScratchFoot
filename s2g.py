@@ -728,11 +728,11 @@ def switchCostumeTo(level, tokens):
     """
     cmd, arg1 = tokens
     assert cmd == "lookLike:"
-    # TODO:
-    # It seems like you can put a math expression as arg1 and scratch
-    # interprets that as the # of the costume to switch to...
-    # We aren't handling that now.
-    return genIndent(level) + "switchToCostume(" + strExpr(arg1) + ");\n"
+    try:
+        return genIndent(level) + "switchToCostume(" + strExpr(arg1) + ");\n"
+    except ValueError:
+        # if strExpr is unable to resolve arg1, use mathExpr instead
+        return genIndent(level) + "switchToCostume(" + mathExpr(arg1) + ");\n"
 
 def nextCostume(level, tokens):
     """Generate code for the next costume block.
