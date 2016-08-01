@@ -2076,6 +2076,9 @@ public class Scratch extends Actor
         // No need to rotate the image.  Rotation is a property of the Actor, not the image, 
         // so when you switch images they are rotated automatically (just like Scratch as
         // it turns out).
+        if (isFlipped) {
+            img.mirrorVertically();
+        }
         Costume tempCost = new Costume(img, costumes.get(currCostume).name,
                            new GreenfootImage(costumes.get(currCostume).baseImg));
         costumes.set(currCostume, tempCost);
