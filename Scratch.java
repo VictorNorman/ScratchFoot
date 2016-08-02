@@ -1945,7 +1945,7 @@ public class Scratch extends Actor
     /**
      * return the name of the current costume.
      */
-    public String getCostumeName()
+    public String costumeName()
     {
         return costumes.get(currCostume).name;
     }
@@ -2536,14 +2536,6 @@ public class Scratch extends Actor
     public int costumeNumberOf(Scratch other)
     {
         return other.getCostumeNumber();
-    }
-    
-    /**
-     * return the costume number of the given sprite
-     */
-    public String costumeNameOf(Scratch other)
-    {
-        return other.getCostumeName();
     }
 
     /**
