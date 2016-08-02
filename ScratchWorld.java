@@ -680,6 +680,25 @@ public class ScratchWorld extends World
         public Boolean get() { return (Boolean) super.get(); }
         public void set(Object newVal) { super.set((Boolean) newVal); }
     }
+    public class CloudVar extends Variable {
+        int id;
+        public CloudVar(String name, int id) {
+            super(name, (Object)new Integer(0));
+            if (UserInfo.isStorageAvailable()) {
+                super.set(UserInfo.getMyInfo().getInt(id));
+            }
+            this.id = id;
+        }
+        
+        public Integer get() { return ((Integer)super.get()).intValue(); }
+        public void set(Number val) { 
+            super.set(val);
+            if (UserInfo.isStorageAvailable()) {
+                UserInfo.getMyInfo().setInt(id, val.intValue());
+                UserInfo.getMyInfo().store();
+            }
+        }
+    }
 
     /**
      * Create an integer variable whose value will be displayed on the screen.
@@ -731,6 +750,21 @@ public class ScratchWorld extends World
         // the image that displays the variable, and places in the correct location.
         newVar.act();
         return newVar; 
+    }
+    
+    /**
+     * Create an cloud variable whose value will be displayed on the screen.
+     * The id must be an int between 0 and 9. Each cloud varaible should be
+     * given a different id, as the id determines which  
+     */
+    public CloudVar createCloudVariable(String varName, int id)
+    {
+        CloudVar newVar = new CloudVar(varName, id);
+        addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        return newVar;
     }
 
     private int translateToGreenfootX(int x) 
