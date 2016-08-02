@@ -279,6 +279,8 @@ def strExpr(tokenOrList):
             return "join(" + strExpr(tok1) + ", " + strExpr(tok2) + ")"
         elif op == "letter:of:":
             return "letterNOf(" + strExpr(tok2) + ", " + mathExpr(tok1) + ")"
+        elif op == 'getAttribute:of:':
+            return getAttributeOf(tok1, tok2)
         else:
             raise ValueError("Unknown string operator " + op)
     raise ValueError("Unknown string operator " + tokenOrList[0])
@@ -428,6 +430,19 @@ def getAttributeOf(tok1, tok2):
     """Return code to handle the various getAttributeOf calls
     from the sensing block.
     """
+    if tok2 == '_stage_':
+        if tok1 == 'backdrop name':
+            return "backdropName()"
+        elif tok1 == 'backdrop #':
+            return "getWorld().getBackdropNumber()"
+        elif tok1 == 'volume':
+            return ' Volume not implemented '
+        else:
+            # TODO: We must assume that this is a variable, as not all variable have necessarily
+            # been parsed yet. Note that because of this, we cannot look up the actual name
+            # of the variable, we must use the unsanitized name.
+            return 'world.' + tok1 + '.get()'
+
     mapping = { 'x position': 'xPositionOf',
                 'y position': 'yPositionOf',
                 'direction': 'directionOf',
@@ -437,10 +452,11 @@ def getAttributeOf(tok1, tok2):
                 }
     if tok1 in mapping:
         return mapping[tok1] + '("' + tok2 + '")'
-    elif tok1 ==  'backdrop name':
-        return 'backdropName()'
     else:   # volumeOf, backdropNumberOf
-        return 'NOTIMPLEMENTED()'
+        # TODO: We must assume that this is a variable, as not all variable have necessarily
+        # been parsed yet. Note that because of this, we cannot look up the actual name
+        # of the variable, we must use the unsanitized name. TODO fix this 
+        return '((' + tok2 + ')world.getActorByName("' + tok2 + '")).' + tok1 + '.get()'
 
 def whenFlagClicked(codeObj, tokens):
     """Generate code to handle the whenFlagClicked block.

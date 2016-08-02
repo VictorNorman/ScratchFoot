@@ -1795,8 +1795,9 @@ public class Scratch extends Actor
     /**
      * display the given string next to the sprite.
      */
-    public void say(String str)
+    public void say(Object speech)
     {
+        String str = speech.toString();
         if (str == "") {
             return;
         }
@@ -1830,8 +1831,9 @@ public class Scratch extends Actor
     /**
      * display the given string for <n> seconds next to the sprite.
      */
-    public void sayForNSeconds(Sequence s, String str, Number duration)
+    public void sayForNSeconds(Sequence s, Object speech, Number duration)
     {
+        String str = speech.toString();
         GreenfootImage mySprite = getCurrImage();
 
         int width = mySprite.getWidth();
@@ -1938,6 +1940,14 @@ public class Scratch extends Actor
     public int getCostumeNumber()
     {
         return currCostume;
+    }
+    
+    /**
+     * return the name of the current costume.
+     */
+    public String getCostumeName()
+    {
+        return costumes.get(currCostume).name;
     }
 
     /**
@@ -2526,6 +2536,14 @@ public class Scratch extends Actor
     public int costumeNumberOf(Scratch other)
     {
         return other.getCostumeNumber();
+    }
+    
+    /**
+     * return the costume number of the given sprite
+     */
+    public String costumeNameOf(Scratch other)
+    {
+        return other.getCostumeName();
     }
 
     /**
