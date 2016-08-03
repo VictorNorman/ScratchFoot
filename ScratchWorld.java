@@ -600,7 +600,11 @@ public class ScratchWorld extends World
                 int stringLength = (dispStr.length() + 2) * 7;
                 // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength, 20);
-                image.setColor(bgColor);
+                if (this instanceof CloudVar) {
+                    image.setColor(Color.decode("#66FFFF"));
+                } else {
+                    image.setColor(bgColor);
+                }
                 image.setFont(new java.awt.Font("Courier", java.awt.Font.PLAIN, 12));
                 image.fill();
                 // Create orange background under the variable's value.

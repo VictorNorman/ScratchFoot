@@ -44,6 +44,10 @@ NUM_SPACES_PER_LEVEL = 4
 # from setVariables(), not mathExpr().
 varTypes = {}
 
+# This variable tracks how many cloud variables have been generated, and
+# serves as each cloud var's id
+cloudVars = 0
+
 # A global dictionary mapping scratch variable names to the name chosen
 # by convertToJavaID or the user.
 varNames = {}
@@ -1385,7 +1389,7 @@ def resolveName(name):
             name = "variable:" + name
         
 
-def genVariablesDefnCode(listOfVars, spriteName, allChildren):
+def genVariablesDefnCode(listOfVars, spriteName, allChildren, cloudVars):
     """Generate code to define instance variables for this sprite.
     The listOfVars is a list of dictionaries, one per variable (see below).
     The spriteName is the sprite we are generating "local" variables for.
@@ -1473,7 +1477,7 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                     elif type[0] == 'S':
                         return '""', "String"
         return deriveType(name, val)
-    def deriveType(name, val):           
+    def deriveType(name, val):  
         if isinstance(val, str):
             #
             # See if the string value is a legal integer or floating point number.
@@ -1522,10 +1526,17 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
     for var in listOfVars:  # var is a dictionary.
         name = var['name']
         value = var['value']
+        cloud = var['isPersistent']
         # return the varType and the value converted to a java equivalent
         # for that type. (e.g., False --> false)
         # varType is one of 'Boolean', 'Double', 'Int', 'String'
-        value, varType = chooseType(name, value)
+        if cloud:
+            value = cloudVars
+            cloudVars += 1
+            varType = 'Cloud'
+            name = name[2:]
+        else:
+            value, varType = chooseType(name, value)
         try:
             if name_resolution:
                 varNames[name] = convertToJavaId(name, True, False)
@@ -1549,13 +1560,21 @@ def genVariablesDefnCode(listOfVars, spriteName, allChildren):
                 visible = varInfo['visible']
                 break
         else:
-            # If no variable dict could be found, this variable is never shown
-            # so these values don't matter
-            label = "unknown: " + name
-            x = 0
-            y = 0
-            visible = False
-            print("No variable definition dictionary found in script json:", name)
+            if cloud:
+                # Cloud variables do not have a definition dictionary, so use default
+                # values.
+                label = name;
+                x = 0
+                y = 0
+                visible = True
+            else:
+                # If no variable dict could be found, this variable is never shown
+                # so these values don't matter
+                label = "unknown: " + name
+                x = 0
+                y = 0
+                visible = False
+                print("No variable definition dictionary found in script json:", name)
 
         # Record this variable in the global variables dictionary.
         # We need this so we can generate code that calls the correct
@@ -1787,7 +1806,7 @@ spriteName = "Stage"
 worldDefnCode = ""
 if 'variables' in data:
     worldDefnCode, initCode = genVariablesDefnCode(data['variables'], "Stage",
-                                                   data['children'])
+                                                   data['children'], cloudVars)
     worldCtorCode += initCode
 
 
@@ -1854,7 +1873,7 @@ for spr in sprites:
         if 'variables' in spr:
             defnCode, addedToWorldCode = \
                       genVariablesDefnCode(spr['variables'], spriteName,
-                                           data['children'])
+                                           data['children'], cloudVars)
         else:
             # Default "addedToWorld" code to simplify getting/setting variables
             addedToWorldCode = genIndent(1) + "private " + worldClassName + " world;\n"
