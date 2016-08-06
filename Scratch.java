@@ -29,6 +29,9 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.awt.image.AffineTransformOp;
+import java.awt.geom.AffineTransform;
 import java.lang.String;
 import java.lang.reflect.*;
 import javax.swing.JOptionPane;
@@ -92,27 +95,151 @@ public class Scratch extends Actor
     private int penColorNumber = 0;         // an integer that is mod 200 -- 0 to 199.
     private int penSize = 1;
     private int currCostume = 0;
-    private GreenfootImage lastImg = getImage();
-    private boolean isFlipped = false;      // tracks whether the image is flipped due to LEFT_RIGHT rotation.
     private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
     private String name;                    // Sprite's class name, for sound lookup
-
+    
+    /**
+     * This class holds a Greenfoot 'baseImage' as well as several fields that dictate
+     * how the image should be modified. Whenever these fields are changed, the image will
+     * update itself, storing the result in 'image'. 
+     */
+    public class ScratchImage {
+        public RotationStyle style;
+        private GreenfootImage baseImage;
+        public GreenfootImage image;
+        private int ghost;
+        private int rotation;
+        private int size;
+        private boolean flipped;
+        public ScratchImage(GreenfootImage img) {
+            // In order to rotate the image properly, we must make it big enough to rotate fully
+            // without resizing
+            style = RotationStyle.ALL_AROUND;
+            ghost = 0;
+            rotation = 0;
+            size = 100;
+            flipped = false;
+            BufferedImage bi = img.getAwtImage();
+            int minx = 0, miny = 0;
+            int maxx = bi.getWidth();
+            int maxy = bi.getHeight();
+            // First we have to crop and center the image
+            for(int x = 0; x < bi.getWidth(); x++) {
+                for(int y = 0; y < bi.getHeight(); y++) {
+                    if ((bi.getRGB(x, y) >> 24) != 0x00) {
+                        // Find the smallest rectangle that contains the entire image
+                        if (x < minx) minx = x;
+                        if (x > maxx) maxx = x;
+                        if (y < miny) miny = y;
+                        if (y > maxy) maxy = y;
+                    }
+                }
+            }
+            // Slide the image to the upper left hand corner, then make the image big enough to
+            // fully rotate the object without cutting off any corners
+            AffineTransformOp ato = new AffineTransformOp(AffineTransform.getTranslateInstance(-minx, -miny), AffineTransformOp.TYPE_BILINEAR);
+            int newDim = (int)Math.sqrt(Math.pow(bi.getWidth(), 2) + Math.pow(bi.getHeight(), 2)) + 2;
+            baseImage = new GreenfootImage(newDim, newDim);
+            ato.filter(bi, baseImage.getAwtImage());
+            // Now slide the image from the upper left corner to the center
+            AffineTransformOp ato2 = new AffineTransformOp(AffineTransform.getTranslateInstance(((newDim - img.getWidth()) / 4) , ((newDim - img.getHeight()) / 4)), AffineTransformOp.TYPE_BILINEAR);
+            bi = baseImage.getAwtImage();
+            baseImage = new GreenfootImage(newDim, newDim);
+            baseImage.getAwtImage().setData(ato2.filter(bi.getData(), null));
+            updateImage();
+        }
+        public ScratchImage(GreenfootImage img, RotationStyle rs) {
+            this(img);
+            style = rs;
+        }
+        // TODO: make a way to set all fields at once, then call updateImage() to avoid 
+        // uneccessary recalculations
+        public void setRotation(int val) {
+            if (rotation == val) {
+                return;
+            }
+            rotation = val;
+            updateImage();
+        }
+        public void setGhost(int val) {
+            if (val > 100) {
+                ghost = 100;
+            } else if (val < 0) {
+                ghost = 0;
+            } else if (ghost == val) {
+                return;
+            } else {
+                ghost = val;
+            }
+            updateImage();
+        }
+        public void setSize(int percent) {
+            size = percent;
+            updateImage();
+        }
+        private void updateImage() {
+            // Apply all graphic effects and rotation
+            // The order of these may affect the resulting image
+            GreenfootImage trans = new GreenfootImage(baseImage);
+            trans = updateRotation(trans);
+            trans = updateGhost(trans);
+            trans = updateSize(trans);
+            image = trans;
+        }
+        private GreenfootImage updateGhost(GreenfootImage trans) {
+            trans.setTransparency((int)((-1 * ghost + 100) * 2.55));
+            return trans;
+        }
+        private GreenfootImage updateRotation(GreenfootImage trans) {
+            if (style == RotationStyle.ALL_AROUND) {
+                int w = baseImage.getWidth(), h = baseImage.getHeight();
+                double rads = Math.toRadians(rotation);
+                GreenfootImage rot = new GreenfootImage(w, h);
+                AffineTransform at = new AffineTransform();
+                at.rotate(rads, w / 2, h / 2);
+                AffineTransformOp ato = new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
+                ato.filter(trans.getAwtImage(), rot.getAwtImage());
+                return rot;
+            } else if (style == RotationStyle.LEFT_RIGHT && rotation > 90 && rotation < 270  ) {
+                trans.mirrorHorizontally();
+                return trans;
+            } else {
+                return trans;
+            }
+        }
+        private GreenfootImage updateSize(GreenfootImage trans) {
+            float perc = size / 100.0F;
+            // Now scale it, store it and display it.
+            trans.scale((int) (trans.getWidth() * perc), (int) (trans.getHeight() * perc));
+            return trans;
+        }
+        /**
+         * Returns the image with all modifications applied to it. Note that this image will
+         * be re-created from scratch every time a field is updated, so modifying this image is
+         * not necessarily useful.
+         */
+        public GreenfootImage getDisplay() {
+            return image;
+        }
+        /**
+         * Returns a copy of baseImage. This image will be as it was when the ScratchImage 
+         * was constructed, and should never change.
+         */
+        public GreenfootImage getBase() {
+            return new GreenfootImage(baseImage);
+        }
+    }
+        
     /*
      * this class is just a pairing of costume image with its name.
      */
     private class Costume {
-        GreenfootImage img;
-        GreenfootImage baseImg;
+        ScratchImage image;
         String name;
 
         public Costume(GreenfootImage img, String name) {
-            baseImg = new GreenfootImage(img);
-            this.img = img;
+            image = new ScratchImage(img);
             this.name = name;
-        }
-        public Costume(GreenfootImage img, String name, GreenfootImage base) {
-            this(img, name);
-            baseImg = new GreenfootImage(base);
         }
     }
     private ArrayList<Costume> costumes = new ArrayList<Costume>();
@@ -761,7 +888,9 @@ public class Scratch extends Actor
         // Get this class's name
         name = this.getClass().getName();
         // Load sounds in this class's directory
-        loadSounds();
+        if (!isClone && !(this instanceof Sayer)) {
+            loadSounds();
+        }
     }
 
     /**
@@ -786,7 +915,6 @@ public class Scratch extends Actor
         lastMouseY = other.lastMouseY;
         subX = other.subX;
         subY = other.subY;
-        lastImg = other.lastImg;
         
         name = other.name;
 
@@ -996,11 +1124,6 @@ public class Scratch extends Actor
 
         if (sayActor != null) {
             sayActorUpdateLocation();
-        }
-
-        // Update lastImg to current image
-        if (getImage() != null) {
-            lastImg = getImage();
         }
 
     }
@@ -1314,32 +1437,11 @@ public class Scratch extends Actor
      */
     public void stamp()
     {
-        // The image that we get will not be rotated the same as the current image, so 
-        // we have to do that ourselves.  Also, getX() and getY() will get the center of
-        // the image, but drawImage() wants the upper left corner of where to draw it.
-        // So, have to do some some manipulation here before drawing the image onto the
-        // background.
-
-        // NOTE: we have to get the max of the width and height of the current image. 
-        // Then, make a new empty image with both dimensions equal to that max value.
-        // Then, draw the current image onto the new image.  Then, rotate it.
-
-        // But, this is even more complicated: when you make the new big square image, now
-        // the offset from the upperleft corner to the middle will have changed...
-        GreenfootImage oldImg = getCurrImage();
-        int w = oldImg.getWidth(), h = oldImg.getHeight();
-        // System.out.println("image width: " + w + " height " + h);
-        int newDim = w > h ? w : h;
-        GreenfootImage image = new GreenfootImage(newDim, newDim);  
-        image.drawImage(oldImg, (newDim - w) / 2, (newDim - h) / 2);
-        int rot = getRotation();
-        image.rotate(rot);
-
-        // System.out.println("stamp: x " + super.getX() + " y " + super.getY());
-        Stage.getBackground().drawImage(image, super.getX() - newDim / 2, 
-            super.getY() - newDim / 2);
-        // System.out.println("stamp: drawing at x " + (super.getX() - newDim / 2) +
-        //     " y " + (super.getY() - newDim / 2));
+        // Get the upper left corner of the sprite
+        int cx = super.getX() - (getCurrImage().getWidth() / 2);
+        int cy = super.getY() - (getCurrImage().getHeight() / 2);
+        // Draw a copy of the current image to the background
+        Stage.getBackground().drawImage(getCurrImage(), cx, cy);
     }
 
     /*
@@ -1572,41 +1674,8 @@ public class Scratch extends Actor
         }
         rotation %= 360;
         currDirection %= 360;
-
-        // rotation Style logic unified from all methods involving rotation
-        if (rotationStyle == RotationStyle.ALL_AROUND) {
-            super.setRotation(rotation - 90);
-            isFlipped = false;
-        } else if (rotationStyle == RotationStyle.LEFT_RIGHT) {
-            if (isFacingLeft(currDirection)) {
-                super.setRotation(180);
-                // check if image should be flipped
-                if (!isFlipped) {
-                    // if image is null use lastImg instead so stamping works properly
-                    if (getImage() != null) {
-                        getImage().mirrorVertically();
-                    } else {
-                        lastImg.mirrorVertically();
-                    }
-                    isFlipped = true;
-                }
-            } else {
-                super.setRotation(0);
-                // check if image should be unflipped
-                if (isFlipped) {
-                    // if image is null use lastImg instead so stamping works properly
-                    if (getImage() != null) {
-                        getImage().mirrorVertically();
-                    } else {
-                        lastImg.mirrorVertically();
-                    }
-                    isFlipped = false;
-                }
-            }
-        } else {
-            super.setRotation(0);
-            isFlipped = false;
-        }
+        costumes.get(currCostume).image.setRotation(rotation - 90);
+        displayCostume();
     }
 
     /**
@@ -1708,23 +1777,8 @@ public class Scratch extends Actor
             return;    // no change
         }
         rotationStyle = rs;
-
-        // Take the original image and make a new copy of it.
-        GreenfootImage img = new GreenfootImage(costumes.get(currCostume).baseImg);
-        // Now scale it.
-        if (costumeSize != 100) {
-            img.scale((int) (img.getWidth() * (costumeSize / 100.0F)),
-                (int) (img.getHeight() * (costumeSize / 100.0F)));
-        }
-
-        // No need to rotate the image.  Rotation is a property of the Actor, not the image,
-        // so when you switch images they are rotated automatically (just like Scratch as
-        // it turns out).
-        Costume tempCost = new Costume(img, costumes.get(currCostume).name,
-                           new GreenfootImage(costumes.get(currCostume).baseImg));
-        costumes.set(currCostume, tempCost);
+        costumes.get(currCostume).image.style = rs;
         displayCostume();
-        setRotation(currDirection);
     }
     
     /**
@@ -1781,15 +1835,11 @@ public class Scratch extends Actor
      */
     
     /**
-     * Alternative to getImage that will never return null, instead returning lastImg
+     * Will get the image as it is displayed
      */
     public GreenfootImage getCurrImage()
     {
-        GreenfootImage img = getImage();
-        if (img == null) {
-            img = lastImg;
-        }
-        return img;
+        return costumes.get(currCostume).image.getDisplay();
     }
 
     /**
@@ -1973,10 +2023,6 @@ public class Scratch extends Actor
             sayActor.update();
         }
         displayCostume();
-        // ensure that image is oriented properly if rotation style was changed while invisible
-        if (!lastImg.equals(getImage()) && isFlipped) {
-            getImage().mirrorVertically();
-        }
     }
     
     /**
@@ -2077,42 +2123,21 @@ public class Scratch extends Actor
      */
     public void setSizeTo(Number percent)
     {
-        float perc = percent.floatValue() / 100.0F;
-        // Take the original image and make a new copy of it.
-        GreenfootImage img = new GreenfootImage(costumes.get(currCostume).baseImg);
-        // System.out.println("sst: Making copy of the costumesCopy and scaling it.");
-        // Now scale it, store it and display it.
-        img.scale((int) (img.getWidth() * perc), (int) (img.getHeight() * perc));
-        // No need to rotate the image.  Rotation is a property of the Actor, not the image, 
-        // so when you switch images they are rotated automatically (just like Scratch as
-        // it turns out).
-        if (isFlipped) {
-            img.mirrorVertically();
-        }
-        Costume tempCost = new Costume(img, costumes.get(currCostume).name,
-                           new GreenfootImage(costumes.get(currCostume).baseImg));
-        costumes.set(currCostume, tempCost);
-        displayCostume();
         costumeSize = percent.intValue();
-
-        /*System.out.println("sst: item from getImage is " + System.identityHashCode(getImage()));
-        System.out.println("sst: item in costumes array is " + System.identityHashCode(costumes.get(currCostume)));
-        System.out.println("sst: item in costumesCopy array is " + System.identityHashCode(costumesCopy.get(currCostume)));
-         */
+        displayCostume();
     }
 
     // private helper function
     private void displayCostume()
     {
+        Costume cost = costumes.get(currCostume);
+        cost.image.setGhost(ghostEffect);
+        cost.image.setSize(costumeSize);
+        cost.image.setRotation(currDirection - 90);
         if (isShowing) {
-            Costume cost = costumes.get(currCostume);
-            // Greenfoot transparency is from 0 to 255, with 0 being fully visible and 255 being
-            // fully transparent.  So, we need to do a transformation: (0, 100) -> (255, 0)
-            int transparency = (int) (((-1 * ghostEffect)   // now from -100 to 0
-                        + 100)            // now from 0 to 100
-                    * 2.55);         // now from 0 to 255.
-            cost.img.setTransparency(transparency);
-            setImage(cost.img);
+            cost.image.setGhost(ghostEffect);
+            cost.image.setSize(costumeSize);
+            setImage(cost.image.getDisplay());
         } else {
             setImage((GreenfootImage) null);
         }
@@ -2146,77 +2171,29 @@ public class Scratch extends Actor
      */
     private boolean pixelOverlap(Scratch other, Color rgb)
     {
+        // Get this image's data
+        // The image from getCurrImage is already rotated/resized, so we don't have to do that here
         GreenfootImage im = getCurrImage();
         int height = im.getHeight();
         int width = im.getWidth();
-        int x = getX();
-        int y = getY();
         // get the coordinates of the upper left corners for awt interaction
         int cx = getX() - (width / 2);
         int cy = getY() + (height / 2);
-        // get world width and height to avoid constant calls to world
-        int worldH = getWorld().getHeight();
-        int worldW = getWorld().getWidth();
-        // calculate rotation unit vectors
-        double cos = Math.cos(Math.toRadians(getRotation()));
-        double sin = Math.sin(Math.toRadians(getRotation()));
-
-        if (!other.isShowing()) {
-            return false;
-        }
-        int ocx = other.getX() - (other.getCurrImage().getWidth()/2);
-        int ocy = other.getY() + (other.getCurrImage().getHeight()/2);
-        // Calculate the other's rotation unit vectors
-        double ocos = Math.cos(Math.toRadians(-other.getRotation()));
-        double osin = Math.sin(Math.toRadians(-other.getRotation()));
-        java.awt.image.BufferedImage bIm = im.getAwtImage();
-        for (int w = 0; w < width; w++) {
-            for (int h = 0; h < height; h++) {
-                int pixel = bIm.getRGB(w, h);
-                if ((pixel >> 24) == 0x00) {
-                    continue;   // transparent pixel: skip it.
-                }
-                int wr, hr;
-                // If necessary, rotate the pixel to the one it should look at
-                if (rotationStyle == RotationStyle.ALL_AROUND && getRotation() != 0) {
-                    // get a vector from the center to current pixel. y and cy are negative because greenfoot
-                    // y axis goes the opposite direction
-                    double vx = changeRelativePoint(w, cx, x);
-                    double vy = changeRelativePoint(h, -cy, -y);
-                    // rotate the current point around the center
-                    double rx = vx * cos - vy * sin;
-                    double ry = vx * sin + vy * cos;
-                    // put the new point back into the awt coordinate format 
-                    // TODO round rather than cast? May not be necessary
-                    wr = changeRelativePoint((int)rx, x, cx);
-                    hr = changeRelativePoint((int)ry, -y, -cy);
-                } else {
-                    // If rotation is not necessary just pass the point on
-                    wr = w;
-                    hr = h;
-                }
-                int ox = changeRelativePoint(wr, cx, other.getX() - (other.getCurrImage().getWidth()/2));
-                int oy = changeRelativePoint(hr, -cy, -other.getY() - (other.getCurrImage().getHeight()/2));
-                // If the other object is rotated, rotate the current point backwards to match
-                // TODO add a method to get rotationStyle so other's style can be checked.
-                if (other.getRotation() != 0 && other.getRotationStyle() == RotationStyle.ALL_AROUND) {
-                    // get a vector from the center to current pixel. y and cy are negative because greenfoot
-                    // y axis goes the opposite direction
-                    double vx = changeRelativePoint(ox, ocx, other.getX());
-                    double vy = changeRelativePoint(oy, -ocy, -other.getY());
-                    // rotate the current point around the center
-                    double rx = vx * ocos - vy * osin;
-                    double ry = vx * osin + vy * ocos;
-                    // put the new point back into the awt coordinate format
-                    // TODO round rather than cast? May not be necessary
-                    ox = changeRelativePoint((int)rx, other.getX(), ocx);
-                    oy = changeRelativePoint((int)ry, -other.getY(), -ocy);
-                }
-                // Skip any iterations that might throw an out of bounds exception
-                if (ox < 0 || ox >= other.getCurrImage().getWidth() || oy < 0 || oy >= other.getCurrImage().getHeight()) {
+        // Get the other image's data
+        GreenfootImage oim = other.getCurrImage();
+        int ocx = other.getX() - (oim.getWidth() / 2);
+        int ocy = other.getY() + (oim.getHeight() / 2);
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (im.getAwtImage().getRGB(x, y) >> 24 == 0x00) {
                     continue;
                 }
-                pixel = other.getCurrImage().getAwtImage().getRGB(ox, oy);
+                int fx = changeRelativePoint(x, cx, ocx);
+                int fy = changeRelativePoint(y, -cy, -ocy);
+                if (fx < 0 || fy < 0 || fx >= oim.getWidth() || fy >= oim.getHeight()) {
+                    continue;
+                }
+                int pixel = oim.getAwtImage().getRGB(fx, fy);
                 if (rgb == null) {
                     if ((pixel >> 24) != 0x00) {
                         return true;
@@ -2228,7 +2205,6 @@ public class Scratch extends Actor
                 }
             }
         }
-        // No pixels in any of the intersecting neighbors overlap.
         return false;
     }
 
@@ -2289,7 +2265,7 @@ public class Scratch extends Actor
         int rot = getRotation();
         image.rotate(rot);
 
-        java.awt.image.BufferedImage bIm = image.getAwtImage();
+        BufferedImage bIm = image.getAwtImage();
         try {
             // This line gets the pixel color at x and y of the mouse relative to
             // the actor's position. The y value must be reversed because the y axis
@@ -2333,7 +2309,7 @@ public class Scratch extends Actor
         // get world width and height to avoid constant calls to world
         int worldH = getWorld().getHeight();
         int worldW = getWorld().getWidth();
-        java.awt.image.BufferedImage bIm = im.getAwtImage();
+        BufferedImage bIm = im.getAwtImage();
         // Calculate rotation unit vectors
         double cos = Math.cos(Math.toRadians(getRotation()));
         double sin = Math.sin(Math.toRadians(getRotation()));
@@ -2343,31 +2319,12 @@ public class Scratch extends Actor
                 if ((pixel >> 24) == 0x00) {
                     continue;   // transparent pixel: skip it.
                 }
-                int wr, hr;
-                // If necessary, rotate the pixel to the one it should look at
-                if (rotationStyle == RotationStyle.ALL_AROUND && getRotation() != 90) {
-                    // get a vector from the center to current pixel. Y and cy are negative because greenfoot
-                    // y axis goes the opposite direction
-                    double vx = changeRelativePoint(w, cx, x);
-                    double vy = changeRelativePoint(h, -cy, -y);
-                    
-                    // rotate the current point around the center
-                    double rx = vx * cos - vy * sin;
-                    double ry = vx * sin + vy * cos;
-                    
-                    // put the new point back into the awt coordinate format
-                    wr = changeRelativePoint((int)rx, x, cx);
-                    hr = changeRelativePoint((int)ry, -y, -cy);
-                } else {
-                    wr = w;
-                    hr = h;
-                }
                 // Catching exceptions is very slow, so instead we skip iterations that might throw one.
-                if (translateToGreenfootX(cx + wr) < 0 || translateToGreenfootX(cx + wr) >= worldW || translateToGreenfootY(cy - hr) >= worldH || translateToGreenfootY(cy - hr) < 0) {
+                if (translateToGreenfootX(cx + w) < 0 || translateToGreenfootX(cx + w) >= worldW || translateToGreenfootY(cy - h) >= worldH || translateToGreenfootY(cy - h) < 0) {
                     continue;
                 }
                 // See if the pixel at this location in the background is of the given color.
-                if (getWorld().getColorAt(translateToGreenfootX(cx + wr), translateToGreenfootY(cy - hr)).equals(color)) {
+                if (getWorld().getColorAt(translateToGreenfootX(cx + w), translateToGreenfootY(cy - h)).equals(color)) {
                     // Not sure this is correct, as it checks the transparency value as well...
                     return true;
                 }
