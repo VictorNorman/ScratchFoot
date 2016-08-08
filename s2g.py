@@ -758,6 +758,8 @@ class SpriteOrStage:
                 # I think getCostumeNumber() should be changed to just costumeNumber()...
                 # This would be a change to Scratch.java.
                 return "getCostumeNumber()"
+            elif op == 'backgroundIndex':
+                return 'getBackdropNumber()'
             elif op == "scale": 		# Look menu's size block
                 return "size()"
             elif op == "mousePressed":

@@ -1394,9 +1394,9 @@ public class Scratch extends Actor
     /**
      * change the pen color number by the given amount.
      */
-    public void changePenColorBy(int n)
+    public void changePenColorBy(Number n)
     {
-        penColorNumber = (penColorNumber + n) % 200;
+        penColorNumber = (penColorNumber + n.intValue()) % 200;
         penColor = Color.decode(numberedColors[penColorNumber]);
     }
 
@@ -2148,7 +2148,15 @@ public class Scratch extends Actor
      */
     public String backdropName()
     {
-        return ((ScratchWorld) getWorld()).getBackdropName();
+        return getWorld().getBackdropName();
+    }
+    
+    /**
+     * return the current backdrop number being shown in the world.
+     */
+    public int getBackdropNumber()
+    {
+        return getWorld().getBackdropNumber();
     }
 
     /*
