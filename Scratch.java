@@ -2635,6 +2635,14 @@ public class Scratch extends Actor
         Calendar now = Calendar.getInstance();   // Gets the current date and time
         return now.get(Calendar.SECOND);
     }
+    
+    /**
+     * return the number of days since January 1 2000 as a decimal
+     */
+    public double daysSince2000()
+    {
+        return ((double)new java.util.GregorianCalendar().getTimeInMillis() - (double)new java.util.GregorianCalendar(2000, 1, 0).getTimeInMillis()) / 86400000D;
+    }
 
     /**
      * askStringAndWait
