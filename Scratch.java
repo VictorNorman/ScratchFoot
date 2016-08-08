@@ -636,7 +636,8 @@ public class Scratch extends Actor
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
-
+        private final java.awt.Font font = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
+        
         private Object value;
         private String text;
         private boolean valChanged = true;
@@ -714,16 +715,20 @@ public class Scratch extends Actor
                 } else {
                     v = value;
                 }
+                java.awt.FontMetrics fm = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics().getFontMetrics(font);
+                
                 String dispStr = text + v;
-                int stringLength = (dispStr.length() + 2) * 7;
+                int stringLength = fm.stringWidth(dispStr);
+                int textLength = fm.stringWidth(text);
+                int valLength = fm.stringWidth(v.toString());
                 // Create a gray background under the variable's name.
-                GreenfootImage image = new GreenfootImage(stringLength, 20);
+                GreenfootImage image = new GreenfootImage(stringLength + 8, 20);
                 image.setColor(bgColor);
-                image.setFont(new java.awt.Font("Courier", java.awt.Font.PLAIN, 12));
+                image.setFont(font);
                 image.fill();
                 // Create orange background under the variable's value.
                 image.setColor(Color.decode("#EE7D16"));
-                image.fillRect((int) ((text.length() + 1 )* 7), 3, ((v + "").length()) * 7 + 3, 15);
+                image.fillRect(textLength + 4, 3, valLength + 2, 15);
 
                 image.setColor(textColor);
                 // System.out.println("Variable.updateImage: creating with value " + text + " " + value);
@@ -2981,9 +2986,10 @@ public class Scratch extends Actor
         private void update() 
         {
             // use this image just to get the extents of the string.
-            java.awt.Graphics2D g = getImage().getAwtImage().createGraphics();
+            java.awt.Graphics g = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics();
             int strLength = g.getFontMetrics(new java.awt.Font("Arial", java.awt.Font.BOLD, 14)).stringWidth(str);
-            
+            // These integer literals have been calculated based on the width of the various regions of
+            // the say actor graphic.
             int imgW = (strLength < 39) ? 57 : 57 + strLength - 39;
             int imgH = 45;
             
