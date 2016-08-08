@@ -89,6 +89,11 @@ public class Scratch extends Actor
             "#FF004C", "#FF0044", "#FF003D", "#FF0035", "#FF002D",        // indices 190 - 194
             "#FF0026", "#FF001E", "#FF0016", "#FF000F", "#FF0007",        // indices 195 - 199
         };
+        
+    // These are the images to be used for saying
+    static final GreenfootImage saySrc = new GreenfootImage("say.png");
+    static final GreenfootImage sayExt = new GreenfootImage("say2.png");
+    static final GreenfootImage sayEnd = new GreenfootImage("say3.png");
 
     private boolean isPenDown = false;
     private Color penColor = Color.RED;
@@ -1910,7 +1915,7 @@ public class Scratch extends Actor
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
-        sayActor.updateLocation(super.getX() + width / 2 + 10, super.getY() - height / 2 - 5);
+        sayActor.updateLocation(super.getX() + width + 4, super.getY() - height / 2 + 4);
     }
 
     /**
@@ -2896,7 +2901,6 @@ public class Scratch extends Actor
     {
         private String str;
         int x, y;             // in Greenfoot coordinates.
-
         public Sayer(String str)
         {
             super();
@@ -2917,27 +2921,23 @@ public class Scratch extends Actor
             str = newStr;
             update();
         }
-
         private void update() 
         {
             // use this image just to get the extents of the string.
-            GreenfootImage junk = new GreenfootImage(str, 14, null, null);
-            int imgW = junk.getWidth() + 4;
-            int imgH = junk.getHeight() + 4;
-            junk = null;    // release the image.
-
+            java.awt.Graphics2D g = getImage().getAwtImage().createGraphics();
+            int strLength = g.getFontMetrics(new java.awt.Font("Arial", java.awt.Font.BOLD, 14)).stringWidth(str);
+            
+            int imgW = (strLength < 39) ? 57 : 57 + strLength - 39;
+            int imgH = 45;
+            
             GreenfootImage img = new GreenfootImage(imgW, imgH);
-            img.setColor(Color.white);   // set background to white.
-            img.fill();   
-            img.setColor(Color.black);   // set text color to black.
-
-            // Draw a rounded rectangle around the edge of the image.
-            RoundRectangle2D.Float rect = 
-                new RoundRectangle2D.Float(0, 0, imgW - 1, imgH - 1, 
-                    10, 10);  // these are arc widths.
-            img.drawShape(rect);
-
-            img.drawString(str, 2, 13);
+            img.drawImage(saySrc, 0, 0);
+            for (int i = 45; i < imgW - 7; i++) {
+                img.drawImage(sayExt, i, 0);
+            }
+            img.drawImage(sayEnd, imgW - 8, 0);
+            img.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
+            img.drawString(str, 6, 20);
             setImage(img);
         }
 
