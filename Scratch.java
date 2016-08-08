@@ -94,6 +94,7 @@ public class Scratch extends Actor
     static final GreenfootImage saySrc = new GreenfootImage("say.png");
     static final GreenfootImage sayExt = new GreenfootImage("say2.png");
     static final GreenfootImage sayEnd = new GreenfootImage("say3.png");
+    static final GreenfootImage sayThink = new GreenfootImage("think.png");
 
     private boolean isPenDown = false;
     private Color penColor = Color.RED;
@@ -1876,13 +1877,24 @@ public class Scratch extends Actor
         int height = mySprite.getHeight();
 
         sayActor = new Sayer(str);
+        sayActor.think = false;
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
         if (!isShowing) {
             sayActor.hide();
         }
         getWorld().moveClassToFront(sayActor.getClass());
     }
-
+    
+    /**
+     * display the given string next to the sprite in a thought bubble.
+     */
+    public void think(Object speech)
+    {
+        say(speech);
+        sayActor.think = true;
+        sayActor.update();
+    }
+    
     /**
      * display the given string for <n> seconds next to the sprite.
      */
@@ -1907,6 +1919,33 @@ public class Scratch extends Actor
         getWorld().removeObject(sayActor);
         sayActor = null;
     }
+    
+    /**
+     * display the given string for <n> seconds next to the sprite.
+     */
+    public void thinkForNSeconds(Sequence s, Object speech, Number duration)
+    {
+        String str = speech.toString();
+        GreenfootImage mySprite = getCurrImage();
+
+        int width = mySprite.getWidth();
+        int height = mySprite.getHeight();
+
+        sayActor = new Sayer(str);
+        sayActor.think = true;
+        sayActor.update();
+        getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+
+        if (!isShowing) {
+            sayActor.hide();
+        }
+        getWorld().moveClassToFront(sayActor.getClass());
+
+        wait(s, duration.doubleValue());
+
+        getWorld().removeObject(sayActor);
+        sayActor = null;
+    }
 
     // called from act() above to update the location of the say/think actor.
     private void sayActorUpdateLocation()
@@ -1915,7 +1954,7 @@ public class Scratch extends Actor
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
-        sayActor.updateLocation(super.getX() + width + 4, super.getY() - height / 2 + 4);
+        sayActor.updateLocation(super.getX() + width / 2 + 4, super.getY() - height / 2 + 4);
     }
 
     /**
@@ -2900,11 +2939,21 @@ public class Scratch extends Actor
     public class Sayer extends Scratch
     {
         private String str;
+        boolean think = false;
         int x, y;             // in Greenfoot coordinates.
         public Sayer(String str)
         {
             super();
             this.str = str;
+            // this.x = x;
+            // this.y = y;
+            update();
+        }
+        public Sayer(String str, boolean think)
+        {
+            super();
+            this.str = str;
+            this.think = think;
             // this.x = x;
             // this.y = y;
             update();
@@ -2931,13 +2980,14 @@ public class Scratch extends Actor
             int imgH = 45;
             
             GreenfootImage img = new GreenfootImage(imgW, imgH);
-            img.drawImage(saySrc, 0, 0);
+            if (think) img.drawImage(sayThink, 0, 0);
+            else img.drawImage(saySrc, 0, 0);
             for (int i = 45; i < imgW - 7; i++) {
                 img.drawImage(sayExt, i, 0);
             }
             img.drawImage(sayEnd, imgW - 8, 0);
             img.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
-            img.drawString(str, 6, 20);
+            img.drawString(str, 8, 20);
             setImage(img);
         }
 
