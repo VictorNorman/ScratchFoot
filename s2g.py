@@ -475,8 +475,9 @@ class SpriteOrStage:
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
         if 'scripts' not in self._sprData:
-            print("RETURNING: NO SCRIPTS FOUND")
-            print("sprData is -->" + str(self._sprData) + "<--")
+            print("No scripts found in", self._name)
+            if debug:
+                print("sprData is -->" + str(self._sprData) + "<--")
             return
 
         for scr in self._sprData['scripts']:
