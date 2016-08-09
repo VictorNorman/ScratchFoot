@@ -563,6 +563,8 @@ class SpriteOrStage:
             # Looks commands
             'say:duration:elapsed:from:': self.sayForSecs,
             'say:': self.say,
+            'think:duration:elapsed:from:':self.thinkForSecs,
+            'think:': self.think,
             'show': self.show,
             'hide': self.hide,
             'lookLike:': self.switchCostumeTo,
@@ -1132,7 +1134,7 @@ class SpriteOrStage:
         """
         cmd, arg1, arg2 = tokens
         assert cmd == 'say:duration:elapsed:from:'
-        return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", (double)" + \
+        return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
                self.mathExpr(arg2) + ");\n"
 
     def say(self, level, tokens):
@@ -1141,6 +1143,21 @@ class SpriteOrStage:
         cmd, arg1 = tokens
         assert cmd == "say:"
         return genIndent(level) + "say(" + self.strExpr(arg1) + ");\n"
+    
+    def thinkForSecs(self, level, tokens):
+        """Generate code to handle say <str> for <n> seconds.
+        """
+        cmd, arg1, arg2 = tokens
+        assert cmd == 'think:duration:elapsed:from:'
+        return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(arg1) + ", " + \
+               self.mathExpr(arg2) + ");\n"
+    
+    def think(self, level, tokens):
+        """Generate code to handle say <str>.
+        """
+        cmd, arg1 = tokens
+        assert cmd == "think:"
+        return genIndent(level) + "think(" + self.strExpr(arg1) + ");\n"
 
     def show(self, level, tokens):
         """Generate code for the show block.
@@ -1975,6 +1992,20 @@ try:
         print("ScratchWorld.java was already in the project directory")
 except:
     print("\n\tScratch.java and ScratchWorld.java were NOT copied!")
+    
+try: 
+    # If the file already exists, skip copying it
+    
+    shutil.copyfile("say.png", os.path.join(imagesDir, "say.png"))
+    print("say.png copied successfully")
+    shutil.copyfile("say2.png", os.path.join(imagesDir, "say2.png"))
+    print("say2.png copied successfully")
+    shutil.copyfile("say3.png", os.path.join(imagesDir, "say3.png"))
+    print("say3.png copied successfully")
+    shutil.copyfile("think.png", os.path.join(imagesDir, "think.png"))
+    print("think.png copied successfully")
+except:
+    print("\n\tImages for say/think were NOT all copied!")
 
 
 # End of preparing directories, copying files, etc,
