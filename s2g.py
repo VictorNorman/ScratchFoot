@@ -759,9 +759,8 @@ class SpriteOrStage:
                 return "letterNOf(" + self.strExpr(tok2) + ", " + self.mathExpr(tok1) + ")"
             elif op == 'getAttribute:of:':
                 return self.getAttributeOf(tok1, tok2)
-            else:
-                raise ValueError("Unknown string operator " + op)
-        raise ValueError("Unknown string operator " + tokenOrList[0])
+        print("No string operator '" + tokenOrList[0] + "' trying mathExpr")
+        return "String.valueOf(" + str(self.mathExpr(tokenOrList)) + ")"
 
     def mathExpr(self, tokenOrList):
 
@@ -810,8 +809,8 @@ class SpriteOrStage:
                 return "getMouseY()"
             elif op == "timer":
                 return "getTimer()"
-            elif op == "timeStamp":		# TODO: daysSince2000 in scratch.  float result
-                return "daysSince2000 not implemented"
+            elif op == "timestamp":
+                return "daysSince2000()"
             else:
                 raise ValueError("Unknown operation " + op)
 
@@ -1207,10 +1206,10 @@ class SpriteOrStage:
         cmd, arg1 = tokens
         assert cmd == "lookLike:"
         try:
-            return genIndent(level) + "switchToCostume(" + self.strExpr(arg1) + ");\n"
-        except ValueError:
-            # if strExpr is unable to resolve arg1, use mathExpr instead
             return genIndent(level) + "switchToCostume(" + self.mathExpr(arg1) + ");\n"
+        except ValueError:
+            # if mathExpr is unable to resolve arg1, use strExpr instead
+            return genIndent(level) + "switchToCostume(" + self.strExpr(arg1) + ");\n"
 
     def nextCostume(self, level, tokens):
         """Generate code for the next costume block.
@@ -1642,15 +1641,13 @@ class SpriteOrStage:
         """ Play the given sound
         """
         assert len(tokens) == 2 and tokens[0] == "playSound:"
-        # TODO: should tokens[1] be a strExpr()?
-        return genIndent(level) + "playSound(\"" + tokens[1] + "\");\n"
+        return genIndent(level) + "playSound(\"" + strExpr(tokens[1]) + "\");\n"
 
     def playSoundUntilDone(self, level, tokens):
         """ Play the given sound without interrupting it.
         """
         assert len(tokens) == 2 and tokens[0] == "doPlaySoundAndWait"
-        # TODO: should tokens[1] be a strExpr()?
-        return genIndent(level) + "playSoundUntilDone(\"" + tokens[1] + "\");\n"
+        return genIndent(level) + "playSoundUntilDone(\"" + strExpr(tokens[1]) + "\");\n"
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a
