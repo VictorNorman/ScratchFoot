@@ -38,20 +38,10 @@ name_resolution = False
 NUM_SPACES_PER_LEVEL = 4
 
 
-# A global dictionary mapping (spriteName, variableName) --> variableType.
-# We need this so we can generate code that calls the correct
-# functions to generate the correct type of results.
-# E.g., if a variable is boolean, we'll call boolExpr()
-# from setVariables(), not mathExpr().
-varTypes = {}
-
 # This variable tracks how many cloud variables have been generated, and
 # serves as each cloud var's id
 cloudVars = 0
 
-# A global dictionary mapping scratch variable names to the name chosen
-# by convertToJavaID or the user.
-varNames = {}
 
 # Set up arguments
 parser = argparse.ArgumentParser()
@@ -207,7 +197,19 @@ class SpriteOrStage:
         self._varDefnCode = ""
         self._cbCode = []
         self._addedToWorldCode = ""
+
+        # TODO: Hmmmm... not sure I like this here.  It is different than
+        # how we are doing everything else -- which is called from main.
         self.copySounds()
+
+        # A dictionary mapping variableName --> (sanitizedName, variableType).
+        # We need this so we can generate code that calls the correct
+        # functions to generate the correct type of results.
+        # E.g., if a variable is boolean, we'll call boolExpr()
+        # from setVariables(), not mathExpr().
+        # The name is the sanitized name.
+        self.varInfo = {}
+
         print("\n----------- Sprite: %s ----------------" % self._name)
     
     def copySounds(self):
@@ -222,9 +224,14 @@ class SpriteOrStage:
                     print("Warning: Sound is in adpcm format and will not work:", soundName)
                 shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
                                 os.path.join(soundsDir, self.getName(), soundName + '.wav'))
+
     def getName(self):
         return self._name
 
+    def getVarInfo(self, name):
+        '''Might return None if name not found in the mapping.
+        Otherwise, returns a tuple: (clean name, varType)'''
+        return self.varInfo.get(name)
 
     def genAddSpriteCall(self):
         self._worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
@@ -237,7 +244,6 @@ class SpriteOrStage:
     def getCostumesCode(self):
         return self._costumeCode
 
-
     def genHeaderCode(self):
         """Generate code at the top of the output file -- imports, public class ..., etc."""
         self._fileHeaderCode = "import greenfoot.*;\n\n"
@@ -245,7 +251,6 @@ class SpriteOrStage:
         self._fileHeaderCode += " * \n * @author (your name)\n * @version (a version number or a date)\n"
         self._fileHeaderCode += " */\n"
         self._fileHeaderCode += "public class " + self._name + " extends Scratch\n{\n"
-        
 
     def genConstructorCode(self):
         """Generate code for the constructor.
@@ -312,7 +317,6 @@ class SpriteOrStage:
         #   o NOTE: api does not support putting the variable at a x,y
         #     location.   TODO
 
-        global varTypes	# global dictionary
         def chooseType(name, val):
             i, typechosen = deriveType(name, val)
             while not inference:
@@ -380,10 +384,10 @@ class SpriteOrStage:
                 raise ValueError("deriveType cannot figure out type of -->" + \
                                  str(val) + "<--")
 
-        defnCode = ""
-
+        #
         # Initialization goes into the method addedToWorld() for Sprites, but
         # into the ctor for World.
+        #
 
         # TODO: put this in a subclass implementation...
         if self._name == "Stage":
@@ -397,7 +401,7 @@ class SpriteOrStage:
             self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
 
         for var in listOfVars:  # var is a dictionary.
-            name = var['name']
+            name = var['name']  # unsanitized Scratch name
             value = var['value']
             cloud = var['isPersistent']
             # return the varType and the value converted to a java equivalent
@@ -407,20 +411,34 @@ class SpriteOrStage:
                 value = cloudVars
                 cloudVars += 1
                 varType = 'Cloud'
-                name = name[2:]
+                # The first character is a weird Unicode cloud glyph and the
+                # second is a space.  Get rid of them.
+                name = name[2:]   
             else:
                 value, varType = chooseType(name, value)
+
+            # Sanitize the name: make it a legal Java identifier.
             try:
                 if name_resolution:
-                    varNames[name] = convertToJavaId(name, True, False)
+                    sanname = convertToJavaId(name, True, False)
                 elif not convertToJavaId(name, True, False) == name:
-                    varNames[name] = self.resolveName(name)
+                    sanname = self.resolveName(name)
                 else:
-                    varNames[name] = convertToJavaId(name, True, False)
+                    sanname = convertToJavaId(name, True, False)
             except:
                 print("Error converting variable to java id")
                 sys.exit(0)
-            name = varNames[name]
+
+            # We need this so we can generate code that calls the correct
+            # functions to generate the correct type of results.
+            # E.g., if a variable is boolean, we'll call boolExpr()
+            # from setVariables(), not mathExpr().
+            # Record a mapping from unsanitized name --> (sanitized name, type)
+            self.varInfo[name] = (sanname, varType)
+            if True:
+                print("Adding varInfo entry for", self._name, ":", name,
+                      "--> (" + sanname + ", " + varType + ")")
+            
             for aDict in allChildren:
                 if aDict.get('cmd') == 'getVar:' and \
                    aDict.get('param') == name and \
@@ -449,23 +467,8 @@ class SpriteOrStage:
                     visible = False
                     print("No variable definition dictionary found in script json:", name)
 
-            # Record this variable in the global variables dictionary.
-            # We need this so we can generate code that calls the correct
-            # functions to generate the correct type of results.
-            # E.g., if a variable is boolean, we'll call boolExpr()
-            # from setVariables(), not mathExpr().
 
-            # If the spriteName is "GLOBAL" then it is a global variable.
-            # However, we store global variable in the World, so we'll use
-            # "GLOBAL" instead.
-            if self._name == "Stage":
-                varTypes[("GLOBAL", name)] = varType
-            else:
-                varTypes[(self._name, name)] = varType
-            if debug:
-                print("Adding entry for", self._name, ",", name,
-                      "to dict with value", varType)
-
+            # TODO: FIX THIS: move code into subclass!!!
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
             if self._name == "Stage":
                 # Code is going into the World
@@ -1308,27 +1311,26 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def getTypeAndLocalGlobal(self, varTok):
-        """Look up the token representing a variable name in the varTypes
-        dictionary.  If it is found, return the type and whether it
+    def getNameTypeAndLocalGlobal(self, varTok):
+        """Look up the token representing a variable name in the varInfo
+        dictionaries.  If it is found, return the type and whether it
         is a local variable or global.  Global is known if it is found
-        in GLOBAL object.  Raise ValueError if it isn't found
-        in the dictionary.
+        in the stage object.  Raise ValueError if it isn't found
+        in the dictionaries.
         """
-        
-        isGlobal = False
-        # TODO: move varTypes into the Sprite deifnition, and make a global mapping
-        # called something like GlobalVarTypes, or access the global
-        # variables from the Stage object.
-        varType = varTypes.get((self._name, varTok))
-        if varType is None:
-            varType = varTypes.get(("GLOBAL", varTok))
-            if varType is None:
-                raise ValueError("Sprite " + self._name + " variable " +
-                             varTok + " unknown.")
-            else:
-                isGlobal = True
-        return (varType, isGlobal)
+
+        global stage
+
+        nameAndVarType = self.varInfo.get(varTok)
+        if nameAndVarType is not None:
+            # if self is the stage object, then finding it means it
+            # is global, else not.
+            return (nameAndVarType[0], nameAndVarType[1], self == stage)
+        nameAndVarType = stage.getVarInfo(varTok)
+        if nameAndVarType is not None:
+            return (nameAndVarType[0], nameAndVarType[1], True)
+        raise ValueError("Sprite " + self._name + " variable " +
+                         varTok + " unknown.")
 
     def setVariable(self, level, tokens):
         """Set a variable's value from within the code.
@@ -1339,8 +1341,7 @@ class SpriteOrStage:
         The variable may be sprite-specific or global.  We have to check
         both dictionaries to figure it out.
         """
-
-        varType, isGlobal = self.getTypeAndLocalGlobal(varNames[tokens[1]])
+        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if varType == 'Boolean':
             val = self.boolExpr(tokens[2])
         elif varType in ('Int', 'Double'):
@@ -1351,9 +1352,9 @@ class SpriteOrStage:
         if isGlobal:
             # Something like: world.counter.set(0);
             return genIndent(level) + "world.%s.set(%s);\n" % \
-                   (varNames[tokens[1]], val)
+                   (varName, val)
         else:
-            return genIndent(level) + varNames[tokens[1]] + ".set(" + val + ");\n"
+            return genIndent(level) + varName + ".set(" + val + ");\n"
 
 
     def readVariable(self, varname):
@@ -1366,36 +1367,34 @@ class SpriteOrStage:
         both dictionaries to figure it out.
         """
 
-        varType, isGlobal = self.getTypeAndLocalGlobal(varNames[varname])
+        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(varname)
         if isGlobal:
             # Something like: world.counter.get();
-            return "world.%s.get()" % (varNames[varname])
+            return "world.%s.get()" % varName
         else:
-            return varNames[varname] + ".get()"
+            return varName + ".get()"
 
 
     def hideVariable(self, level, tokens):
         """Generate code to hide a variable.
         """
-        varType, isGlobal = self.getTypeAndLocalGlobal(varNames[tokens[1]])
+        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.hide();
-            return genIndent(level) + "world.%s.hide();\n" % \
-                   (varNames[tokens[1]])
+            return genIndent(level) + "world.%s.hide();\n" % varName
         else:
-            return genIndent(level) + varNames[tokens[1]] + ".hide();\n"
+            return genIndent(level) + varName + ".hide();\n"
 
 
     def showVariable(self, level, tokens):
         """Generate code to hide a variable.
         """
-        varType, isGlobal = self.getTypeAndLocalGlobal(varNames[tokens[1]])
+        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.show();
-            return genIndent(level) + "world.%s.show();\n" % \
-                   (varNames[tokens[1]])
+            return genIndent(level) + "world.%s.show();\n" % varName
         else:
-            return genIndent(level) + varNames[tokens[1]] + ".show();\n"
+            return genIndent(level) + varName + ".show();\n"
 
 
     def changeVarBy(self, level, tokens):
@@ -1403,16 +1402,16 @@ class SpriteOrStage:
         Code will be like this:
         aVar.set(aVar.get() + 3);
         """
-        varType, isGlobal = self.getTypeAndLocalGlobal(varNames[tokens[1]])
+        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like:
             # world.counter.set(world.counter.get() + 1);
             return genIndent(level) + \
                    "world.%s.set(world.%s.get() + %s);\n" % \
-                   (varNames[tokens[1]], varNames[tokens[1]], self.mathExpr(tokens[2]))
+                   (varName, varName, self.mathExpr(tokens[2]))
         else:
-            return genIndent(level) + varNames[tokens[1]] + ".set(" + \
-                   varNames[tokens[1]] + ".get() + " + self.mathExpr(tokens[2]) + ");\n"
+            return genIndent(level) + varName + ".set(" + \
+                   varName + ".get() + " + self.mathExpr(tokens[2]) + ");\n"
 
     def broadcast(self, level, tokens):
         """Generate code to handle sending a broacast message.
