@@ -1097,18 +1097,11 @@ class SpriteOrStage:
         if cmd == "forward:":
             return genIndent(level) + "move(" + self.mathExpr(arg) + ");\n"
         elif cmd == "turnRight:":
-            return genIndent(level) + "turnRightDegrees((int) " + self.mathExpr(arg) + ");\n"
-            # TODO: be nice to get rid of the (int)
-            # but would require knowing if mathExpr is
-            # returning an int type or float...
-            # OR, add turnRightDegrees(float) and convert it.
+            return genIndent(level) + "turnRightDegrees(" + self.mathExpr(arg) + ");\n"
         elif cmd == "turnLeft:":
-            return genIndent(level) + "turnLeftDegrees((int) " + self.mathExpr(arg) + ");\n"
-            # TODO: be nice to get rid of the (int)
-            # but would require knowing if mathExpr is
-            # returning an int type or float...
+            return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(arg) + ");\n"
         elif cmd == "heading:":
-            return genIndent(level) + "pointInDirection((int) " + self.mathExpr(arg) + ");\n"
+            return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
         elif cmd == "gotoSpriteOrMouse:":
             if arg == "_mouse_":
                 return genIndent(level) + "goToMouse();\n"
@@ -1116,15 +1109,14 @@ class SpriteOrStage:
                 return genIndent(level) + "goToRandomPosition();\n"
             else:
                 return genIndent(level) + "goTo(\"" + arg + "\");\n"
-            # TODO: Looks like there is something new: gotoRandomPosition()
         elif cmd == "changeXposBy:":
             return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "xpos:":
-            return genIndent(level) + "setXTo((int) " + self.mathExpr(arg) + ");\n" 
+            return genIndent(level) + "setXTo(" + self.mathExpr(arg) + ");\n" 
         elif cmd == "changeYposBy:":
             return genIndent(level) + "changeYBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "ypos:":
-            return genIndent(level) + "setYTo((int) " + self.mathExpr(arg) + ");\n"
+            return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setRotationStyle":
             resStr = genIndent(level) + "setRotationStyle("
             if arg in ("left-right", "leftRight"):
@@ -1143,8 +1135,8 @@ class SpriteOrStage:
         gotoX:y:, etc."""
         cmd, arg1, arg2 = tokens
         if cmd == "gotoX:y:":
-            return genIndent(level) + "goTo((int) " + self.mathExpr(arg1) + \
-                   ", (int) " + self.mathExpr(arg2) + ");\n"
+            return genIndent(level) + "goTo( " + self.mathExpr(arg1) + \
+                   ", " + self.mathExpr(arg2) + ");\n"
         else:
             raise ValueError(cmd)
 
@@ -1243,14 +1235,14 @@ class SpriteOrStage:
         """
         cmd, arg1 = tokens
         assert cmd == "changeSizeBy:"
-        return genIndent(level) + "changeSizeBy((int) " + self.mathExpr(arg1) + ");\n"
+        return genIndent(level) + "changeSizeBy(" + self.mathExpr(arg1) + ");\n"
 
     def setSizeTo(self, level, tokens):
         """Generate code to change the size of the sprite to a certain percentage
         """
         cmd, arg1 = tokens
         assert cmd == "setSizeTo:"
-        return genIndent(level) + "setSizeTo((int) " + self.mathExpr(arg1) + ");\n"
+        return genIndent(level) + "setSizeTo(" + self.mathExpr(arg1) + ");\n"
 
     def goToFront(self, level, tokens):
         """Generate code to move the sprite to the front
@@ -1263,7 +1255,7 @@ class SpriteOrStage:
         """
         cmd, arg1 = tokens
         assert cmd == "goBackByLayers:"
-        return genIndent(level) + "goBackNLayers((int) " + self.mathExpr(arg1) + ");\n"
+        return genIndent(level) + "goBackNLayers(" + self.mathExpr(arg1) + ");\n"
 
     def changeGraphicBy(self, level, tokens):
         cmd, arg1, arg2 = tokens
@@ -1753,10 +1745,10 @@ class Sprite(SpriteOrStage):
         # Set the initial costume (NOTE: could use the name of the costume instead of index...)
         resStr = genIndent(2) + 'switchToCostume(' + str(self._sprData['currentCostumeIndex'] + 1) + ');\n'
         if self._sprData['scale'] != 1:
-            resStr += genIndent(2) + 'setSizeTo((int)' + str(self._sprData['scale'] * 100) + ');\n'
+            resStr += genIndent(2) + 'setSizeTo(' + str(self._sprData['scale'] * 100) + ');\n'
         if not self._sprData['visible']:
             resStr += genIndent(2) + 'hide();\n';
-        resStr += genIndent(2) + 'pointInDirection((int) ' + str(self._sprData['direction']) + ');\n';
+        resStr += genIndent(2) + 'pointInDirection(' + str(self._sprData['direction']) + ');\n';
         # TODO: need to test this!
         resStr += self.motion1Arg(2, ['setRotationStyle', self._sprData['rotationStyle']])
         self._initSettingsCode += resStr
