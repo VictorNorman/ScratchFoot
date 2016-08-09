@@ -99,7 +99,7 @@ public class Scratch extends Actor
     private boolean isPenDown = false;
     private Color penColor = Color.RED;
     private int penColorNumber = 0;         // an integer that is mod 200 -- 0 to 199.
-    private int penSize = 1;
+    private float penSize = 1;
     private int currCostume = 0;
     private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
     private String name;                    // Sprite's class name, for sound lookup
@@ -1424,20 +1424,18 @@ public class Scratch extends Actor
      * set the pen size to the given value.  If pen size is set to 0 or negative,
      * a size of 1 is used. 
      */
-    public void setPenSize(int size)
+    public void setPenSize(Number size)
     {
-        penSize = size;
-        // Stage.getBackground().setPenWidth(size);
-
+        penSize = size.floatValue();
     }
 
     /**
      * change pen size by the given amount.  If pen size is set to 0 or negative,
      * a size of 1 is used.
      */
-    public void changePenSizeBy(int size)
+    public void changePenSizeBy(Number size)
     {
-        penSize += size;
+        penSize += size.floatValue();
         if (penSize <= 0) {
             penSize = 1;
         }
@@ -1521,8 +1519,10 @@ public class Scratch extends Actor
 
         /* pen is down, so we need to draw a line from the current point to the new point */
         if (isPenDown) {
-            Stage.getBackground().setColor(penColor);
-            Stage.getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
+            java.awt.Graphics2D g = Stage.getBackground().getAwtImage().createGraphics();
+            g.setColor(penColor);
+            g.setStroke(new java.awt.BasicStroke(penSize, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+            g.draw(new java.awt.geom.Line2D.Float(oldX, oldY, super.getX(), super.getY()));
         }
     }
 
