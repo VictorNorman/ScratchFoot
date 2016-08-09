@@ -876,7 +876,7 @@ class SpriteOrStage:
             if tok1 == 'backdrop name':
                 return "backdropName()"
             elif tok1 == 'backdrop #':
-                return "getWorld().getBackdropNumber()"
+                return "world.getBackdropNumber()"
             elif tok1 == 'volume':
                 return ' Volume not implemented '
             else:
@@ -1193,12 +1193,12 @@ class SpriteOrStage:
         """
         cmd, arg1 = tokens
         assert cmd == "startScene"
-        return genIndent(level) + "getWorld().switchBackdropTo(" + self.strExpr(arg1) + ");\n"
+        return genIndent(level) + "world.switchBackdropTo(" + self.strExpr(arg1) + ");\n"
 
     def nextBackdrop(self, level, tokens):
         """Generate code to switch to the next backdrop.
         """
-        return genIndent(level) + "getWorld().nextBackdrop();\n"
+        return genIndent(level) + "world.nextBackdrop();\n"
 
     def changeSizeBy(self, level, tokens):
         """Generate code to change the size of the sprite
