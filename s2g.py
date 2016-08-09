@@ -940,7 +940,7 @@ class SpriteOrStage:
         # Generate a copy constructor too.
         cbStr = "\n\n" + genIndent(1) + "// copy constructor, required for cloning\n"
         cbStr += genIndent(1) + "public " + self._name + "(" + \
-                 spriteName + " other, int x, int y) {\n"
+                 self._name + " other, int x, int y) {\n"
         cbStr += genIndent(2) + "super(other, x, y);\n"
         cbStr += genIndent(2) + "// add code here to copy any instance variables'\n"
         cbStr += genIndent(2) + "// values from other to this.\n"
@@ -1323,7 +1323,7 @@ class SpriteOrStage:
         both dictionaries to figure it out.
         """
 
-        varType, isGlobal = getTypeAndLocalGlobal(varNames[varname])
+        varType, isGlobal = self.getTypeAndLocalGlobal(varNames[varname])
         if isGlobal:
             # Something like: world.counter.get();
             return "world.%s.get()" % (varNames[varname])
