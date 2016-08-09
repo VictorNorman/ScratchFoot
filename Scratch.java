@@ -111,8 +111,10 @@ public class Scratch extends Actor
      */
     public class ScratchImage {
         public RotationStyle style;
-        private GreenfootImage baseImage;
-        public GreenfootImage image;
+        // original image from file, but centered in a field big enough to
+        // allow rotation. 
+        private GreenfootImage baseImage;   
+        public GreenfootImage image;        // modified by rotation, scaling, etc.
         private int ghost;
         private int rotation;
         private int size;
@@ -130,8 +132,8 @@ public class Scratch extends Actor
             int maxx = bi.getWidth();
             int maxy = bi.getHeight();
             // First we have to crop and center the image
-            for(int x = 0; x < bi.getWidth(); x++) {
-                for(int y = 0; y < bi.getHeight(); y++) {
+            for (int x = 0; x < bi.getWidth(); x++) {
+                for (int y = 0; y < bi.getHeight(); y++) {
                     if ((bi.getRGB(x, y) >> 24) != 0x00) {
                         // Find the smallest rectangle that contains the entire image
                         if (x < minx) minx = x;
@@ -142,15 +144,22 @@ public class Scratch extends Actor
                 }
             }
             // Slide the image to the upper left hand corner, then make the image big enough to
-            // fully rotate the object without cutting off any corners
-            AffineTransformOp ato = new AffineTransformOp(AffineTransform.getTranslateInstance(-minx, -miny), AffineTransformOp.TYPE_BILINEAR);
+            // fully rotate the object without cutting off any corners.
+            AffineTransformOp ato = new AffineTransformOp(AffineTransform.getTranslateInstance(-minx, -miny),
+							  AffineTransformOp.TYPE_BILINEAR);
+            // + 2 at end to deal with rounding issues.
             int newDim = (int)Math.sqrt(Math.pow(bi.getWidth(), 2) + Math.pow(bi.getHeight(), 2)) + 2;
             baseImage = new GreenfootImage(newDim, newDim);
+	    // Move image pixels from bi to baseImage to the upper-left corner.
             ato.filter(bi, baseImage.getAwtImage());
             // Now slide the image from the upper left corner to the center
-            AffineTransformOp ato2 = new AffineTransformOp(AffineTransform.getTranslateInstance(((newDim - img.getWidth()) / 4) , ((newDim - img.getHeight()) / 4)), AffineTransformOp.TYPE_BILINEAR);
+            AffineTransformOp ato2 = new AffineTransformOp(AffineTransform.getTranslateInstance(((newDim - img.getWidth()) / 4) ,
+                ((newDim - img.getHeight()) / 4)), AffineTransformOp.TYPE_BILINEAR);
             bi = baseImage.getAwtImage();
             baseImage = new GreenfootImage(newDim, newDim);
+            // Use setData because you can't use a filter and have both
+            // sides be the same thing.  So, take result of ato2.filter()
+            // and store in baseImage.
             baseImage.getAwtImage().setData(ato2.filter(bi.getData(), null));
             updateImage();
         }
@@ -206,7 +215,7 @@ public class Scratch extends Actor
                 AffineTransformOp ato = new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
                 ato.filter(trans.getAwtImage(), rot.getAwtImage());
                 return rot;
-            } else if (style == RotationStyle.LEFT_RIGHT && rotation > 90 && rotation < 270  ) {
+            } else if (style == RotationStyle.LEFT_RIGHT && rotation > 90 && rotation < 270) {
                 trans.mirrorHorizontally();
                 return trans;
             } else {
@@ -2272,20 +2281,15 @@ public class Scratch extends Actor
      */
     public boolean isTouching(Scratch other)
     {
-        // TODO it's very likely that this code can be refined/optimized
-        // TODO this if statement should use a general algorithm rather than intersects(), as
-        // intersects() does not work if either actor is hidden
+        if (!isShowing) {
+            return false;
+        }
 
         /* Get all intersecting objects of other's class.  To Greenfoot, "intersecting" means
            the images' bounding boxes overlap.  */
         java.lang.Class clazz = other.getClass();
         List<Scratch> nbrs = getIntersectingActors(clazz);
-        if (nbrs.isEmpty()) {
-            return false;
-        }
-        if (!isShowing) {
-            return false;
-        }
+
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
@@ -2800,7 +2804,7 @@ public class Scratch extends Actor
      * Takes a coordinate r relative to an absolute coordinate p and returns the relative
      * coordinate to the new absolute coordinate p
      */
-    public int changeRelativePoint(int r, int p, int n)
+    private int changeRelativePoint(int r, int p, int n)
     {
         return absToRel(relToAbs(r, p), n);
     }
