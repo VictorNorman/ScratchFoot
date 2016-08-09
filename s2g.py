@@ -53,6 +53,30 @@ cloudVars = 0
 # by convertToJavaID or the user.
 varNames = {}
 
+# Set up arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
+parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
+parser.add_argument("scratch", help="Location of scratch sb2 file")
+parser.add_argument("greenfoot", help="Location of greenfoot project directory")
+args = parser.parse_args()
+# Apply arguments
+if args.verbose:
+    debug = True
+if args.dotypeinference:
+    inference = True
+if args.resolvevariablenames:
+    name_resolution = True
+SCRATCH_FILE = args.scratch.strip()
+# Take off spaces and a possible trailing "/"
+PROJECT_DIR = args.greenfoot.strip().rstrip("/")
+
+SCRATCH_PROJ_DIR = "scratch_code"
+
+imagesDir = os.path.join(PROJECT_DIR, "images")
+soundsDir = os.path.join(PROJECT_DIR, "sounds")
+
 class CodeAndCb:
     """This class binds together code, and possibly code that that code
     will call that belongs in a callback."""
@@ -183,8 +207,21 @@ class SpriteOrStage:
         self._varDefnCode = ""
         self._cbCode = []
         self._addedToWorldCode = ""
+        self.copySounds()
         print("\n----------- Sprite: %s ----------------" % self._name)
-
+    
+    def copySounds(self):
+        # Move all of this sprites sounds to project/sounds/[spritename]
+        if 'sounds' in self._sprData:
+            if not os.path.exists(os.path.join(soundsDir, self.getName())):
+                os.makedirs(os.path.join(soundsDir, self.getName()))
+            for sound in self._sprData['sounds']:
+                soundName = sound['soundName']
+                id = sound['soundID']
+                if sound['format'] == 'adpcm':
+                    print("Warning: Sound is in adpcm format and will not work:", soundName)
+                shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
+                                os.path.join(soundsDir, self.getName(), soundName + '.wav'))
     def getName(self):
         return self._name
 
@@ -1883,27 +1920,6 @@ def genWorldCtorHeader(classname):
 #                ----------------- main -------------------
 # ---------------------------------------------------------------------------
 
-# Set up arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
-parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
-parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
-parser.add_argument("scratch", help="Location of scratch sb2 file")
-parser.add_argument("greenfoot", help="Location of greenfoot project directory")
-args = parser.parse_args()
-# Apply arguments
-if args.verbose:
-    debug = True
-if args.dotypeinference:
-    inference = True
-if args.resolvevariablenames:
-    name_resolution = True
-SCRATCH_FILE = args.scratch.strip()
-# Take off spaces and a possible trailing "/"
-PROJECT_DIR = args.greenfoot.strip().rstrip("/")
-
-SCRATCH_PROJ_DIR = "scratch_code"
-
 if not os.path.exists(SCRATCH_FILE):
     print("Scratch download file " + SCRATCH_FILE + " not found.")
     sys.exit(1)
@@ -1928,9 +1944,6 @@ except FileExistsError as e:
 # Unzip the .sb2 file into the project/scratch_code directory.
 print("Unpacking Scratch download file.")
 shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
-
-imagesDir = os.path.join(PROJECT_DIR, "images")
-soundsDir = os.path.join(PROJECT_DIR, "sounds")
 
 # Make directories if they don't exist yet
 if not os.path.exists(imagesDir):
@@ -2079,18 +2092,6 @@ for sprData in spritesData:
         projectFileCode.append("class." + sprite.getName() + ".image=" + \
                            str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
 
-        # Move all of this sprites sounds to project/sounds/[spritename]
-        if 'sounds' in sprData:
-            if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', sprite.getName())):
-                os.makedirs(os.path.join(PROJECT_DIR, 'sounds', sprite.getName()))
-            for sound in sprData['sounds']:
-                soundName = sound['soundName']
-                id = sound['soundID']
-                if sound['format'] == 'adpcm':
-                    print("Warning: Sound is in adpcm format and will not work:", soundName)
-                shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
-                                os.path.join(PROJECT_DIR, 'sounds', sprite.getName(), soundName + '.wav'))
-
         # Handle variables defined for this sprite.  This has to be done
         # before handling the scripts, as the scripts may refer will the
         # variables.
@@ -2127,21 +2128,6 @@ projectFileCode.append("class." + stage.getName() + ".superclass=Scratch\n")
 
 # Create the special Stage sprite.
 worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
-
-# TODO: this is copied code.  Find a way to unify the copies.  Hopefully as
-# a method in SpriteOrStage class.
-
-# Move all of the stage's sounds to project/sounds/stage
-if 'sounds' in data:
-    if not os.path.exists(os.path.join(PROJECT_DIR, 'sounds', 'Stage')):
-        os.makedirs(os.path.join(PROJECT_DIR, 'sounds', 'Stage'))
-    for sound in data['sounds']:
-        name = sound['soundName']
-        id = sound['soundID']
-        if sound['format'] == 'adpcm':
-            print("Warning: Sound is in adpcm format and will not work:", name)
-        shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
-                        os.path.join(PROJECT_DIR, 'sounds', 'Stage', name + '.wav'))
 
 stage.genInitSettingsCode()
 stage.genLoadCostumesCode(data['costumes'])
