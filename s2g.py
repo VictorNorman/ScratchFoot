@@ -485,9 +485,7 @@ class SpriteOrStage:
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
 
-        # TODO: This is terrible style: hardcoding a decision based on the
-        # name of a subclass object.  Fix this!
-        if self._name != "Stage":
+        if not isinstance(self, Stage):
             # Close the addedToWorld() method definition.
             self._addedToWorldCode += genIndent(1) + "}\n"
             
@@ -825,7 +823,6 @@ class SpriteOrStage:
                 if tok1 == "_mouse_":
                     return "distanceToMouse()"
                 else:   # must be distance to a sprite
-                    # TODO: this call requires a Scratch object, not a string.  Make string available.
                     return 'distanceTo("' + tok1 + '")'
             elif op == "getTimeAndDate":
                 if tok1 == "minute":
@@ -898,7 +895,7 @@ class SpriteOrStage:
         elif op == '*':
             resStr += " * "
         elif op == '/':
-            resStr += " / "		# TODO: handle floating pt/int div.
+            resStr += " / "
         else:
             raise ValueError(op)
         resStr += self.mathExpr(tok2) + ")"
