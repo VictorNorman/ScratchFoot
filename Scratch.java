@@ -732,7 +732,11 @@ public class Scratch extends Actor
                 int valLength = fm.stringWidth(v.toString());
                 // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength + 8, 20);
-                image.setColor(bgColor);
+                if (this instanceof CloudVar) {
+                    image.setColor(Color.decode("#66FFFF"));
+                } else {
+                    image.setColor(bgColor);
+                }
                 image.setFont(font);
                 image.fill();
                 // Create orange background under the variable's value.
@@ -813,6 +817,25 @@ public class Scratch extends Actor
         public Boolean get() { return (Boolean) super.get(); }
         public void set(Object newVal) { super.set((Boolean) newVal); }
     }
+    public class CloudVar extends Variable {
+        int id;
+        public CloudVar(ScratchWorld w, String name, int id) {
+            super(w, name, (Object)new Integer(0));
+            if (UserInfo.isStorageAvailable()) {
+                super.set(UserInfo.getMyInfo().getInt(id));
+            }
+            this.id = id;
+        }
+        
+        public Integer get() { return ((Integer)super.get()).intValue(); }
+        public void set(Number val) { 
+            super.set(val);
+            if (UserInfo.isStorageAvailable()) {
+                UserInfo.getMyInfo().setInt(id, val.intValue());
+                UserInfo.getMyInfo().store();
+            }
+        }
+    }
 
     /**
      * Create an integer variable whose value will be displayed on the screen.
@@ -885,6 +908,23 @@ public class Scratch extends Actor
             newVar.set(((Scratch.BooleanVar) parent.getVariable(varName)).get());
             newVar.hide();
         }
+        return newVar;
+    }
+    
+    /**
+     * Create an cloud variable whose value will be displayed on the screen.
+     * The id must be an int between 0 and 9. Each cloud varaible should be given
+     * a different id, as the id determines which 'slot' to store the data in
+     */
+    public CloudVar createCloudVariable(ScratchWorld w, String varName, int id)
+    {
+        CloudVar newVar = new CloudVar(w, varName, id);
+        w.addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        variables.put(varName, newVar);
+        // Cloud variables can never be local, so they will never be cloned
         return newVar;
     }
 

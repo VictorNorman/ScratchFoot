@@ -385,17 +385,12 @@ class SpriteOrStage:
         # Initialization goes into the method addedToWorld() for Sprites, but
         # into the ctor for World.
         #
-
-        # TODO: put this in a subclass implementation...
-        if self._name == "Stage":
-            self._worldCtorCode += "\n" + genIndent(2) + "// Variable initializations.\n"
-        else:
-            self._addedToWorldCode += "\n" + genIndent(1) + "private " + worldClassName + " world;"
-            self._addedToWorldCode += "\n" + genIndent(1) + "public void addedToWorld(World w)\n"
-            self._addedToWorldCode += genIndent(1) + "{\n"
-            self._addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ") w;\n"
-            self._addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n";
-            self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
+        self._addedToWorldCode += "\n" + genIndent(1) + "private " + worldClassName + " world;"
+        self._addedToWorldCode += "\n" + genIndent(1) + "public void addedToWorld(World w)\n"
+        self._addedToWorldCode += genIndent(1) + "{\n"
+        self._addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ") w;\n"
+        self._addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n";
+        self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
 
         for var in listOfVars:  # var is a dictionary.
             name = var['name']  # unsanitized Scratch name
@@ -469,11 +464,9 @@ class SpriteOrStage:
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
             if self._name == "Stage":
                 # Code is going into the World
-                self._varDefnCode += genIndent(1) + "ScratchWorld.%sVar %s;\n" % (varType, name)
-                self._worldCtorCode += '%s%s = create%sVariable("%s", %s);\n' % \
-                            (genIndent(2), name, varType, label, str(value))
-                if not visible:
-                    self._worldCtorCode += genIndent(2) + name + ".hide();\n"
+                self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, name)
+                self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
+                    (genIndent(2), name, varType, worldClassName, label, str(value))
             else:
                 self._varDefnCode += genIndent(1) + "Scratch.%sVar %s;\n" % (varType, name)
                 # Something like "score = createIntVariable((MyWorld) world, "score", 0);
@@ -484,10 +477,8 @@ class SpriteOrStage:
 
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
-
-        if not isinstance(self, Stage):
-            # Close the addedToWorld() method definition.
-            self._addedToWorldCode += genIndent(1) + "}\n"
+        # Close the addedToWorld() method definition.
+        self._addedToWorldCode += genIndent(1) + "}\n"
             
 
     def getVarDefnCode(self):
@@ -1345,7 +1336,7 @@ class SpriteOrStage:
 
         if isGlobal:
             # Something like: world.counter.set(0);
-            return genIndent(level) + "world.%s.set(%s);\n" % \
+            return genIndent(level) + "Stage.%s.set(%s);\n" % \
                    (varName, val)
         else:
             return genIndent(level) + varName + ".set(" + val + ");\n"
@@ -1364,7 +1355,7 @@ class SpriteOrStage:
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(varname)
         if isGlobal:
             # Something like: world.counter.get();
-            return "world.%s.get()" % varName
+            return "Stage.%s.get()" % varName
         else:
             return varName + ".get()"
 
@@ -1375,7 +1366,7 @@ class SpriteOrStage:
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.hide();
-            return genIndent(level) + "world.%s.hide();\n" % varName
+            return genIndent(level) + "Stage.%s.hide();\n" % varName
         else:
             return genIndent(level) + varName + ".hide();\n"
 
@@ -1386,7 +1377,7 @@ class SpriteOrStage:
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.show();
-            return genIndent(level) + "world.%s.show();\n" % varName
+            return genIndent(level) + "Stage.%s.show();\n" % varName
         else:
             return genIndent(level) + varName + ".show();\n"
 
@@ -1401,7 +1392,7 @@ class SpriteOrStage:
             # Something like:
             # world.counter.set(world.counter.get() + 1);
             return genIndent(level) + \
-                   "world.%s.set(world.%s.get() + %s);\n" % \
+                   "Stage.%s.set(Stage.%s.get() + %s);\n" % \
                    (varName, varName, self.mathExpr(tokens[2]))
         else:
             return genIndent(level) + varName + ".set(" + \
@@ -1842,6 +1833,7 @@ class Stage(SpriteOrStage):
         outFile = open(filename, "w")
         self.genHeaderCode()
         outFile.write(self._fileHeaderCode)
+        outFile.write(self._varDefnCode)
 
         self.genConstructorCode()
         outFile.write(self._ctorCode)
@@ -2036,8 +2028,6 @@ stage = Stage(data)
 worldCtorCode = ""
 worldDefnCode = ""
 initCode = ""
-if 'variables' in data:
-    stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
 
 
 # ---------------------------------------------------------------------------
@@ -2114,7 +2104,7 @@ worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
 stage.genInitSettingsCode()
 stage.genLoadCostumesCode(data['costumes'])
 stage.genBackgroundHandlingCode()
-stage.genDefaultAddedToWorld()
+stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
 stage.genCodeForScripts()
 stage.writeCodeToFile()
 
@@ -2129,7 +2119,6 @@ outFile = open(filename, "w")
 print("Writing code to " + filename + ".")
 
 worldCode = genWorldHeaderCode(worldClassName)
-worldCode += stage.getVarDefnCode()
 worldCode += genWorldCtorHeader(worldClassName)
 
 worldCode += stage.getWorldCtorCode()
