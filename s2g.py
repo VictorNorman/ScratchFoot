@@ -625,6 +625,8 @@ class SpriteOrStage:
             'penColor:': self.pen1Arg,
             'changePenHueBy:': self.pen1Arg,
             'setPenHueTo:': self.pen1Arg,
+            'penSize:': self.pen1Arg,
+            'changePenSizeBy:': self.pen1Arg,
 
             # Data commands
             'setVar:to:': self.setVariable,
@@ -1308,6 +1310,10 @@ class SpriteOrStage:
             return resStr + "changePenColorBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setPenHueTo:":
             return resStr + "setPenColor(" + self.mathExpr(arg) + ");\n"
+        elif cmd == "changePenSizeBy:":
+            return resStr + "changePenSizeBy(" + self.mathExpr(arg) + ");\n"
+        elif cmd == "penSize:":
+            return resStr + "setPenSize(" + self.mathExpr(arg) + ");\n"
         else:
             raise ValueError(cmd)
 
