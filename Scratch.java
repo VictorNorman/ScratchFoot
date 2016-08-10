@@ -1498,8 +1498,8 @@ public class Scratch extends Actor
         double dy = (Math.sin(radians) * distance.doubleValue());
 
         // Update subpixel locations with the decimal portion of dx and dy
-        subX += dx % 1;
-        subY += dy % 1;
+        subX += dx - Math.round(dx);
+        subY += dy - Math.round(dy);
 
         // If a subpixel amount is greater than 1, change that movement to standard pixel
         // movement
@@ -1515,7 +1515,7 @@ public class Scratch extends Actor
         }
         // Set the location to the integer portion of dx and dy, as the decimal part is
         // tracked in subX and subY
-        setLocation(oldX + (int)dx, oldY + (int)dy);
+        super.setLocation(oldX + (int)Math.round(dx), oldY + (int)Math.round(dy));
 
         /* pen is down, so we need to draw a line from the current point to the new point */
         if (isPenDown) {
@@ -1838,8 +1838,10 @@ public class Scratch extends Actor
         int oldX = super.getX();
         int oldY = super.getY();
         super.setLocation(x, y);
-        Stage.getBackground().setColor(penColor);
-        Stage.getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
+        java.awt.Graphics2D g = Stage.getBackground().getAwtImage().createGraphics();
+        g.setColor(penColor);
+        g.setStroke(new java.awt.BasicStroke(penSize, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.draw(new java.awt.geom.Line2D.Float(oldX, oldY, super.getX(), super.getY()));
     }
 
     // private helper function
