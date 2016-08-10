@@ -1296,13 +1296,7 @@ class SpriteOrStage:
         if cmd == "penColor:":
             # arg is an integer representing a color.  
             # TODO: need to add code to import java.awt.Color  ??
-            # TODO: we also will have problems here if we have to create
-            # multiple variables in the same block.  They cannot both be named
-            # "color".  If the order of rgb in the number from scratch is
-            # correct, we can inline the creation of the color object to solve
-            # this problem. 
-            resStr += "java.awt.Color color = new java.awt.Color((int) " + self.mathExpr(arg) + ");\n"
-            return resStr + genIndent(level) + "setPenColor(color);\n"
+            return resStr + "setPenColor(new java.awt.Color((int) " + self.mathExpr(arg) + "));\n"
         elif cmd == "changePenHueBy:":
             return resStr + "changePenColorBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setPenHueTo:":
