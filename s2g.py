@@ -198,9 +198,6 @@ class SpriteOrStage:
         self._cbCode = []
         self._addedToWorldCode = ""
 
-        # TODO: Hmmmm... not sure I like this here.  It is different than
-        # how we are doing everything else -- which is called from main.
-        self.copySounds()
 
         # A dictionary mapping variableName --> (sanitizedName, variableType).
         # We need this so we can generate code that calls the correct
@@ -2050,7 +2047,10 @@ for sprData in spritesData:
     if 'objName' in sprData:
 
         sprite = Sprite(sprData)
-
+        
+        # Copy the sounds associated with this sprite to the appropriate directory
+        sprite.copySounds()
+        
         # Write out a line to the project.greenfoot file to indicate that this
         # sprite is a subclass of the Scratch class.
         projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
