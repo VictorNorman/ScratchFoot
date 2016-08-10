@@ -198,9 +198,6 @@ class SpriteOrStage:
         self._cbCode = []
         self._addedToWorldCode = ""
 
-        # TODO: Hmmmm... not sure I like this here.  It is different than
-        # how we are doing everything else -- which is called from main.
-        self.copySounds()
 
         # A dictionary mapping variableName --> (sanitizedName, variableType).
         # We need this so we can generate code that calls the correct
@@ -388,7 +385,6 @@ class SpriteOrStage:
         # Initialization goes into the method addedToWorld() for Sprites, but
         # into the ctor for World.
         #
-
         self.genVarInitHdrCode()
 
         for var in listOfVars:  # var is a dictionary.
@@ -461,7 +457,6 @@ class SpriteOrStage:
             self.genVarInitLines(varType, name, label, value, visible)
 
         self.genFinishVarInits()
-
 
     def getVarDefnCode(self):
         return self._varDefnCode
@@ -596,6 +591,8 @@ class SpriteOrStage:
             'penColor:': self.pen1Arg,
             'changePenHueBy:': self.pen1Arg,
             'setPenHueTo:': self.pen1Arg,
+            'penSize:': self.pen1Arg,
+            'changePenSizeBy:': self.pen1Arg,
 
             # Data commands
             'setVar:to:': self.setVariable,
@@ -765,10 +762,7 @@ class SpriteOrStage:
             elif op == "heading":
                 return "getDirection()"
             elif op == "costumeIndex":	# Looks menu's costume # block
-                # TODO: getCostumeNumber() and size() below are inconsistent names
-                # I think getCostumeNumber() should be changed to just costumeNumber()...
-                # This would be a change to Scratch.java.
-                return "getCostumeNumber()"
+                return "costumeNumber()"
             elif op == 'backgroundIndex':
                 return 'getBackdropNumber()'
             elif op == "scale": 		# Look menu's size block
@@ -897,7 +891,7 @@ class SpriteOrStage:
                     'y position': 'yPositionOf',
                     'direction': 'directionOf',
                     'costume #': 'costumeNumberOf',
-                    'costume name': 'costumeNameOf',   # TODO: implement this.
+                    'costume name': 'costumeNameOf',
                     'size': 'sizeOf',
                     }
         if tok1 in mapping:
@@ -1268,17 +1262,15 @@ class SpriteOrStage:
         if cmd == "penColor:":
             # arg is an integer representing a color.  
             # TODO: need to add code to import java.awt.Color  ??
-            # TODO: we also will have problems here if we have to create
-            # multiple variables in the same block.  They cannot both be named
-            # "color".  If the order of rgb in the number from scratch is
-            # correct, we can inline the creation of the color object to solve
-            # this problem. 
-            resStr += "java.awt.Color color = new java.awt.Color((int) " + self.mathExpr(arg) + ");\n"
-            return resStr + genIndent(level) + "setPenColor(color);\n"
+            return resStr + "setPenColor(new java.awt.Color((int) " + self.mathExpr(arg) + "));\n"
         elif cmd == "changePenHueBy:":
             return resStr + "changePenColorBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setPenHueTo:":
             return resStr + "setPenColor(" + self.mathExpr(arg) + ");\n"
+        elif cmd == "changePenSizeBy:":
+            return resStr + "changePenSizeBy(" + self.mathExpr(arg) + ");\n"
+        elif cmd == "penSize:":
+            return resStr + "setPenSize(" + self.mathExpr(arg) + ");\n"
         else:
             raise ValueError(cmd)
 
@@ -1322,7 +1314,7 @@ class SpriteOrStage:
 
         if isGlobal:
             # Something like: world.counter.set(0);
-            return genIndent(level) + "world.%s.set(%s);\n" % \
+            return genIndent(level) + "Stage.%s.set(%s);\n" % \
                    (varName, val)
         else:
             return genIndent(level) + varName + ".set(" + val + ");\n"
@@ -1341,7 +1333,7 @@ class SpriteOrStage:
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(varname)
         if isGlobal:
             # Something like: world.counter.get();
-            return "world.%s.get()" % varName
+            return "Stage.%s.get()" % varName
         else:
             return varName + ".get()"
 
@@ -1352,7 +1344,7 @@ class SpriteOrStage:
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.hide();
-            return genIndent(level) + "world.%s.hide();\n" % varName
+            return genIndent(level) + "Stage.%s.hide();\n" % varName
         else:
             return genIndent(level) + varName + ".hide();\n"
 
@@ -1363,7 +1355,7 @@ class SpriteOrStage:
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.show();
-            return genIndent(level) + "world.%s.show();\n" % varName
+            return genIndent(level) + "Stage.%s.show();\n" % varName
         else:
             return genIndent(level) + varName + ".show();\n"
 
@@ -1378,7 +1370,7 @@ class SpriteOrStage:
             # Something like:
             # world.counter.set(world.counter.get() + 1);
             return genIndent(level) + \
-                   "world.%s.set(world.%s.get() + %s);\n" % \
+                   "Stage.%s.set(Stage.%s.get() + %s);\n" % \
                    (varName, varName, self.mathExpr(tokens[2]))
         else:
             return genIndent(level) + varName + ".set(" + \
@@ -1860,6 +1852,7 @@ class Stage(SpriteOrStage):
         outFile = open(filename, "w")
         self.genHeaderCode()
         outFile.write(self._fileHeaderCode)
+        outFile.write(self._varDefnCode)
 
         self.genConstructorCode()
         outFile.write(self._ctorCode)
@@ -2054,8 +2047,6 @@ stage = Stage(data)
 worldCtorCode = ""
 worldDefnCode = ""
 initCode = ""
-if 'variables' in data:
-    stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
 
 
 # ---------------------------------------------------------------------------
@@ -2065,7 +2056,10 @@ for sprData in spritesData:
     if 'objName' in sprData:
 
         sprite = Sprite(sprData)
-
+        
+        # Copy the sounds associated with this sprite to the appropriate directory
+        sprite.copySounds()
+        
         # Generate world construct code that adds the sprite to the world.
         # TODO: could we embed this in a "bigger" call like genWorldConstructorCode...
         sprite.genAddSpriteCall()
@@ -2120,7 +2114,7 @@ worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
 stage.genInitSettingsCode()
 stage.genLoadCostumesCode(data['costumes'])
 stage.genBackgroundHandlingCode()
-stage.genDefaultAddedToWorld()
+stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
 stage.genCodeForScripts()
 stage.writeCodeToFile()
 
@@ -2135,7 +2129,6 @@ outFile = open(filename, "w")
 print("Writing code to " + filename + ".")
 
 worldCode = genWorldHeaderCode(worldClassName)
-worldCode += stage.getVarDefnCode()
 worldCode += genWorldCtorHeader(worldClassName)
 
 worldCode += stage.getWorldCtorCode()

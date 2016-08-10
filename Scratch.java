@@ -732,7 +732,11 @@ public class Scratch extends Actor
                 int valLength = fm.stringWidth(v.toString());
                 // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength + 8, 20);
-                image.setColor(bgColor);
+                if (this instanceof CloudVar) {
+                    image.setColor(Color.decode("#66FFFF"));
+                } else {
+                    image.setColor(bgColor);
+                }
                 image.setFont(font);
                 image.fill();
                 // Create orange background under the variable's value.
@@ -813,6 +817,25 @@ public class Scratch extends Actor
         public Boolean get() { return (Boolean) super.get(); }
         public void set(Object newVal) { super.set((Boolean) newVal); }
     }
+    public class CloudVar extends Variable {
+        int id;
+        public CloudVar(ScratchWorld w, String name, int id) {
+            super(w, name, (Object)new Integer(0));
+            if (UserInfo.isStorageAvailable()) {
+                super.set(UserInfo.getMyInfo().getInt(id));
+            }
+            this.id = id;
+        }
+        
+        public Integer get() { return ((Integer)super.get()).intValue(); }
+        public void set(Number val) { 
+            super.set(val);
+            if (UserInfo.isStorageAvailable()) {
+                UserInfo.getMyInfo().setInt(id, val.intValue());
+                UserInfo.getMyInfo().store();
+            }
+        }
+    }
 
     /**
      * Create an integer variable whose value will be displayed on the screen.
@@ -885,6 +908,23 @@ public class Scratch extends Actor
             newVar.set(((Scratch.BooleanVar) parent.getVariable(varName)).get());
             newVar.hide();
         }
+        return newVar;
+    }
+    
+    /**
+     * Create an cloud variable whose value will be displayed on the screen.
+     * The id must be an int between 0 and 9. Each cloud varaible should be given
+     * a different id, as the id determines which 'slot' to store the data in
+     */
+    public CloudVar createCloudVariable(ScratchWorld w, String varName, int id)
+    {
+        CloudVar newVar = new CloudVar(w, varName, id);
+        w.addObject(newVar, newVar.getXLoc(), newVar.getYLoc());
+        // Call act() so that it calls updateImage() which creates/computes
+        // the image that displays the variable, and places in the correct location.
+        newVar.act();
+        variables.put(varName, newVar);
+        // Cloud variables can never be local, so they will never be cloned
         return newVar;
     }
 
@@ -1498,8 +1538,8 @@ public class Scratch extends Actor
         double dy = (Math.sin(radians) * distance.doubleValue());
 
         // Update subpixel locations with the decimal portion of dx and dy
-        subX += dx % 1;
-        subY += dy % 1;
+        subX += dx - Math.round(dx);
+        subY += dy - Math.round(dy);
 
         // If a subpixel amount is greater than 1, change that movement to standard pixel
         // movement
@@ -1515,7 +1555,7 @@ public class Scratch extends Actor
         }
         // Set the location to the integer portion of dx and dy, as the decimal part is
         // tracked in subX and subY
-        setLocation(oldX + (int)dx, oldY + (int)dy);
+        super.setLocation(oldX + (int)Math.round(dx), oldY + (int)Math.round(dy));
 
         /* pen is down, so we need to draw a line from the current point to the new point */
         if (isPenDown) {
@@ -1838,8 +1878,10 @@ public class Scratch extends Actor
         int oldX = super.getX();
         int oldY = super.getY();
         super.setLocation(x, y);
-        Stage.getBackground().setColor(penColor);
-        Stage.getBackground().drawLine(oldX, oldY, super.getX(), super.getY());
+        java.awt.Graphics2D g = Stage.getBackground().getAwtImage().createGraphics();
+        g.setColor(penColor);
+        g.setStroke(new java.awt.BasicStroke(penSize, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.draw(new java.awt.geom.Line2D.Float(oldX, oldY, super.getX(), super.getY()));
     }
 
     // private helper function
@@ -2045,7 +2087,7 @@ public class Scratch extends Actor
     /**
      * return the number of the current costume.
      */
-    public int getCostumeNumber()
+    public int costumeNumber()
     {
         return currCostume;
     }
@@ -2553,7 +2595,24 @@ public class Scratch extends Actor
      */
     public int costumeNumberOf(Scratch other)
     {
-        return other.getCostumeNumber();
+        return other.costumeNumber();
+    }
+
+    /**
+     * return the costume name of the given sprite
+     */
+    public String costumeNameOf(String spriteName)
+    {
+        Scratch other = getWorld().getActorByName(spriteName);
+        return other.costumeName();
+    }
+    
+    /**
+     * return the costume name of the given sprite
+     */
+    public String costumeNameOf(Scratch other)
+    {
+        return other.costumeName();
     }
 
     /**
@@ -2562,7 +2621,7 @@ public class Scratch extends Actor
     public int costumeNumberOf(String spriteName)
     {
         Scratch other = getWorld().getActorByName(spriteName);
-        return other.getCostumeNumber();
+        return other.costumeNumber();
     }
 
     /**
