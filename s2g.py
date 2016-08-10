@@ -796,10 +796,7 @@ class SpriteOrStage:
             elif op == "heading":
                 return "getDirection()"
             elif op == "costumeIndex":	# Looks menu's costume # block
-                # TODO: getCostumeNumber() and size() below are inconsistent names
-                # I think getCostumeNumber() should be changed to just costumeNumber()...
-                # This would be a change to Scratch.java.
-                return "getCostumeNumber()"
+                return "costumeNumber()"
             elif op == 'backgroundIndex':
                 return 'getBackdropNumber()'
             elif op == "scale": 		# Look menu's size block
