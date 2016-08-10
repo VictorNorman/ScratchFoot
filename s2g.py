@@ -925,7 +925,7 @@ class SpriteOrStage:
                     'y position': 'yPositionOf',
                     'direction': 'directionOf',
                     'costume #': 'costumeNumberOf',
-                    'costume name': 'costumeNameOf',   # TODO: implement this.
+                    'costume name': 'costumeNameOf',
                     'size': 'sizeOf',
                     }
         if tok1 in mapping:

@@ -2559,6 +2559,23 @@ public class Scratch extends Actor
     }
 
     /**
+     * return the costume name of the given sprite
+     */
+    public String costumeNameOf(String spriteName)
+    {
+        Scratch other = getWorld().getActorByName(spriteName);
+        return other.costumeName();
+    }
+    
+    /**
+     * return the costume name of the given sprite
+     */
+    public String costumeNameOf(Scratch other)
+    {
+        return other.costumeName();
+    }
+
+    /**
      * return the costume number of the given sprite
      */
     public int costumeNumberOf(String spriteName)
