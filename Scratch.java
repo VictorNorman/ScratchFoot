@@ -648,6 +648,10 @@ public class Scratch extends Actor
         private final java.awt.Font font = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
         
         private Object value;
+        private ScratchList container = null;     // Store the list that contains this variable. If null
+                                                  // The variable is standalone and should display normally
+                                                  // otherwise it should determine its location and visibility
+                                                  // from the containing List
         private String text;
         private boolean valChanged = true;
         private boolean display = true;           // is the variable supposed to be displayed or hidden?
@@ -664,6 +668,26 @@ public class Scratch extends Actor
             // Get the initial upperleft-hand corner coordinates for this variable.
             xLoc = w.getDisplayVarXLoc();
             yLoc = w.getDisplayVarYLoc();
+        }
+        // This constructor is to be used when creating lists.
+        public Variable(ScratchList container, int index, Object val)
+        {
+            text = String.valueOf(index);
+            value = val;
+            valChanged = true;
+            display = false;
+            this.container = container;
+            
+            xLoc = 0;
+            yLoc = 0;
+        }
+        
+        /**
+         * Sets this variables display text
+         */
+        public void setText(String s)
+        {
+            text = s;
         }
 
         public void act()
@@ -786,6 +810,9 @@ public class Scratch extends Actor
         public IntVar(ScratchWorld w, String name, int initVal) {
             super(w, name, (Object) initVal);
         }
+        public IntVar(ScratchList container, int index, Object val) {
+            super(container, index, val);
+        }
 
         public Integer get() { return (Integer) super.get(); }
         public void set(Number newVal) { super.set(newVal.intValue()); }
@@ -794,6 +821,9 @@ public class Scratch extends Actor
 
         public StringVar(ScratchWorld w, String name, String initVal) {
             super(w, name, (Object) initVal);
+        }
+        public StringVar(ScratchList container, int index, Object val) {
+            super(container, index, val.toString());
         }
 
         public String get() { return (String) super.get(); }
@@ -804,6 +834,9 @@ public class Scratch extends Actor
         public DoubleVar(ScratchWorld w, String name, double initVal) {
             super(w, name, (Object) initVal);
         }
+        public DoubleVar(ScratchList container, int index, Object val) {
+            super(container, index, (Double) val);
+        }
 
         public Double get() { return (Double) super.get(); }
         public void set(Number newVal) { super.set(newVal.doubleValue()); }
@@ -812,6 +845,9 @@ public class Scratch extends Actor
 
         public BooleanVar(ScratchWorld w, String name, boolean initVal) {
             super(w, name, (Object) initVal);
+        }
+        public BooleanVar(ScratchList container, int index, Object val) {
+            super(container, index, (Boolean) val);
         }
 
         public Boolean get() { return (Boolean) super.get(); }
@@ -926,6 +962,91 @@ public class Scratch extends Actor
         variables.put(varName, newVar);
         // Cloud variables can never be local, so they will never be cloned
         return newVar;
+    }
+    
+    public class ScratchList extends Scratch
+    {
+        private ArrayList<Variable> contents;
+        public ScratchList(String name)
+        {
+            this.contents = new ArrayList<Variable>();
+        }
+        public ScratchList(String name, Object... contents)
+        {
+            this(name);
+            int i = 1; // Scratch lists start with index 1
+            for (Object o : contents) {
+                // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
+                // This code is very similar to 2 other methods, but slightly different. Maybe condensable? TODO
+                if (o instanceof Integer) this.contents.add(new IntVar(this, i, o));
+                else if (o instanceof Double) this.contents.add(new DoubleVar(this, i, o));
+                else if (o instanceof String) this.contents.add(new StringVar(this, i, o));
+                else if (o instanceof Boolean) this.contents.add(new BooleanVar(this, i, o));
+                else throw new RuntimeException("Tried to create list element of invalid type");
+                i++;
+            }
+        }
+        private void updateIndex() // Make sure all elements display text matches their index
+        {
+            for (int i = 0; i < contents.size(); i++) {
+                contents.get(i).setText(String.valueOf(i + 1));
+            }
+        }
+        public void add(Object o)
+        {
+            // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
+            if (o instanceof Integer) this.contents.add(new IntVar(this, contents.size(), o));
+            else if (o instanceof Double) this.contents.add(new DoubleVar(this, contents.size(), o));
+            else if (o instanceof String) this.contents.add(new StringVar(this, contents.size(), o));
+            else if (o instanceof Boolean) this.contents.add(new BooleanVar(this, contents.size(), o));
+            else throw new RuntimeException("Tried to create list element of invalid type");
+        }
+        public void delete(int index)
+        {
+            contents.remove(index);
+            updateIndex();
+        }
+        public void insert(int index, Object o)
+        {
+            // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
+            if (o instanceof Integer) this.contents.add(index, new IntVar(this, -1, o));
+            else if (o instanceof Double) this.contents.add(index, new DoubleVar(this, -1, o));
+            else if (o instanceof String) this.contents.add(index, new StringVar(this, -1, o));
+            else if (o instanceof Boolean) this.contents.add(index, new BooleanVar(this, -1, o));
+            else throw new RuntimeException("Tried to create list element of invalid type");
+            
+        }
+        public void replaceItem(int index, Object o)
+        {
+            insert(index, o);
+            delete(index + 1);
+        }
+        // Use in strExpr, will get the item as an object.
+        public Object itemAt(int index)
+        {
+            return contents.get(index - 1).get();
+        }
+        // Use in mathExpr
+        public Number numberAt(int index)
+        {
+            return (Number)itemAt(index);
+        }
+        // For use by user if an int is required
+        public int intAt(int index)
+        {
+            return numberAt(index).intValue();
+        }
+        public int length()
+        {
+            return contents.size();
+        }
+        public boolean contains(Object o) // TODO this needs testing
+        {
+            for (Variable v : contents) {
+                if (v.get().equals(o)) return true;
+            }
+            return false;
+        }
     }
 
     /*
