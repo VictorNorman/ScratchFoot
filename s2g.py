@@ -389,16 +389,7 @@ class SpriteOrStage:
         # into the ctor for World.
         #
 
-        # TODO: put this in a subclass implementation...
-        if self._name == "Stage":
-            self._worldCtorCode += "\n" + genIndent(2) + "// Variable initializations.\n"
-        else:
-            self._addedToWorldCode += "\n" + genIndent(1) + "private " + worldClassName + " world;"
-            self._addedToWorldCode += "\n" + genIndent(1) + "public void addedToWorld(World w)\n"
-            self._addedToWorldCode += genIndent(1) + "{\n"
-            self._addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ") w;\n"
-            self._addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n";
-            self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
+        self.genVarInitHdrCode()
 
         for var in listOfVars:  # var is a dictionary.
             name = var['name']  # unsanitized Scratch name
@@ -467,46 +458,26 @@ class SpriteOrStage:
                     visible = False
                     print("No variable definition dictionary found in script json:", name)
 
+            self.genVarInitLines(varType, name, label, value, visible)
 
-            # TODO: FIX THIS: move code into subclass!!!
-            # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
-            if self._name == "Stage":
-                # Code is going into the World
-                self._varDefnCode += genIndent(1) + "ScratchWorld.%sVar %s;\n" % (varType, name)
-                self._worldCtorCode += '%s%s = create%sVariable("%s", %s);\n' % \
-                            (genIndent(2), name, varType, label, str(value))
-                if not visible:
-                    self._worldCtorCode += genIndent(2) + name + ".hide();\n"
-            else:
-                self._varDefnCode += genIndent(1) + "Scratch.%sVar %s;\n" % (varType, name)
-                # Something like "score = createIntVariable((MyWorld) world, "score", 0);
-                self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                    (genIndent(2), name, varType, worldClassName, label, str(value))
-                if not visible:
-                    self._addedToWorldCode += genIndent(2) + name + ".hide();\n"
+        self.genFinishVarInits()
 
-        # Add blank line after variable definitions.
-        self._varDefnCode += "\n"
-
-        if not isinstance(self, Stage):
-            # Close the addedToWorld() method definition.
-            self._addedToWorldCode += genIndent(1) + "}\n"
-            
 
     def getVarDefnCode(self):
         return self._varDefnCode
+
     def getAddedToWorldCode(self):
         return self._addedToWorldCode
 
-    def genDefaultAddedToWorld(self):
+    def genDefaultAddedToWorld(self, leaveOpen=False):
 
-        # TODO: this code is very similar or repeated from above...  fix this.
         code =  genIndent(1) + "private " + worldClassName + " world;\n"
         code += genIndent(1) + "public void addedToWorld(World w)\n"
         code += genIndent(1) + "{\n"
         code += genIndent(2) + "world = (" + worldClassName + ") w;\n"
         code += genIndent(2) + "super.addedToWorld(w);\n"
-        code += genIndent(1) + "}\n\n"
+        if not leaveOpen:
+            code += genIndent(1) + "}\n\n"
         self._addedToWorldCode += code
 
     def genCodeForScripts(self):
@@ -1761,6 +1732,28 @@ class Sprite(SpriteOrStage):
         cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
+    def genVarInitHdrCode(self):
+        '''Generate code into _addedToWorld to set up for variable initialization
+        lines of code.
+        '''
+        self.genDefaultAddedToWorld(leaveOpen=True)
+        self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
+
+    def genVarInitLines(self, varType, name, label, value, visible):
+        self._varDefnCode += genIndent(1) + "Scratch.%sVar %s;\n" % (varType, name)
+        # Something like "score = createIntVariable((MyWorld) world, "score", 0);
+        self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
+                                  (genIndent(2), name, varType, worldClassName, label, str(value))
+        if not visible:
+            self._addedToWorldCode += genIndent(2) + name + ".hide();\n"
+
+    def genFinishVarInits(self):
+        # Add blank line after variable definitions.
+        self._varDefnCode += "\n"
+        # Close the addedToWorld() method definition.
+        self._addedToWorldCode += genIndent(1) + "}\n"
+
+
 
 class Stage(SpriteOrStage):
     '''This class represents the Stage class.'''
@@ -1839,6 +1832,25 @@ class Stage(SpriteOrStage):
         self._bgCode += genIndent(1) + "// on the greenfoot image.  This way we can switch \n"
         self._bgCode += genIndent(1) + "// backgrounds and keep the stuff that has been drawn.\n"
         self._bgCode += genIndent(1) + "static public GreenfootImage getBackground() { return bgImg; }\n"
+
+    def genVarInitHdrCode(self):
+        '''Generate code into _worldCtorCode to set up for variable initialization
+        lines of code.
+        '''
+        self._worldCtorCode += "\n" + genIndent(2) + "// Variable initializations.\n"
+        
+    def genVarInitLines(self, varType, name, label, value, visible):
+        # Code is going into the World
+        self._varDefnCode += genIndent(1) + "ScratchWorld.%sVar %s;\n" % (varType, name)
+        self._worldCtorCode += '%s%s = create%sVariable("%s", %s);\n' % \
+                               (genIndent(2), name, varType, label, str(value))
+        if not visible:
+            self._worldCtorCode += genIndent(2) + name + ".hide();\n"
+
+    def genFinishVarInits(self):
+        # Add blank line after variable definitions.
+        self._varDefnCode += "\n"
+        
 
     def writeCodeToFile(self):
 
@@ -2054,28 +2066,12 @@ for sprData in spritesData:
 
         sprite = Sprite(sprData)
 
-        # Write out a line to the project.greenfoot file to indicate that this
-        # sprite is a subclass of the Scratch class.
-        projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
-
         # Generate world construct code that adds the sprite to the world.
         # TODO: could we embed this in a "bigger" call like genWorldConstructorCode...
         sprite.genAddSpriteCall()
-
         sprite.genLoadCostumesCode(sprData['costumes'])
-        if debug:
-            print("CostumeCode is ", sprite.getCostumesCode())
-
 	# Like location, direction, shown or hidden, etc.
         sprite.genInitSettingsCode()
-        if debug:
-            print("Initial Settings Code is ", sprite.getInitSettingsCode())
-
-        # Generate a line to the project.greenfoot file to set the image
-        # file, like this: 
-        #     class.Sprite1.image=1.png
-        projectFileCode.append("class." + sprite.getName() + ".image=" + \
-                           str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
 
         # Handle variables defined for this sprite.  This has to be done
         # before handling the scripts, as the scripts may refer will the
@@ -2089,11 +2085,18 @@ for sprData in spritesData:
             sprite.genDefaultAddedToWorld()
 
         sprite.genCodeForScripts()
-
         sprite.writeCodeToFile()
 
         worldCtorCode += sprite.getWorldCtorCode()
 
+        # Write out a line to the project.greenfoot file to indicate that this
+        # sprite is a subclass of the Scratch class.
+        projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
+        # Generate a line to the project.greenfoot file to set the image
+        # file, like this: 
+        #     class.Sprite1.image=1.png
+        projectFileCode.append("class." + sprite.getName() + ".image=" + \
+                           str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
 
     else:
         if debug:
