@@ -462,18 +462,16 @@ class SpriteOrStage:
 
             # TODO: FIX THIS: move code into subclass!!!
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
-            if self._name == "Stage":
-                # Code is going into the World
+            if self.getNameTypeAndLocalGlobal(name)[2]:
                 self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, name)
-                self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                    (genIndent(2), name, varType, worldClassName, label, str(value))
             else:
-                self._varDefnCode += genIndent(1) + "Scratch.%sVar %s;\n" % (varType, name)
-                # Something like "score = createIntVariable((MyWorld) world, "score", 0);
-                self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                    (genIndent(2), name, varType, worldClassName, label, str(value))
-                if not visible:
-                    self._addedToWorldCode += genIndent(2) + name + ".hide();\n"
+                self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, name)
+                
+            # Something like "score = createIntVariable((MyWorld) world, "score", 0);
+            self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
+                (genIndent(2), name, varType, worldClassName, label, str(value))
+            if not visible:
+                self._addedToWorldCode += genIndent(2) + name + ".hide();\n"
 
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
