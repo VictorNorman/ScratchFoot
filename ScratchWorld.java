@@ -68,6 +68,10 @@ public class ScratchWorld extends World
 
     // This variable tracks whether the mouse is pressed
     private boolean isMouseDown;
+    
+    // This variable tracks which frame the last backdrop switch happened.
+    // This allows the backdropSwitch sequence to tell if it's switched
+    private long backdropSwitchFrame;
 
     /*
      * This class is just a pairing of backdrop image with its name.
@@ -130,7 +134,7 @@ public class ScratchWorld extends World
     }
     
     /**
-     * Constructor that creates the default screen size for Scratch -- 480 by 360.
+     * Constructor that creates a custom screen size
      */
     public ScratchWorld(int w, int h)
     {
@@ -338,6 +342,7 @@ public class ScratchWorld extends World
     {
         currBackdrop = (currBackdrop + 1) % backdrops.size();
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+        backdropSwitchFrame = frameNumber;
     }
 
     /**
@@ -350,6 +355,7 @@ public class ScratchWorld extends World
             currBackdrop = backdrops.size() - 1;
         }
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+        backdropSwitchFrame = frameNumber;
     }
 
     /**
@@ -387,6 +393,7 @@ public class ScratchWorld extends World
             if (backdrops.get(i).name.equals(backdropName)) {
                 currBackdrop = i;
                 setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+                backdropSwitchFrame = frameNumber;
                 return;
             }
         }
@@ -400,6 +407,7 @@ public class ScratchWorld extends World
     public void switchBackdropTo(int num)
     {
         num = Math.floorMod(num, backdrops.size());
+        backdropSwitchFrame = frameNumber;
         currBackdrop = num;
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
     }
@@ -410,6 +418,29 @@ public class ScratchWorld extends World
     public void renameDefaultBackdrop(String newName) 
     {
         backdrops.get(0).name = newName;
+    }
+    
+    /**
+     * 
+     */
+    public int backdropNameToIndex(String name) { 
+        int i =  backdrops.indexOf(name); // TODO do costume indecies start at 0 or 1? i++?
+        if (i == -1) {
+            // TODO better exception to throw?
+            throw new RuntimeException("Could not find costume " + name + " in backdrop list");
+        }
+        return i;
+    }
+    
+    /**
+     * Checks if the background has switched to the provided index this frame
+     */
+    public boolean switchedToBackdrop(int index)
+    {
+        if (backdropSwitchFrame == frameNumber && getBackdropNumber() == index) {
+            return true;
+        }
+        return false;
     }
 
     /* 

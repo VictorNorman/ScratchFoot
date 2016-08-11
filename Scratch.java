@@ -638,6 +638,35 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<CloneStartSeq> cloneStartSeqs = new ArrayList<CloneStartSeq>();
+    
+    private class SwitchToBackdropSeq extends Sequence {
+        int index;
+        public SwitchToBackdropSeq(Number index, Object obj, String method)
+        {
+            super(obj, method);
+            this.triggered = false;
+            this.index = index.intValue();
+        }
+        
+        public SwitchToBackdropSeq(SwitchToBackdropSeq other)
+        {
+            this(other.index, other.getObj(), other.getMethod());
+        }
+        
+        // This is not yet working.
+        /*public SwitchToBackdropSeq(String name, Object obj, String method)
+        {
+            this(name, obj, method);
+        }*/
+        
+        public boolean isTriggered() {
+            if (getWorld().switchedToBackdrop(index)) {
+                triggered =  true;
+            }
+            return triggered;
+        }
+    }
+    private ArrayList<SwitchToBackdropSeq> switchToBackdropSeqs = new ArrayList<SwitchToBackdropSeq>();
 
     /* -------------------  Variables ------------------------ */
 
@@ -1372,6 +1401,23 @@ public class Scratch extends Actor
                 seq.performSequence();
             } 
         }
+        
+        for (ListIterator<SwitchToBackdropSeq> iter = switchToBackdropSeqs.listIterator(); iter.hasNext(); ) {
+            SwitchToBackdropSeq seq = iter.next();
+            if (seq.isTerminated()) {
+                SwitchToBackdropSeq n = new SwitchToBackdropSeq(seq);
+                iter.remove();   // remove old one
+                iter.add(n);     // add new one that is reset to the beginning.
+                n.start();
+            }
+        }
+        
+        for (SwitchToBackdropSeq seq : switchToBackdropSeqs) {
+            if (seq.isTriggered()) {
+                seq.performSequence();
+            } 
+        }
+        
 
         if (sayActor != null) {
             sayActorUpdateLocation();
@@ -1391,8 +1437,8 @@ public class Scratch extends Actor
 
     /**
      * register a method to be called each time a key press is noticed.
-     * Note that Greenfoot runs very quickly so a key press is often noticed multiple 
-     * times in a row.
+     * There will be a 30 second window where holding a key will be ignored
+     * before repeatedly calling the method every frame.
      */
     public void whenKeyPressed(String keyName, String methodName)
     {
@@ -1401,7 +1447,30 @@ public class Scratch extends Actor
         k.start();
         // System.out.println("whenKeyPressed: thread added for key " + keyName);
     }
+    
+    /**
+     * register a method to be called whenever the backdrop switches to the
+     * provided one.
+     */
+    public void whenSwitchToBackdrop(int index, String methodName)
+    {
+        SwitchToBackdropSeq s = new SwitchToBackdropSeq(index, this, methodName);
+        switchToBackdropSeqs.add(s);
+        s.start();
+    }
+    
+    /*/** This is not currently working
 
+     * register a method to be called whenever the backdrop switches to the
+     * provided one.
+     /
+    public void whenSwitchToBackdrop(String name, String methodName)
+    {
+        SwitchToBackdropSeq s = new SwitchToBackdropSeq(name, this, methodName);
+        switchToBackdropSeqs.add(s);
+        s.start();
+    }*/
+    
     /**
      * register a method to be called when a sprite is clicked.
      */
