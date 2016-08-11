@@ -871,7 +871,7 @@ class SpriteOrStage:
         elif op == "getAttribute:of:":
             return self.getAttributeOf(tok1, tok2)
         else:
-            assert op in ('+', '-', '*', '/', '%')
+            assert op in ('+', '-', '*', '/', '%'), "Unknown op: " + op
         
         if op == '%':
             resStr = "Math.floorMod(" + self.mathExpr(tok1) + ", " + self.mathExpr(tok2) + ")"
@@ -1807,6 +1807,8 @@ class Stage(SpriteOrStage):
         """
         self._initSettingsCode += genIndent(2) + "bgImg.clear();\n" + \
                                   genIndent(2) + "setImage(bgImg);\n"
+        if debug:
+            print("initSettingsCode =", self._initSettingsCode)
 
     def genBackgroundHandlingCode(self):
         #
@@ -2055,8 +2057,6 @@ for sprData in spritesData:
 
 	# Like location, direction, shown or hidden, etc.
         sprite.genInitSettingsCode()
-        if debug:
-            print("Initial Settings Code is ", sprite.getInitSettingsCode())
 
         # Generate a line to the project.greenfoot file to set the image
         # file, like this: 
