@@ -675,11 +675,13 @@ public class Scratch extends Actor
             text = String.valueOf(index);
             value = val;
             valChanged = true;
-            display = false;
+            display = true;
             this.container = container;
             
             xLoc = 0;
             yLoc = 0;
+            
+            updateImage();
         }
         
         /**
@@ -688,6 +690,7 @@ public class Scratch extends Actor
         public void setText(String s)
         {
             text = s;
+            valChanged = true;
         }
 
         public void act()
@@ -758,6 +761,8 @@ public class Scratch extends Actor
                 GreenfootImage image = new GreenfootImage(stringLength + 8, 20);
                 if (this instanceof CloudVar) {
                     image.setColor(Color.decode("#66FFFF"));
+                } else  if (container != null) { // If part of list match background colors
+                    image.setColor(Color.lightGray);
                 } else {
                     image.setColor(bgColor);
                 }
@@ -782,7 +787,9 @@ public class Scratch extends Actor
                 //     " " + (yLoc + getImage().getHeight() / 2));
                 // System.out.println("    image width, height is " + getImage().getWidth() + " " + getImage().getHeight());
                 valChanged = false;
-                addedToWorld = true;
+                if (container == null) {// If the variable is part of a list it will never be added to world
+                    addedToWorld = true;
+                }
             }
         }
 
@@ -966,10 +973,15 @@ public class Scratch extends Actor
     
     public class ScratchList extends Scratch
     {
+        private final java.awt.Font font = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
         private ArrayList<Variable> contents;
+        private String name;
+        int xLoc, yLoc;
+        private boolean addedToWorld = false;
         public ScratchList(String name)
         {
             this.contents = new ArrayList<Variable>();
+            this.name = name;
         }
         public ScratchList(String name, Object... contents)
         {
@@ -987,32 +999,74 @@ public class Scratch extends Actor
             }
         }
         private void updateIndex() // Make sure all elements display text matches their index
-        {
+        {                          // TODO this currently does nothing as the variables
             for (int i = 0; i < contents.size(); i++) {
                 contents.get(i).setText(String.valueOf(i + 1));
+                contents.get(i).act();
             }
+        }
+        public void act()
+        {
+            updateDisplay();
+        }
+        private void updateDisplay() {
+            if (addedToWorld) {
+                xLoc = translateToGreenfootX(getX()) - getImage().getWidth() / 2;
+                yLoc = translateToGreenfootY(getY()) - getImage().getHeight() / 2;
+            }
+            java.awt.FontMetrics fm = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics().getFontMetrics(font);
+            int width = fm.stringWidth(name);
+            int height = (length() + 1) * 18 + 8;
+            for (Variable v : contents) {
+                int varWidth = v.getImage().getWidth();
+                if (varWidth > width) {
+                    width = varWidth;
+                }
+            }
+            width += 8;
+            if (width > 150) {
+                width = 150;
+            }
+            
+            GreenfootImage img = new GreenfootImage(width, height);
+            img.setColor(Color.lightGray);
+            img.fill();
+            img.setColor(Color.black);
+            img.drawString(name, 4, 12);
+            for (int i = 0; i < length(); i++) {
+                img.drawImage(contents.get(i).getImage(), 4, (i + 1) * 18);
+                System.out.println(contents.get(i).getImage().getWidth());
+            }
+            img.drawShape(new java.awt.Rectangle(0, 0, img.getWidth() - 1, img.getHeight() - 1));
+            setImage(img);
+            
+            
+            setLocation(xLoc + getImage().getWidth() / 2, yLoc + getImage().getHeight() / 2);
+            addedToWorld = true;
         }
         public void add(Object o)
         {
             // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
-            if (o instanceof Integer) this.contents.add(new IntVar(this, contents.size(), o));
-            else if (o instanceof Double) this.contents.add(new DoubleVar(this, contents.size(), o));
-            else if (o instanceof String) this.contents.add(new StringVar(this, contents.size(), o));
-            else if (o instanceof Boolean) this.contents.add(new BooleanVar(this, contents.size(), o));
+            if (o instanceof Integer) contents.add(new IntVar(this, contents.size(), o));
+            else if (o instanceof Double) contents.add(new DoubleVar(this, contents.size(), o));
+            else if (o instanceof String) contents.add(new StringVar(this, contents.size(), o));
+            else if (o instanceof Boolean) contents.add(new BooleanVar(this, contents.size(), o));
             else throw new RuntimeException("Tried to create list element of invalid type");
         }
         public void delete(int index)
         {
+            index--;
             contents.remove(index);
             updateIndex();
         }
         public void insert(int index, Object o)
         {
+            index--;
             // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
-            if (o instanceof Integer) this.contents.add(index, new IntVar(this, -1, o));
-            else if (o instanceof Double) this.contents.add(index, new DoubleVar(this, -1, o));
-            else if (o instanceof String) this.contents.add(index, new StringVar(this, -1, o));
-            else if (o instanceof Boolean) this.contents.add(index, new BooleanVar(this, -1, o));
+            if (o instanceof Integer) contents.add(index, new IntVar(this, index + 1, o));
+            else if (o instanceof Double) contents.add(index, new DoubleVar(this, index + 1, o));
+            else if (o instanceof String) contents.add(index, new StringVar(this, index + 1, o));
+            else if (o instanceof Boolean) contents.add(index, new BooleanVar(this, index + 1, o));
             else throw new RuntimeException("Tried to create list element of invalid type");
             
         }
@@ -1021,15 +1075,20 @@ public class Scratch extends Actor
             insert(index, o);
             delete(index + 1);
         }
-        // Use in strExpr, will get the item as an object.
-        public Object itemAt(int index)
+        private Object get(int index)
         {
-            return contents.get(index - 1).get();
+            index--;
+            return contents.get(index).get();
+        }
+        // Use in strExpr, will get the item as a string.
+        public String itemAt(int index)
+        {
+            return get(index).toString();
         }
         // Use in mathExpr
-        public Number numberAt(int index)
+        public Double numberAt(int index)
         {
-            return (Number)itemAt(index);
+            return ((Number)get(index)).doubleValue();
         }
         // For use by user if an int is required
         public int intAt(int index)
@@ -1047,6 +1106,17 @@ public class Scratch extends Actor
             }
             return false;
         }
+    }
+    
+    public ScratchList createList(ScratchWorld w, String name, Object...contents)
+    {
+        ScratchList l = new ScratchList(name, contents);
+        w.addObject(l, 0, 0); // TODO display right position
+        
+        l.xLoc = w.getDisplayVarXLoc();
+        l.yLoc = w.getDisplayListYLoc(l.length());
+        l.act();
+        return l;
     }
 
     /*
