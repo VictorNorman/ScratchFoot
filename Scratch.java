@@ -2514,7 +2514,7 @@ public class Scratch extends Actor
      */
     public boolean isTouching(Scratch other)
     {
-        if (!isShowing) {
+        if (!isShowing || !other.isShowing()) {
             return false;
         }
 
