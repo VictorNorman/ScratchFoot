@@ -128,6 +128,14 @@ public class ScratchWorld extends World
     {
         this(SCRATCH_WIDTH, SCRATCH_HEIGHT, 1);
     }
+    
+    /**
+     * Constructor that creates the default screen size for Scratch -- 480 by 360.
+     */
+    public ScratchWorld(int w, int h)
+    {
+        this(w, h, 1);
+    }
 
     public final void act() 
     {
@@ -278,6 +286,16 @@ public class ScratchWorld extends World
     {
         int t = varYloc;
         varYloc += VAR_Y_OFFSET;
+        return t;
+    }
+    
+    /**
+     * Not to be called by users.
+     */
+    public int getDisplayListYLoc(int length)
+    {
+        int t = varYloc;
+        varYloc += (length + 1) * 18 + 12;
         return t;
     }
 
