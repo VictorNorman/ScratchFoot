@@ -198,6 +198,9 @@ class SpriteOrStage:
         self._cbCode = []
         self._addedToWorldCode = ""
 
+        # Remember if we've generated code for a copy constructor
+        # so that we don't do it multiple times.
+        self._copyConstructorMade = False
 
         # A dictionary mapping variableName --> (sanitizedName, variableType).
         # We need this so we can generate code that calls the correct
@@ -206,6 +209,7 @@ class SpriteOrStage:
         # from setVariables(), not mathExpr().
         # The name is the sanitized name.
         self.varInfo = {}
+
 
         print("\n----------- Sprite: %s ----------------" % self._name)
     
@@ -960,16 +964,17 @@ class SpriteOrStage:
         cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
-        # TODO: we should have this code in one place!, and not here!
         # Generate a copy constructor too.
-        cbStr = "\n\n" + genIndent(1) + "// copy constructor, required for cloning\n"
-        cbStr += genIndent(1) + "public " + self._name + "(" + \
-                 self._name + " other, int x, int y) {\n"
-        cbStr += genIndent(2) + "super(other, x, y);\n"
-        cbStr += genIndent(2) + "// add code here to copy any instance variables'\n"
-        cbStr += genIndent(2) + "// values from other to this.\n"
-        cbStr += genIndent(1) + "}\n\n"
-        codeObj.addToCbCode(cbStr)
+        if not self._copyConstructorMade:
+            cbStr = "\n\n" + genIndent(1) + "// copy constructor, required for cloning\n"
+            cbStr += genIndent(1) + "public " + self._name + "(" + \
+                     self._name + " other, int x, int y) {\n"
+            cbStr += genIndent(2) + "super(other, x, y);\n"
+            cbStr += genIndent(2) + "// add code here to copy any instance variables'\n"
+            cbStr += genIndent(2) + "// values from other to this.\n"
+            cbStr += genIndent(1) + "}\n\n"
+            codeObj.addToCbCode(cbStr)
+            self._copyConstructorMade = True
 
 
     def whenKeyPressed(self, codeObj, key, tokens):
@@ -2102,7 +2107,8 @@ worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
 stage.genInitSettingsCode()
 stage.genLoadCostumesCode(data['costumes'])
 stage.genBackgroundHandlingCode()
-stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
+if 'variables' in data:
+    stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
 stage.genCodeForScripts()
 stage.writeCodeToFile()
 
