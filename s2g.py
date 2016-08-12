@@ -2029,6 +2029,9 @@ worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""),
 # stage information is in the top-most area of the json.
 stage = Stage(data)
 
+if 'variables' in data:
+    stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
+
 # Code to be written into the World.java file.
 worldCtorCode = ""
 worldDefnCode = ""
@@ -2107,8 +2110,6 @@ worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
 stage.genInitSettingsCode()
 stage.genLoadCostumesCode(data['costumes'])
 stage.genBackgroundHandlingCode()
-if 'variables' in data:
-    stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
 stage.genCodeForScripts()
 stage.writeCodeToFile()
 
