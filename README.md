@@ -51,7 +51,8 @@ public class TennisBall extends Scratch
             wait(s, 0.2);
             yield(s);   // allow other sequences to run
         }
-    }```
+    }
+```
 
 ScratchFoot emulates the following nice features from Scratch:
 * multiple scripts can be created for a Sprite.  Specifically, you can create multiple forever loops, multiple "when I receive message" scripts,
