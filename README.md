@@ -1,5 +1,5 @@
-# ScratchFoot v0.3 
-(7 July 2016)
+# ScratchFoot v0.5 
+(12 August 2016)
 
 ## A Scratch emulation layer for Greenfoot.
 
