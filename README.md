@@ -10,6 +10,48 @@ Using ScratchFoot, you should be able to convert many Scratch programs to use Gr
 running too slowly because you have so many scripts running.
 * making the transition from the simple (and wonderful) world of Scratch to the more real world of Java programming.
 
+Here is an example of how s2g.py converts a Scratch script to its equivalent Greenfoot Java code:
+
+![](http://imgur.com/a/Jl8pa)
+
+converts to code in 
+```
+public class TennisBall extends Scratch
+{
+    public TennisBall()
+    {
+        addCostume("1.png", "tennisball");
+        switchToCostume(1);
+        setSizeTo(55);
+        pointInDirection(90);
+        setRotationStyle(RotationStyle.ALL_AROUND);
+        whenFlagClicked("whenFlagClickedCb0");
+    }
+
+
+    public void whenFlagClickedCb0(Sequence s)
+    {
+        clear();
+        penUp();
+        Stage.xvel.set(3);
+        Stage.yvel.set(0);
+        goTo( -186, 97);
+        penDown();
+        // repeat until code
+        while (! (isTouchingEdge()))
+        {
+            if (getY() < -140)
+            {
+                Stage.yvel.set((Stage.yvel.get() * -0.8));
+            }
+            changeXBy(Stage.xvel.get());
+            changeYBy(Stage.yvel.get());
+            Stage.yvel.set(Stage.yvel.get() + -1);
+            wait(s, 0.2);
+            yield(s);   // allow other sequences to run
+        }
+    }```
+
 ScratchFoot emulates the following nice features from Scratch:
 * multiple scripts can be created for a Sprite.  Specifically, you can create multiple forever loops, multiple "when I receive message" scripts,
 multiple "when key clicked" scripts, etc.  These scripts all seemingly run in parallel (just as in Scratch).
@@ -34,7 +76,7 @@ multiple "when key clicked" scripts, etc.  These scripts all seemingly run in pa
 
 ## How to Convert a Scratch program to a ScratchFoot (i.e., Greenfoot) scenario.
 
-The file s2g.py is a python3 program that will try to automatically convert a downloaded Scratch project into a Greenfoot scenario. 
+The file s2g.py is a python 3 program that will try to automatically convert a downloaded Scratch project into a Greenfoot scenario. 
 
 In order to make this work, you need to install these programs on your computer:
 
