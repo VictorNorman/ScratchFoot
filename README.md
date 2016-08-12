@@ -12,10 +12,11 @@ running too slowly because you have so many scripts running.
 
 Here is an example of how s2g.py converts a Scratch script to its equivalent Greenfoot Java code:
 
-![](http://imgur.com/a/Jl8pa)
+![](http://i.imgur.com/atm0QcN.png)
 
-converts to code in 
-```
+converts to code 
+
+```java
 public class TennisBall extends Scratch
 {
     public TennisBall()
