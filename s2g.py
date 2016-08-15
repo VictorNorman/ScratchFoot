@@ -1415,7 +1415,7 @@ class SpriteOrStage:
         """
         cmd, arg1 = tokens
         assert cmd == "doBroadcastAndWait"
-        return genIndent(level) + "// TODO: broadcastAndWait() not implemented yet.);\n"
+        return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(arg1) + ");\n"
 
 
     def doAsk(self, level, tokens):
@@ -2049,26 +2049,11 @@ for sprData in spritesData:
         # Copy the sounds associated with this sprite to the appropriate directory
         sprite.copySounds()
         
-        # Write out a line to the project.greenfoot file to indicate that this
-        # sprite is a subclass of the Scratch class.
-        projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
-
         # Generate world construct code that adds the sprite to the world.
-        # TODO: could we embed this in a "bigger" call like genWorldConstructorCode...
         sprite.genAddSpriteCall()
-
         sprite.genLoadCostumesCode(sprData['costumes'])
-        if debug:
-            print("CostumeCode is ", sprite.getCostumesCode())
-
-	# Like location, direction, shown or hidden, etc.
+        # Like location, direction, shown or hidden, etc.
         sprite.genInitSettingsCode()
-
-        # Generate a line to the project.greenfoot file to set the image
-        # file, like this: 
-        #     class.Sprite1.image=1.png
-        projectFileCode.append("class." + sprite.getName() + ".image=" + \
-                           str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
 
         # Handle variables defined for this sprite.  This has to be done
         # before handling the scripts, as the scripts may refer will the
@@ -2082,10 +2067,17 @@ for sprData in spritesData:
             sprite.genDefaultAddedToWorld()
 
         sprite.genCodeForScripts()
-
         sprite.writeCodeToFile()
-
         worldCtorCode += sprite.getWorldCtorCode()
+
+        # Write out a line to the project.greenfoot file to indicate that this
+        # sprite is a subclass of the Scratch class.
+        projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
+        # Generate a line to the project.greenfoot file to set the image
+        # file, like this: 
+        #     class.Sprite1.image=1.png
+        projectFileCode.append("class." + sprite.getName() + ".image=" + \
+                           str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
 
 
     else:

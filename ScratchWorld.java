@@ -23,6 +23,7 @@ import greenfoot.*;  // (World, Actor, GreenfootImage, Greenfoot and MouseInfo)
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.HashMap;
 import java.lang.Class;
 import java.awt.Color;
@@ -219,12 +220,32 @@ public class ScratchWorld extends World
     }
 
     /**
+     * Not to be called by the user: go through all Scratch actors and look
+     * at all their MesgRecvdSeq's.  Return a list of all that are for the
+     * given message.
+     */
+    public ArrayList<MesgRecvdSeq> getAllMessageScripts(String message)
+    {
+        ArrayList<MesgRecvdSeq> resSeq = new ArrayList<MesgRecvdSeq>();
+        List<Scratch> allScr = getObjects(Scratch.class);
+        for (Scratch scr : allScr) {
+            ArrayList<MesgRecvdSeq> seqs = scr.getMesgRecvdSeqs();
+            for (MesgRecvdSeq s: seqs) {
+                if (s.getMesg() == message) {
+                    resSeq.add(s);
+                }
+            }
+        }
+        return resSeq;
+    }
+
+    /**
      * Not to be called by the user: register a bcast message, to be sent to all 
      * Scratch Actors during the next frame.
      */
     public void registerBcast(String message)
     {
-        // Create a new StringFrameNumPair object, saving the message string, and the
+        // Create a new ObjectFrameNumPair object, saving the message string, and the
         // frame in which the actor's registered to receive this message
         // should execute their methods.  This frame is the *next* time
         // around -- thus we add 1 to the current frame number. 

@@ -573,8 +573,10 @@ public class Scratch extends Actor
     }
     private ArrayList<StageClickedSeq> stageClickedSeqs = new ArrayList<StageClickedSeq>();
 
-    private class MesgRecvdSeq extends Sequence {
+    public class MesgRecvdSeq extends Sequence {
         private String mesg;
+
+        public String getMesg() { return mesg; }
 
         public MesgRecvdSeq(String mesg, Object obj, String method) {
             super(obj, method);
@@ -599,6 +601,7 @@ public class Scratch extends Actor
         }
     }
     private ArrayList<MesgRecvdSeq> mesgRecvdSeqs = new ArrayList<MesgRecvdSeq>();
+    public ArrayList<MesgRecvdSeq> getMesgRecvdSeqs() { return mesgRecvdSeqs; }
 
     private class CloneStartSeq extends Sequence {
         public CloneStartSeq(Object obj, String method) 
@@ -1522,6 +1525,34 @@ public class Scratch extends Actor
     public void broadcast(String message)
     {
         getWorld().registerBcast(message);
+    }
+
+
+    /**
+     * broadcast a message to all sprites and wait until the scripts
+     * waiting for that message complete.  Then, continue.
+     */
+    public void broadcastAndWait(Sequence s, String message)
+    {
+        /* Make a copy of all sequences from all Scratch Actors that are
+         * waiting for this message. */
+        ArrayList<MesgRecvdSeq> mesgScriptSeqs = getWorld().getAllMessageScripts(message);
+
+        /* Send the broadcast */
+        getWorld().registerBcast(message);
+
+        while (true) {
+            int countActive = 0;
+            for (MesgRecvdSeq m: mesgScriptSeqs) {
+                if (! m.isTerminated()) {
+                    countActive++;
+                }
+            }
+            if (countActive == 0) {
+                break;
+            }
+            yield(s);
+        }
     }
 
     /*
@@ -3339,3 +3370,5 @@ public class Scratch extends Actor
 
     }
 }
+
+
