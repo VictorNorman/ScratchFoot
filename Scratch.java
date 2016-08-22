@@ -644,27 +644,35 @@ public class Scratch extends Actor
     
     private class SwitchToBackdropSeq extends Sequence {
         int index;
+        String name;
         public SwitchToBackdropSeq(Number index, Object obj, String method)
         {
             super(obj, method);
             this.triggered = false;
             this.index = index.intValue();
+            this.name = null;
+        }
+        
+        public SwitchToBackdropSeq(String name, Object obj, String method)
+        {
+            super(obj, method);
+            this.triggered = false;
+            this.name = name;
         }
         
         public SwitchToBackdropSeq(SwitchToBackdropSeq other)
         {
             this(other.index, other.getObj(), other.getMethod());
+            this.name = other.name;
         }
         
-        // This is not yet working.
-        /*public SwitchToBackdropSeq(String name, Object obj, String method)
-        {
-            this(name, obj, method);
-        }*/
-        
         public boolean isTriggered() {
-            if (getWorld().switchedToBackdrop(index)) {
-                triggered =  true;
+            if (name == null) {
+                if (getWorld().switchedToBackdrop(index)) {
+                    triggered =  true;
+                }
+            } else if (getWorld().switchedToBackdrop(name)) {
+                triggered = true;
             }
             return triggered;
         }
@@ -1020,7 +1028,6 @@ public class Scratch extends Actor
             this(name);
             int i = 1; // Scratch lists start with index 1
             for (Object o : contents) {
-                // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
                 // This code is very similar to 2 other methods, but slightly different. Maybe condensable? TODO
                 if (o instanceof Integer) this.contents.add(new IntVar(this, i, o));
                 else if (o instanceof Double) this.contents.add(new DoubleVar(this, i, o));
@@ -1078,7 +1085,6 @@ public class Scratch extends Actor
         }
         public void add(Object o)
         {
-            // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
             if (o instanceof Integer) contents.add(new IntVar(this, contents.size(), o));
             else if (o instanceof Double) contents.add(new DoubleVar(this, contents.size(), o));
             else if (o instanceof String) contents.add(new StringVar(this, contents.size(), o));
@@ -1094,7 +1100,6 @@ public class Scratch extends Actor
         public void insert(int index, Object o)
         {
             index--;
-            // TODO if lists are to be displayed, these should be replaced with create___Variable(...)
             if (o instanceof Integer) contents.add(index, new IntVar(this, index + 1, o));
             else if (o instanceof Double) contents.add(index, new DoubleVar(this, index + 1, o));
             else if (o instanceof String) contents.add(index, new StringVar(this, index + 1, o));
@@ -1462,17 +1467,16 @@ public class Scratch extends Actor
         s.start();
     }
     
-    /*/** This is not currently working
-
+    /**
      * register a method to be called whenever the backdrop switches to the
      * provided one.
-     /
+     */
     public void whenSwitchToBackdrop(String name, String methodName)
     {
         SwitchToBackdropSeq s = new SwitchToBackdropSeq(name, this, methodName);
         switchToBackdropSeqs.add(s);
         s.start();
-    }*/
+    }
     
     /**
      * register a method to be called when a sprite is clicked.

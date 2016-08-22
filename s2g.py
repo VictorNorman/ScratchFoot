@@ -2127,7 +2127,7 @@ addBackdropsCode = stage.getCostumesCode()
 if debug:
     print("CostumeCode is ", addBackdropsCode)
 
-addBackdropsCode += genIndent(2) + 'setBackdropNumber(' + \
+addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + \
                     str(data['currentCostumeIndex']) + ');\n'
 
 worldCode += worldCtorCode

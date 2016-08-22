@@ -372,10 +372,10 @@ public class ScratchWorld extends World
     public void previousBackdrop()
     {
         currBackdrop--;
-        if (currBackdrop < 0) {
-            currBackdrop = backdrops.size() - 1;
+        if (currBackdrop <= 0) {
+            currBackdrop = backdrops.size();
         }
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+        setBackground(new GreenfootImage(backdrops.get(currBackdrop - 1).img));
         backdropSwitchFrame = frameNumber;
     }
 
@@ -388,21 +388,11 @@ public class ScratchWorld extends World
     }
 
     /**
-     * set the current backdrop number to the given value.
-     */
-    public void setBackdropNumber(int num)
-    {
-        currBackdrop = num;
-        // TODO: check num to make sure it is valid before setting it.
-        setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
-    }
-
-    /**
      * return the name of the current backdrop
      */
     public String getBackdropName()
     {
-        return backdrops.get(currBackdrop).name;
+        return backdrops.get(currBackdrop - 1).name;
     }
 
     /**
@@ -423,11 +413,11 @@ public class ScratchWorld extends World
     }
     
     /**
-     * switch backdrop to the one with the given number, loops.
+     * switch backdrop to the one with the given number, wrapping around the extents like scratch
      */
     public void switchBackdropTo(int num)
     {
-        num = Math.floorMod(num, backdrops.size());
+        num = Math.floorMod(num - 1, backdrops.size());
         backdropSwitchFrame = frameNumber;
         currBackdrop = num;
         setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
@@ -442,23 +432,24 @@ public class ScratchWorld extends World
     }
     
     /**
-     * 
-     */
-    public int backdropNameToIndex(String name) { 
-        int i =  backdrops.indexOf(name); // TODO do costume indecies start at 0 or 1? i++?
-        if (i == -1) {
-            // TODO better exception to throw?
-            throw new RuntimeException("Could not find costume " + name + " in backdrop list");
-        }
-        return i;
-    }
-    
-    /**
      * Checks if the background has switched to the provided index this frame
+     * Used with SwitchedToBackdropSeqs
      */
     public boolean switchedToBackdrop(int index)
     {
         if (backdropSwitchFrame == frameNumber && getBackdropNumber() == index) {
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Checks if the background has switched to the provided name this frame
+     * Used with SwitchedToBackdropSeqs
+     */
+    public boolean switchedToBackdrop(String name)
+    {
+        if (backdropSwitchFrame == frameNumber && getBackdropName().equals(name)) {
             return true;
         }
         return false;
