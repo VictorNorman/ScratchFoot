@@ -97,8 +97,8 @@ public class Scratch extends Actor
     static final GreenfootImage sayThink = new GreenfootImage("think.png");
 
     private boolean isPenDown = false;
-    private Color penColor = Color.RED;
-    private int penColorNumber = 0;         // an integer that is mod 200 -- 0 to 199.
+    private Color penColor = Color.BLUE;
+    private int penColorNumber = 133;         // an integer that is mod 200 -- 0 to 199.
     private float penSize = 1;
     private int currCostume = 0;
     private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
