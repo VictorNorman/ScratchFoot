@@ -488,17 +488,6 @@ class SpriteOrStage:
     def getAddedToWorldCode(self):
         return self._addedToWorldCode
 
-    def genDefaultAddedToWorld(self):
-
-        # TODO: this code is very similar or repeated from above...  fix this.
-        code =  genIndent(1) + "private " + worldClassName + " world;\n"
-        code += genIndent(1) + "public void addedToWorld(World w)\n"
-        code += genIndent(1) + "{\n"
-        code += genIndent(2) + "world = (" + worldClassName + ") w;\n"
-        code += genIndent(2) + "super.addedToWorld(w);\n"
-        code += genIndent(1) + "}\n\n"
-        self._addedToWorldCode += code
-
     def genCodeForScripts(self):
         # The value of the 'scripts' key is the list of the scripts.  It may be a
         # list of 1 or of many.
@@ -2060,11 +2049,8 @@ for sprData in spritesData:
         # variables.
         # Variable initializations have to be done in a method called
         # addedToWorld(), which is not necessary if no variable defns exist.
-        if 'variables' in sprData:
+        if 'variables' in sprData: 
             sprite.genVariablesDefnCode(sprData['variables'], data['children'], cloudVars)
-        else:
-            # Default "addedToWorld" code to simplify getting/setting variables
-            sprite.genDefaultAddedToWorld()
 
         sprite.genCodeForScripts()
         sprite.writeCodeToFile()
