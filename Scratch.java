@@ -119,6 +119,7 @@ public class Scratch extends Actor
         private int rotation;
         private int size;
         private boolean flipped;
+        private int pixelWidth, pixelHeight;
         public ScratchImage(GreenfootImage img) {
             // In order to rotate the image properly, we must make it big enough to rotate fully
             // without resizing
@@ -143,14 +144,17 @@ public class Scratch extends Actor
                     }
                 }
             }
+            // Store the extents of the image.
+            pixelWidth = maxx - minx;
+            pixelHeight = maxy - miny;
             // Slide the image to the upper left hand corner, then make the image big enough to
             // fully rotate the object without cutting off any corners.
             AffineTransformOp ato = new AffineTransformOp(AffineTransform.getTranslateInstance(-minx, -miny),
-							  AffineTransformOp.TYPE_BILINEAR);
+                              AffineTransformOp.TYPE_BILINEAR);
             // + 2 at end to deal with rounding issues.
             int newDim = (int)Math.sqrt(Math.pow(bi.getWidth(), 2) + Math.pow(bi.getHeight(), 2)) + 2;
             baseImage = new GreenfootImage(newDim, newDim);
-	    // Move image pixels from bi to baseImage to the upper-left corner.
+            // Move image pixels from bi to baseImage to the upper-left corner.
             ato.filter(bi, baseImage.getAwtImage());
             // Now slide the image from the upper left corner to the center
             AffineTransformOp ato2 = new AffineTransformOp(AffineTransform.getTranslateInstance(((newDim - img.getWidth()) / 4) ,
@@ -230,7 +234,7 @@ public class Scratch extends Actor
         }
         /**
          * Returns the image with all modifications applied to it. Note that this image will
-         * be re-created from scratch every time a field is updated, so modifying this image is
+         * be re-created from baseImage every time a field is updated, so modifying this image is
          * not necessarily useful.
          */
         public GreenfootImage getDisplay() {
@@ -242,6 +246,20 @@ public class Scratch extends Actor
          */
         public GreenfootImage getBase() {
             return new GreenfootImage(baseImage);
+        }
+        /**
+         * Returns the distance from the leftmost pixel to the rightmost 
+         * (Of base image. TODO account for effects such as rotation)
+         */
+        public int pixelWidth() {
+            return pixelWidth;
+        }
+        /**
+         * Returns the distance from the highest pixel to the lowest
+         * (Of base image. TODO account for effects such as rotation)
+         */
+        public int pixelHeight() {
+            return pixelHeight;
         }
     }
         
@@ -2093,32 +2111,32 @@ public class Scratch extends Actor
      */
     public void ifOnEdgeBounce()
     {
-
-        if (super.getX() + getCurrImage().getWidth() / 2 >= getWorld().getWidth() - 1) {
+        ScratchImage img = costumes.get(currCostume).image;
+        if (super.getX() + img.pixelWidth() / 2 >= getWorld().getWidth() - 1) {
             // hitting right edge
             currDirection = (360 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeXBy(-((super.getX() + getCurrImage().getWidth() / 2) - (getWorld().getWidth() - 1)) - 1); 
-        } else if (super.getX() - getCurrImage().getWidth() / 2 <= 0) {
+            changeXBy(-((super.getX() + img.pixelWidth() / 2) - (getWorld().getWidth() - 1)) - 1); 
+        } else if (super.getX() - img.pixelWidth() / 2 <= 0) {
             // hitting left edge
             currDirection = (360 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeXBy(-(super.getX() - getCurrImage().getWidth() / 2) + 1);
+            changeXBy(-(super.getX() - img.pixelWidth() / 2) + 1);
         }
-        if (super.getY() + getCurrImage().getHeight() / 2 >= getWorld().getHeight() - 1) {
+        if (super.getY() + img.pixelHeight() / 2 >= getWorld().getHeight() - 1) {
             // hitting top
             currDirection = (180 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeYBy(((super.getY() + getCurrImage().getHeight() / 2) - (getWorld().getHeight() - 1)) + 1);
-        } else if (super.getY() - getCurrImage().getHeight() / 2 <= 0) {
+            changeYBy(((super.getY() + img.pixelHeight() / 2) - (getWorld().getHeight() - 1)) + 1);
+        } else if (super.getY() - img.pixelHeight() / 2 <= 0) {
             // hitting bottom
             currDirection = (180 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeYBy((super.getY() - getCurrImage().getHeight() / 2) - 1);
+            changeYBy((super.getY() - img.pixelHeight() / 2) - 1);
         }
     }
 
@@ -2305,7 +2323,7 @@ public class Scratch extends Actor
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
-        sayActor.updateLocation(super.getX() + width / 2 + 4, super.getY() - height / 2 + 4);
+        sayActor.updateLocation(super.getX() + width + 4, super.getY() - height + 4);
     }
 
     /**
@@ -2530,8 +2548,6 @@ public class Scratch extends Actor
         cost.image.setSize(costumeSize);
         cost.image.setRotation(currDirection - 90);
         if (isShowing) {
-            cost.image.setGhost(ghostEffect);
-            cost.image.setSize(costumeSize);
             setImage(cost.image.getDisplay());
         } else {
             setImage((GreenfootImage) null);
@@ -2687,8 +2703,9 @@ public class Scratch extends Actor
      */
     public boolean isTouchingEdge()
     {
-        return (super.getX() + getCurrImage().getWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - getCurrImage().getWidth() / 2 <= 0 || 
-            super.getY() + getCurrImage().getHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - getCurrImage().getHeight() / 2 <= 0);
+        ScratchImage img = costumes.get(currCostume).image;
+        return (super.getX() + img.pixelWidth() / 2 >= img.pixelWidth() - 1 || super.getX() - img.pixelWidth() / 2 <= 0 || 
+            super.getY() + img.pixelHeight() / 2 >= img.pixelHeight() - 1 || super.getY() - img.pixelHeight() / 2 <= 0);
     }
 
     /**
