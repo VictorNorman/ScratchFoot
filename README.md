@@ -72,6 +72,7 @@ multiple "when key clicked" scripts, etc.  These scripts all seemingly run in pa
 * Only the "ghost" effect of the graphics effects is implemented.
 * The video stuff and microphone stuff are not supported.
 * Does not handle rotating images around a non-center point.
+* s2g.py will not convert list variables (yet).
 
 ----------------------
 
