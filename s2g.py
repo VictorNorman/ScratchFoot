@@ -209,6 +209,7 @@ class SpriteOrStage:
         # from setVariables(), not mathExpr().
         # The name is the sanitized name.
         self.varInfo = {}
+        self.listInfo = {}
 
 
         print("\n----------- Sprite: %s ----------------" % self._name)
@@ -233,6 +234,11 @@ class SpriteOrStage:
         '''Might return None if name not found in the mapping.
         Otherwise, returns a tuple: (clean name, varType)'''
         return self.varInfo.get(name)
+    
+    def getListInfo(self, name):
+        '''Might return None if name not found in the mapping.
+        Otherwise, returns a tuple: (clean name, varType)'''
+        return self.listInfo.get(name)
 
     def genAddSpriteCall(self):
         self._worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
@@ -488,6 +494,8 @@ class SpriteOrStage:
                 print("Error converting list to java id")
                 sys.exit(0)
             
+            self.listInfo[name]  = sanname
+            
             # I know this is bad style, but at the moment it's necessary
             # Later down the line we can move all this code to subclasses instead
             if type(self) == Stage:
@@ -634,6 +642,13 @@ class SpriteOrStage:
             'hideVariable:': self.hideVariable,
             'showVariable:': self.showVariable,
             'changeVar:by:': self.changeVarBy,
+            
+            'append:toList:': self.listAppend,
+            'deleteLine:ofList:': self.listRemove,
+            'insert:at:ofList:': self.listInsert,
+            'setLine:ofList:to:': self.listSet,
+            'hideList:': self.hideList,
+            'showList:': self.showList, 
 
             # Events commands
             'broadcast:': self.broadcast,
@@ -727,6 +742,8 @@ class SpriteOrStage:
             resStr += "(isMouseDown())"
         elif firstOp == 'readVariable':
             resStr += self.readVariable(tokenList[1])
+        elif firstOp == 'list:contains:':
+            resStr += self.listContains(tokenList[1], tokenList[2])
         elif firstOp == False:
             resStr += "false"
         else:
@@ -846,6 +863,8 @@ class SpriteOrStage:
                     raise ValueError(tokenOrList)
             elif op == 'readVariable':
                 return self.readVariable(tok1)
+            elif op == 'lineCountOfList:':
+                return self.listLength(tok1)
             else:
                 raise ValueError("Unknown operation " + op)
 
@@ -883,6 +902,8 @@ class SpriteOrStage:
             return op2Func[tok1] + self.mathExpr(tok2) + ")"
         elif op == "getAttribute:of:":
             return self.getAttributeOf(tok1, tok2)
+        elif op == 'getLine:ofList:':
+                return self.listElement(tok1, tok2)
         else:
             assert op in ('+', '-', '*', '/', '%'), "Unknown op: " + op
         
@@ -1330,6 +1351,17 @@ class SpriteOrStage:
             return (nameAndVarType[0], nameAndVarType[1], True)
         raise ValueError("Sprite " + self._name + " variable " +
                          varTok + " unknown.")
+        
+    def getListNameAndScope(self, listTok):
+        global stage
+        
+        name = self.listInfo.get(listTok)
+        if name is not None:
+            return (name, self == stage)
+        name = stage.getListInfo(listTok)
+        if name is not None:
+            return (name, True)
+        raise ValueError("Sprite " + self._name + " list " + listTok + " unknown.")
 
     def setVariable(self, level, tokens):
         """Set a variable's value from within the code.
@@ -1411,6 +1443,149 @@ class SpriteOrStage:
         else:
             return genIndent(level) + varName + ".set(" + \
                    varName + ".get() + " + self.mathExpr(tokens[2]) + ");\n"
+                   
+    def listContains(self, listname, obj):
+        disp, glob = self.getListNameAndScope(listname)
+        
+        # If the argument is a int or double literal, use that, otherwise strExpr
+        if isinstance(obj, int):
+            obj = str(obj)
+        elif isinstance(obj, float):
+            obj = str(obj)
+        else:
+            obj = self.strExpr(obj)
+
+        if glob:
+            return '(Stage.%s.contains(%s))' % (disp, obj)
+        else:
+            return '(%s.contains(%s))' % (disp, obj)
+        
+    def listElement(self, index, listname):
+        disp, glob = self.getListNameAndScope(listname)
+        
+        # If the argument is a int or double literal, use that, otherwise strExpr
+        if isinstance(index, int):
+            index = str(index)
+        elif isinstance(index, float):
+            index = str(index)
+        else:
+            index = self.strExpr(index)
+
+        if glob:
+            return "Stage.%s.numberAt(%s)" % (disp, index)
+        else:
+            return "%s.numberAt(%s)" % (disp, index)
+        
+    def listLength(self, listname):
+        disp, glob = self.getListNameAndScope(listname)
+        if glob:
+            return "Stage.%s.length()" % (disp)
+        else:
+            return "%s.length()" % (disp)
+        
+    def listAppend(self, level, tokens):
+        cmd, obj, name = tokens
+        disp, glob = self.getListNameAndScope(name)
+        assert cmd == 'append:toList:'
+        
+        # If the argument is a int or double literal, use that, otherwise strExpr
+        if isinstance(obj, int):
+            obj = str(obj)
+        elif isinstance(obj, float):
+            obj = str(obj)
+        else:
+            obj = self.strExpr(obj)
+        
+        if glob:
+            return '%sStage.%s.add(%s);\n' % (genIndent(level), disp, obj)
+        else:
+            return '%s%s.add(%s);\n' % (genIndent(level), disp, obj)
+        
+    def listRemove(self, level, tokens):
+        cmd, index, name = tokens;
+        disp, glob = self.getListNameAndScope(name)
+        
+        # If the argument is a int or double literal, use that, otherwise mathExpr
+        if isinstance(index, int):
+            index = str(index)
+        elif isinstance(index, float):
+            index = str(index)
+        else:
+            index = self.mathExpr(index)
+
+        assert cmd == 'deleteLine:ofList:'
+        if glob:
+            return "%sStage.%s.delete(%s);\n" % (genIndent(level), disp, index)
+        else:
+            return "%s%s.delete(%s);\n" % (genIndent(level), disp, index)
+    
+    def listInsert(self, level, tokens):
+        cmd, obj, index, name = tokens
+        disp, glob = self.getListNameAndScope(name)
+        assert cmd == 'insert:at:ofList:'
+        
+        # If the argument is a int or double literal, use that, otherwise strExpr
+        if isinstance(obj, int):
+            obj = str(obj)
+        elif isinstance(obj, float):
+            obj = str(obj)
+        else:
+            obj = self.strExpr(obj)
+        # If the argument is a int or double literal, use that, otherwise mathExpr
+        if isinstance(index, int):
+            index = str(index)
+        elif isinstance(index, float):
+            index = str(index)
+        else:
+            index = self.mathExpr(index)
+
+        if glob:
+            return '%sStage.%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
+        else:
+            return '%s%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
+                
+    def listSet(self, level, tokens):
+        cmd, index, name, obj = tokens
+        disp, glob = self.getListNameAndScope(name)
+        assert cmd == 'setLine:ofList:to:'
+        
+        # If the argument is a int or double literal, use that, otherwise strExpr
+        if isinstance(obj, int):
+            obj = str(obj)
+        elif isinstance(obj, float):
+            obj = str(obj)
+        else:
+            obj = self.strExpr(obj)
+        # If the argument is a int or double literal, use that, otherwise mathExpr
+        if isinstance(index, int):
+            index = str(index)
+        elif isinstance(index, float):
+            index = str(index)
+        else:
+            index = self.mathExpr(index)
+
+        if glob:
+            return '%sStage.%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
+        else:
+            return '%s%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
+                    
+    def hideList(self, level, tokens):
+        cmd, name = tokens
+        disp, glob = self.getListNameAndScope(name)
+        assert cmd == 'hideList:'
+        if glob:
+            return "%sStage.%s.hide();\n" % (genIndent(level), disp)
+        else:
+            return "%s%s.hide();\n" % (genIndent(level), disp)
+        
+    def showList(self, level, tokens):
+        cmd, name = tokens
+        disp, glob = self.getListNameAndScope(name)
+        assert cmd == 'showList:'
+        if glob:
+            return "%sStage.%s.show();\n" % (genIndent(level), disp)
+        else:
+            return "%s%s.show();\n" % (genIndent(level), disp)
 
     def broadcast(self, level, tokens):
         """Generate code to handle sending a broacast message.
