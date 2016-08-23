@@ -267,7 +267,7 @@ class SpriteOrStage:
         self._ctorCode += self._regCallbacksCode
         self._ctorCode += genIndent(1) + "}\n"
 
-    def genVariablesDefnCode(self, listOfVars, allChildren, cloudVars):
+    def genVariablesDefnCode(self, listOfVars, listOfLists, allChildren, cloudVars):
         """Generate code to define instance variables for this sprite.
         The listOfVars is a list of dictionaries, one per variable (see below).
         The allChildren is the list of dictionaries defined for this
@@ -476,9 +476,31 @@ class SpriteOrStage:
                 (genIndent(2), name, varType, worldClassName, label, str(value))
             if not visible:
                 self._addedToWorldCode += genIndent(2) + name + ".hide();\n"
-
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
+        self._addedToWorldCode += genIndent(2) + "// List initializations.\n"
+        for l in listOfLists:
+            name = l['listName']
+            contents = l['contents']
+            try:
+                sanname = convertToJavaId(name, True, False)
+            except:
+                print("Error converting list to java id")
+                sys.exit(0)
+            
+            # I know this is bad style, but at the moment it's necessary
+            # Later down the line we can move all this code to subclasses instead
+            if type(self) == Stage:
+                self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % (name)
+            else:
+                self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % (name)
+            
+            self._addedToWorldCode += '%s%s = createList(world, "%s"' % (genIndent(2), sanname, name)
+            for obj in contents:
+                disp = deriveType(name, obj)
+                self._addedToWorldCode += ', %s' % (str(disp[0]))
+            self._addedToWorldCode += ');\n'
+
         # Close the addedToWorld() method definition.
         self._addedToWorldCode += genIndent(1) + "}\n"
             
@@ -2018,8 +2040,12 @@ worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""),
 # stage information is in the top-most area of the json.
 stage = Stage(data)
 
-if 'variables' in data:
-    stage.genVariablesDefnCode(data['variables'], data['children'], cloudVars)
+if 'variables' in data and 'lists' in data:
+    stage.genVariablesDefnCode(data['variables'], data['lists'], data['children'], cloudVars)
+elif 'variables' in data:
+    stage.genVariablesDefnCode(data['variables'], (), data['children'], cloudVars)
+elif 'lists' in data:
+    stage.genVariablesDefnCode((), data['lists'], data['children'], cloudVars)
 
 # Code to be written into the World.java file.
 worldCtorCode = ""
@@ -2049,8 +2075,12 @@ for sprData in spritesData:
         # variables.
         # Variable initializations have to be done in a method called
         # addedToWorld(), which is not necessary if no variable defns exist.
-        if 'variables' in sprData: 
-            sprite.genVariablesDefnCode(sprData['variables'], data['children'], cloudVars)
+        if 'variables' in sprData and 'lists' in sprData:
+            sprite.genVariablesDefnCode(sprData['variables'], sprData['lists'], data['children'], cloudVars)
+        elif 'variables' in sprData:
+            sprite.genVariablesDefnCode(sprData['variables'], (), data['children'], cloudVars)
+        elif 'lists' in sprData:
+            sprite.genVariablesDefnCode((), sprData['lists'], data['children'], cloudVars)
 
         sprite.genCodeForScripts()
         sprite.writeCodeToFile()
