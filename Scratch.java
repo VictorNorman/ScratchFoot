@@ -1092,7 +1092,6 @@ public class Scratch extends Actor
             img.drawString(name, 4, 12);
             for (int i = 0; i < length(); i++) {
                 img.drawImage(contents.get(i).getImage(), 4, (i + 1) * 18);
-                System.out.println(contents.get(i).getImage().getWidth());
             }
             img.drawShape(new java.awt.Rectangle(0, 0, img.getWidth() - 1, img.getHeight() - 1));
             setImage(img);
