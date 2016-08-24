@@ -2587,7 +2587,7 @@ public class Scratch extends Actor
      * Returns true if this sprite overlaps the specified color in other.
      * Passing color as 'null' will check all non-transparent pixels.
      */
-    private boolean pixelOverlap(Scratch other, Color rgb)
+    private boolean pixelOverlap(List<Scratch> others, Color rgb)
     {
         // Get this image's data
         // The image from getCurrImage is already rotated/resized, so we don't have to do that here
@@ -2598,27 +2598,29 @@ public class Scratch extends Actor
         int cx = getX() - (width / 2);
         int cy = getY() + (height / 2);
         // Get the other image's data
-        GreenfootImage oim = other.getCurrImage();
-        int ocx = other.getX() - (oim.getWidth() / 2);
-        int ocy = other.getY() + (oim.getHeight() / 2);
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                if (im.getAwtImage().getRGB(x, y) >> 24 == 0x00) {
-                    continue;
-                }
-                int fx = changeRelativePoint(x, cx, ocx);
-                int fy = changeRelativePoint(y, -cy, -ocy);
-                if (fx < 0 || fy < 0 || fx >= oim.getWidth() || fy >= oim.getHeight()) {
-                    continue;
-                }
-                int pixel = oim.getAwtImage().getRGB(fx, fy);
-                if (rgb == null) {
-                    if ((pixel >> 24) != 0x00) {
-                        return true;
+        for (Scratch other : others) {
+            GreenfootImage oim = other.getCurrImage();
+            int ocx = other.getX() - (oim.getWidth() / 2);
+            int ocy = other.getY() + (oim.getHeight() / 2);
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    if (im.getAwtImage().getRGB(x, y) >> 24 == 0x00) {
+                        continue;
                     }
-                } else {
-                    if (pixel == rgb.getRGB()) {
-                        return true;
+                    int fx = changeRelativePoint(x, cx, ocx);
+                    int fy = changeRelativePoint(y, -cy, -ocy);
+                    if (fx < 0 || fy < 0 || fx >= oim.getWidth() || fy >= oim.getHeight()) {
+                        continue;
+                    }
+                    int pixel = oim.getAwtImage().getRGB(fx, fy);
+                    if (rgb == null) {
+                        if ((pixel >> 24) != 0x00) {
+                            return true;
+                        }
+                    } else {
+                        if (pixel == rgb.getRGB()) {
+                            return true;
+                        }
                     }
                 }
             }
@@ -2645,10 +2647,8 @@ public class Scratch extends Actor
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
-        for (Scratch nbr : nbrs) {
-            if (pixelOverlap(nbr, null)) {
-                return true;
-            }
+        if (pixelOverlap(nbrs, null)) {
+            return true;
         }
         return false;
     }
@@ -2745,10 +2745,8 @@ public class Scratch extends Actor
             }
         }
         List<Scratch> nbrs = getIntersectingActors(null);
-        for (Scratch nbr : nbrs) {
-            if (pixelOverlap(nbr, color)) {
-                return true;
-            }
+        if (pixelOverlap(nbrs, color)) {
+            return true;
         }
         return false;
     }
