@@ -224,13 +224,13 @@ public class ScratchWorld extends World
      * at all their MesgRecvdSeq's.  Return a list of all that are for the
      * given message.
      */
-    public ArrayList<MesgRecvdSeq> getAllMessageScripts(String message)
+    public ArrayList<Scratch.MesgRecvdSeq> getAllMessageScripts(String message)
     {
-        ArrayList<MesgRecvdSeq> resSeq = new ArrayList<MesgRecvdSeq>();
+        ArrayList<Scratch.MesgRecvdSeq> resSeq = new ArrayList<Scratch.MesgRecvdSeq>();
         List<Scratch> allScr = getObjects(Scratch.class);
         for (Scratch scr : allScr) {
-            ArrayList<MesgRecvdSeq> seqs = scr.getMesgRecvdSeqs();
-            for (MesgRecvdSeq s: seqs) {
+            ArrayList<Scratch.MesgRecvdSeq> seqs = scr.getMesgRecvdSeqs();
+            for (Scratch.MesgRecvdSeq s: seqs) {
                 if (s.getMesg() == message) {
                     resSeq.add(s);
                 }
