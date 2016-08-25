@@ -2606,7 +2606,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         ArrayList<Integer> ocy = new ArrayList<Integer>();
         // Get the other image's data
         for (Scratch other : others) {
-            if (other.isShowing()) {
+            if (other.isShowing()) { // Objects that arent showing shouldnt be checked
                 GreenfootImage img = other.getCurrImage();
                 oim.add(img);
                 ocx.add(other.getX() - (img.getWidth() / 2));
@@ -2663,10 +2663,9 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public boolean isTouching(Scratch other)
     {
-        if (!isShowing || !other.isShowing()) {
+        if (!isShowing) {
             return false;
         }
-
         /* Get all intersecting objects of other's class.  To Greenfoot, "intersecting" means
            the images' bounding boxes overlap.  */
         java.lang.Class clazz = other.getClass();
