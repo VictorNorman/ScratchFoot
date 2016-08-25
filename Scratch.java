@@ -44,7 +44,7 @@ import java.awt.geom.RoundRectangle2D;
  * @author Victor Norman 
  * @version 0.1
  */
-public class Scratch extends Actor
+public class Scratch extends Actor implements Comparable<Scratch>
 {
     // These are the 200 numbered colors used in Scratch.
     private static String numberedColors[] = {
@@ -2597,22 +2597,35 @@ public class Scratch extends Actor
         // get the coordinates of the upper left corners for awt interaction
         int cx = getX() - (width / 2);
         int cy = getY() + (height / 2);
+        // get world width and height to avoid constant calls to world
+        int worldH = getWorld().getHeight();
+        int worldW = getWorld().getWidth();
+        // declare lists to iterate through each intersecting object
+        ArrayList<GreenfootImage> oim = new ArrayList<GreenfootImage>();
+        ArrayList<Integer> ocx = new ArrayList<Integer>();
+        ArrayList<Integer> ocy = new ArrayList<Integer>();
         // Get the other image's data
         for (Scratch other : others) {
-            GreenfootImage oim = other.getCurrImage();
-            int ocx = other.getX() - (oim.getWidth() / 2);
-            int ocy = other.getY() + (oim.getHeight() / 2);
-            for (int x = 0; x < width; x++) {
-                for (int y = 0; y < height; y++) {
-                    if (im.getAwtImage().getRGB(x, y) >> 24 == 0x00) {
+            if (other.isShowing()) {
+                GreenfootImage img = other.getCurrImage();
+                oim.add(img);
+                ocx.add(other.getX() - (img.getWidth() / 2));
+                ocy.add(other.getY() + (img.getHeight() / 2));
+            }
+        }
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (im.getAwtImage().getRGB(x, y) >> 24 == 0x00) {
+                    continue;
+                }
+                boolean checkBackdrop = rgb != null; // If no sprite is found and a color is selected, check the backdrop too
+                for (int i = 0; i < oim.size(); i++) {
+                    int fx = changeRelativePoint(x, cx, ocx.get(i));
+                    int fy = changeRelativePoint(y, -cy, -ocy.get(i));
+                    if (fx < 0 || fy < 0 || fx >= oim.get(i).getWidth() || fy >= oim.get(i).getHeight()) {
                         continue;
                     }
-                    int fx = changeRelativePoint(x, cx, ocx);
-                    int fy = changeRelativePoint(y, -cy, -ocy);
-                    if (fx < 0 || fy < 0 || fx >= oim.getWidth() || fy >= oim.getHeight()) {
-                        continue;
-                    }
-                    int pixel = oim.getAwtImage().getRGB(fx, fy);
+                    int pixel = oim.get(i).getAwtImage().getRGB(fx, fy);
                     if (rgb == null) {
                         if ((pixel >> 24) != 0x00) {
                             return true;
@@ -2620,7 +2633,22 @@ public class Scratch extends Actor
                     } else {
                         if (pixel == rgb.getRGB()) {
                             return true;
+                        } else {
+                            checkBackdrop = false;
+                            break;
                         }
+                    }
+                }
+                // If there is nothing else to check on this pixel, check the backdrop
+                if (checkBackdrop) {
+                    // Catching exceptions is very slow, so instead we skip iterations that might throw one.
+                    if (translateToGreenfootX(cx + x) < 0 || translateToGreenfootX(cx + x) >= worldW || translateToGreenfootY(cy - y) >= worldH || translateToGreenfootY(cy - y) < 0) {
+                        continue;
+                    }
+                    // See if the pixel at this location in the background is of the given color.
+                    if (getWorld().getColorAt(translateToGreenfootX(cx + x), translateToGreenfootY(cy - y)).equals(rgb)) {
+                        // Not sure this is correct, as it checks the transparency value as well...
+                        return true;
                     }
                 }
             }
@@ -2712,39 +2740,8 @@ public class Scratch extends Actor
      */
     public boolean isTouchingColor(Color color)
     {
-        GreenfootImage im = getCurrImage();
-        int height = im.getHeight();
-        int width = im.getWidth();
-        int x = getX();
-        int y = getY();
-        // get the coordinates of the upper left corner for awt interaction
-        int cx = getX() - (width / 2);
-        int cy = getY() + (height / 2);
-        // get world width and height to avoid constant calls to world
-        int worldH = getWorld().getHeight();
-        int worldW = getWorld().getWidth();
-        BufferedImage bIm = im.getAwtImage();
-        // Calculate rotation unit vectors
-        double cos = Math.cos(Math.toRadians(getRotation()));
-        double sin = Math.sin(Math.toRadians(getRotation()));
-        for (int w = 0; w < width; w++) {
-            for (int h = 0; h < height; h++) {
-                int pixel = bIm.getRGB(w, h);
-                if ((pixel >> 24) == 0x00) {
-                    continue;   // transparent pixel: skip it.
-                }
-                // Catching exceptions is very slow, so instead we skip iterations that might throw one.
-                if (translateToGreenfootX(cx + w) < 0 || translateToGreenfootX(cx + w) >= worldW || translateToGreenfootY(cy - h) >= worldH || translateToGreenfootY(cy - h) < 0) {
-                    continue;
-                }
-                // See if the pixel at this location in the background is of the given color.
-                if (getWorld().getColorAt(translateToGreenfootX(cx + w), translateToGreenfootY(cy - h)).equals(color)) {
-                    // Not sure this is correct, as it checks the transparency value as well...
-                    return true;
-                }
-            }
-        }
         List<Scratch> nbrs = getIntersectingActors(null);
+        java.util.Collections.sort(nbrs);
         if (pixelOverlap(nbrs, color)) {
             return true;
         }
@@ -3113,6 +3110,14 @@ public class Scratch extends Actor
     /*
      * Miscellaneous stuff.
      */
+    /**
+     * Allows sorting scratch objects by paint order
+     */
+    @Override
+    public int compareTo(Scratch o)
+    {
+        return getLayer() - o.getLayer();
+    }
     
     /**
      * Determines whether two objects have intersecting bounding boxes
@@ -3160,6 +3165,7 @@ public class Scratch extends Actor
     public List<Scratch> getIntersectingActors(Class type) {
         List<? extends Scratch> actors = getWorld().getObjects(type);
         List<Scratch> ret = new ArrayList<Scratch>();
+        actors.remove(this);
         for (Scratch actor : actors) {
             if (intersects(actor)) {
                 ret.add(actor);
