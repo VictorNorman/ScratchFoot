@@ -794,8 +794,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private void updateImage()
         {
             if (! display) {
-                //getImage().clear();
-                setImage((GreenfootImage)null);
+                getImage().clear();
                 return;
             }
             if (valChanged) {
@@ -1082,7 +1081,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         }
         private void updateDisplay() {
             if (!display) {
-                setImage((GreenfootImage)null);
+                getImage().clear();
                 return;
             }
             if (addedToWorld) {
