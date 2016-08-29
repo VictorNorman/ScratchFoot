@@ -638,7 +638,7 @@ public class ScratchWorld extends World
         addObject(sprite, translateToGreenfootX(initX), translateToGreenfootY(initY));
 
         // Add to the hashmap.
-        sprites.put(spriteClass, sprite);
+        sprites.put(spriteClass.toUpperCase(), sprite);
     }
 
     // TODO: override remove() to remove objects from the sprites hashmap.
@@ -649,6 +649,6 @@ public class ScratchWorld extends World
      */
     public Scratch getActorByName(String name) 
     {
-        return sprites.get(name);
+        return sprites.get(name.toUpperCase());
     }
 }

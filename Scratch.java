@@ -784,7 +784,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private void updateImage()
         {
             if (! display) {
-                getImage().clear();
+                //getImage().clear();
+                setImage((GreenfootImage)null);
                 return;
             }
             if (valChanged) {
@@ -2606,7 +2607,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         ArrayList<Integer> ocy = new ArrayList<Integer>();
         // Get the other image's data
         for (Scratch other : others) {
-            if (other.isShowing()) { // Objects that arent showing shouldnt be checked
+            if (other.isShowing()) {  // Objects that arent showing shouldnt be checked 
                 GreenfootImage img = other.getCurrImage();
                 oim.add(img);
                 ocx.add(other.getX() - (img.getWidth() / 2));
@@ -2625,14 +2626,20 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     if (fx < 0 || fy < 0 || fx >= oim.get(i).getWidth() || fy >= oim.get(i).getHeight()) {
                         continue;
                     }
-                    int pixel = oim.get(i).getAwtImage().getRGB(fx, fy);
+                    Color pixel = oim.get(i).getColorAt(fx, fy);
                     if (rgb == null) {
-                        if ((pixel >> 24) != 0x00) {
+                        if (pixel.getAlpha() != 0) {
                             return true;
                         }
                     } else {
-                        if (pixel == rgb.getRGB()) {
+                        if (Math.abs(pixel.getRed() - rgb.getRed()) < 8 // Compare the top 5 bits of red/green and top 4 of blue
+                            && Math.abs(pixel.getGreen() - rgb.getGreen()) < 8
+                            && Math.abs(pixel.getBlue() - rgb.getBlue()) < 16
+                            && pixel.getAlpha() > 240) {
                             return true;
+                        } else if (pixel.getAlpha() == 0) {
+                            checkBackdrop = true;
+                            break;
                         } else {
                             checkBackdrop = false;
                             break;
@@ -2646,8 +2653,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
                         continue;
                     }
                     // See if the pixel at this location in the background is of the given color.
-                    if (getWorld().getColorAt(translateToGreenfootX(cx + x), translateToGreenfootY(cy - y)).equals(rgb)) {
-                        // Not sure this is correct, as it checks the transparency value as well...
+                    Color bkg = getWorld().getBackground().getColorAt(translateToGreenfootX(cx + x), translateToGreenfootY(cy - y));
+                    
+                    if (Math.abs(bkg.getRed() - rgb.getRed()) < 8 // Compare the top 5 bits of red/green and top 4 of blue
+                        && Math.abs(bkg.getGreen() - rgb.getGreen()) < 8
+                        && Math.abs(bkg.getBlue() - rgb.getBlue()) < 16
+                        && bkg.getAlpha() > 240) {
                         return true;
                     }
                 }
