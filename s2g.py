@@ -488,6 +488,7 @@ class SpriteOrStage:
         for l in listOfLists:
             name = l['listName']
             contents = l['contents']
+            visible = l['visible']
             try:
                 sanname = convertToJavaId(name, True, False)
             except:
@@ -508,6 +509,8 @@ class SpriteOrStage:
                 disp = deriveType(name, obj)
                 self._addedToWorldCode += ', %s' % (str(disp[0]))
             self._addedToWorldCode += ');\n'
+            if not visible:
+                self._addedToWorldCode += '%s%s.hide();\n' % (genIndent(2), sanname)
 
         # Close the addedToWorld() method definition.
         self._addedToWorldCode += genIndent(1) + "}\n"
@@ -2130,7 +2133,7 @@ for f in files2Copy:
     width, height = size.split("x")	 # got the width and height, as strings
     width = int(width)
     height = int(height)
-    if width > 480:
+    if width >= 480:
         # For now, just make 480x360.  This may not be correct in all cases.
         dest = os.path.join(imagesDir, os.path.basename(f))
         execOrDie("convert -resize 480x360 " + f + " " + dest,

@@ -275,6 +275,16 @@ public class Scratch extends Actor implements Comparable<Scratch>
             this.name = name;
         }
     }
+    /**
+     * This is an empty interface that serves to mark certain subclasses of scratch that should
+     * not be accessible by basic scratch functions such as isTouching.
+     * 
+     * Classes that implement this will still be displayed, and may be changed through a direct
+     * reference, but will not be returned by getIntersectingActors
+     */
+    public interface nonInteractive {
+    }
+    
     private ArrayList<Costume> costumes = new ArrayList<Costume>();
 
     // costumesCopy holds the original unaltered costume images.  So, if
@@ -699,7 +709,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
     /* -------------------  Variables ------------------------ */
 
-    private class Variable extends Scratch 
+    private class Variable extends Scratch implements nonInteractive
     {
         private final Color textColor = Color.black;
         private final Color bgColor = Color.gray;
@@ -749,7 +759,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         {
             text = s;
             valChanged = true;
-        }
+        }  
 
         public void act()
         {
@@ -859,6 +869,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         {
             display = true;
             valChanged = true;      // make sure we display the value in next act() iteration.
+            act();
         }
 
         /**
@@ -868,6 +879,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         {
             display = false;
             valChanged = true;  // make sure we don't display the value in next act() iteration.
+            act();
         }
     }
 
@@ -1030,12 +1042,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
         return newVar;
     }
     
-    public class ScratchList extends Scratch
+    public class ScratchList extends Scratch implements nonInteractive
     {
         private final java.awt.Font font = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
         private ArrayList<Variable> contents;
         private String name;
         int xLoc, yLoc;
+        private boolean display = true;
         private boolean addedToWorld = false;
         public ScratchList(String name)
         {
@@ -1068,6 +1081,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
             updateDisplay();
         }
         private void updateDisplay() {
+            if (!display) {
+                setImage((GreenfootImage)null);
+                return;
+            }
             if (addedToWorld) {
                 xLoc = translateToGreenfootX(getX()) - getImage().getWidth() / 2;
                 yLoc = translateToGreenfootY(getY()) - getImage().getHeight() / 2;
@@ -1160,6 +1177,16 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 if (v.get().equals(o)) return true;
             }
             return false;
+        }
+        public void show()
+        {
+            display = true;
+            updateDisplay();
+        }
+        public void hide()
+        {
+            display = false;
+            updateDisplay();
         }
     }
     
@@ -3177,7 +3204,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         List<Scratch> ret = new ArrayList<Scratch>();
         actors.remove(this);
         for (Scratch actor : actors) {
-            if (intersects(actor)) {
+            if (intersects(actor) && !(actor instanceof nonInteractive)) {
                 ret.add(actor);
             }
         }
@@ -3337,7 +3364,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * Sayer: a bubble that follows a Scratch actor around, displaying what
      * they are saying or thinking.
      */
-    public class Sayer extends Scratch
+    public class Sayer extends Scratch implements nonInteractive
     {
         private String str;
         boolean think = false;
