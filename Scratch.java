@@ -1131,6 +1131,19 @@ public class Scratch extends Actor implements Comparable<Scratch>
             contents.remove(index);
             updateIndex();
         }
+        public void delete(String key)
+        {
+            int index = 0;
+            if (key.equals("last")) {
+                index = length();
+                delete(index);
+            } else if (key.equals("all")) {
+                while (length() > 0) {
+                    delete(1);
+                }
+            }
+            
+        }
         public void insert(int index, Object o)
         {
             index--;
@@ -1141,10 +1154,34 @@ public class Scratch extends Actor implements Comparable<Scratch>
             else throw new RuntimeException("Tried to create list element of invalid type");
             
         }
+        public void insert(String key, Object o)
+        {
+            int index = 0;
+            if (key.equals("last")) {
+                index = length();
+            } else if (key.equals("random")) {
+                index = pickRandom(1, length());
+            } else {
+                System.err.println("Unknow list key: " + key);
+            }
+            insert(index, o);
+        }
         public void replaceItem(int index, Object o)
         {
             insert(index, o);
             delete(index + 1);
+        }
+        public void replaceItem(String key, Object o)
+        {
+            int index = 0;
+            if (key.equals("last")) {
+                index = length();
+            } else if (key.equals("random")) {
+                index = pickRandom(1, length());
+            } else {
+                System.err.println("Unknow list key: " + key);
+            }
+            replaceItem(index, o);
         }
         private Object get(int index)
         {
@@ -1156,10 +1193,34 @@ public class Scratch extends Actor implements Comparable<Scratch>
         {
             return get(index).toString();
         }
+        public String itemAt(String key)
+        {
+            int index = 0;
+            if (key.equals("last")) {
+                index = length();
+            } else if (key.equals("random")) {
+                index = pickRandom(1, length());
+            } else {
+                System.err.println("Unknow list key: " + key);
+            }
+            return itemAt(index);
+        }
         // Use in mathExpr
         public Double numberAt(int index)
         {
             return ((Number)get(index)).doubleValue();
+        }
+        public Double numberAt(String key)
+        {
+            int index = 0;
+            if (key.equals("last")) {
+                index = length();
+            } else if (key.equals("random")) {
+                index = pickRandom(1, length());
+            } else {
+                System.err.println("Unknow list key: " + key);
+            }
+            return numberAt(index);
         }
         // For use by user if an int is required
         public int intAt(int index)

@@ -1471,6 +1471,10 @@ class SpriteOrStage:
             index = str(index)
         elif isinstance(index, float):
             index = str(index)
+        elif index == 'last':
+            index = '"last"'
+        elif index == 'random':
+            index = '"random"'
         else:
             index = self.strExpr(index)
 
@@ -1507,16 +1511,19 @@ class SpriteOrStage:
     def listRemove(self, level, tokens):
         cmd, index, name = tokens;
         disp, glob = self.getListNameAndScope(name)
-        
+        assert cmd == 'deleteLine:ofList:'        
         # If the argument is a int or double literal, use that, otherwise mathExpr
         if isinstance(index, int):
             index = str(index)
         elif isinstance(index, float):
-            index = str(index)
+            index = str(index)           
+        elif index == 'last':
+            index = '"last"'
+        elif index == 'all':
+            index = '"all"'
         else:
             index = self.mathExpr(index)
-
-        assert cmd == 'deleteLine:ofList:'
+            
         if glob:
             return "%sStage.%s.delete(%s);\n" % (genIndent(level), disp, index)
         else:
@@ -1539,6 +1546,10 @@ class SpriteOrStage:
             index = str(index)
         elif isinstance(index, float):
             index = str(index)
+        elif index == 'last':
+            index = '"last"'
+        elif index == 'random':
+            index = '"random"'
         else:
             index = self.mathExpr(index)
 
@@ -1564,6 +1575,10 @@ class SpriteOrStage:
             index = str(index)
         elif isinstance(index, float):
             index = str(index)
+        elif index == 'last':
+            index = '"last"'
+        elif index == 'random':
+            index = '"random"'
         else:
             index = self.mathExpr(index)
 
