@@ -140,6 +140,7 @@ public class ScratchWorld extends World
     public ScratchWorld(int w, int h)
     {
         this(w, h, 1);
+        Stage.bgImg = new GreenfootImage(w, h);
     }
 
     public final void act() 
