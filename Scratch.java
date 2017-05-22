@@ -36,6 +36,7 @@ import java.lang.String;
 import java.lang.reflect.*;
 import javax.swing.JOptionPane;
 import javax.sound.sampled.*;
+import javax.sound.midi.*;
 import java.awt.geom.RoundRectangle2D;
 
 /**
@@ -343,6 +344,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // the code has to get the values of the parent's local variables to initialize
     // the new copies.
     private HashMap<String, Variable> variables = new HashMap<String, Variable>();
+
+    // Declare the midi Synth
+    private static Synthesizer synth;
+    
 
     /**
      *  Turn the sprite to face the direction depending on the rotation style:
@@ -1283,6 +1288,14 @@ public class Scratch extends Actor implements Comparable<Scratch>
         name = this.getClass().getName();
         // Load sounds in this class's directory
         if (!isClone && !(this instanceof Sayer)) {
+            try {
+                if (synth == null) { // Instantiate the synth if it hasn't yet been
+                    synth = MidiSystem.getSynthesizer();
+                    synth.open();
+                }
+            } catch (MidiUnavailableException e) {
+                System.out.println("Midi synthesizer could not be initialized");
+            }
             loadSounds();
         }
     }
@@ -3127,7 +3140,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     /*
      * Sound stuff.
      */
-    
+   
     /**
      * Add all sounds in the "proj/sounds/[spritename]" directory to the sound dictionary. Uses filename as key.
      * Not to be called by users
@@ -3139,6 +3152,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         System.out.println("Looking for sounds in: " + soundDir.getAbsolutePath());
         AudioInputStream aIn;
         File[] ls = soundDir.listFiles();
+        
         if (ls != null) {
             for (File f : ls) {
                 try {
@@ -3203,6 +3217,29 @@ public class Scratch extends Actor implements Comparable<Scratch>
         for (Clip clip : soundList.values()) {
             clip.stop();
         }
+    }
+    
+    public void playNote(int pitch, double length, Sequence s) 
+    {
+        long start = System.currentTimeMillis();
+        MidiChannel channel = synth.getChannels()[0];
+        channel.noteOn(pitch, 255);
+        wait(s, length);
+        /*while (System.currentTimeMillis() < start + (long)(length * 1000)) {
+            continue;
+        }*/
+        channel.noteOff(pitch, 255);
+    }
+    
+    public void playDrum(int drum, double length, Sequence s) {
+        long start = System.currentTimeMillis();
+        MidiChannel channel = synth.getChannels()[9];
+        channel.noteOn(drum, 255);
+        wait(s, length);
+        /*while (System.currentTimeMillis() < start + (long)(length * 1000)) {
+            continue;
+        }*/
+        channel.noteOff(drum, 255);
     }
 
     /*
