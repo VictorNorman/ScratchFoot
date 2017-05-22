@@ -711,9 +711,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
     private class Variable extends Scratch implements nonInteractive
     {
-        private final Color textColor = Color.black;
-        private final Color bgColor = Color.gray;
-        private final java.awt.Font font = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
+        private final greenfoot.Color textColor = greenfoot.Color.BLACK;
+        private final greenfoot.Color bgColor = greenfoot.Color.GRAY;
+        private final java.awt.Font awtfont = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
+        private final greenfoot.Font font = new greenfoot.Font("Arial", false, false, 12);
         
         private Object value;
         private ScratchList container = null;     // Store the list that contains this variable. If null
@@ -819,7 +820,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 } else {
                     v = value;
                 }
-                java.awt.FontMetrics fm = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics().getFontMetrics(font);
+                java.awt.FontMetrics fm = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics().getFontMetrics(awtfont);
                 
                 String dispStr = text + v;
                 int stringLength = fm.stringWidth(dispStr);
@@ -828,16 +829,16 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 // Create a gray background under the variable's name.
                 GreenfootImage image = new GreenfootImage(stringLength + 8, 20);
                 if (this instanceof CloudVar) {
-                    image.setColor(Color.decode("#66FFFF"));
+                    image.setColor(toGFColor(Color.decode("#66FFFF")));
                 } else  if (container != null) { // If part of list match background colors
-                    image.setColor(Color.lightGray);
+                    image.setColor(greenfoot.Color.LIGHT_GRAY);
                 } else {
                     image.setColor(bgColor);
                 }
                 image.setFont(font);
                 image.fill();
                 // Create orange background under the variable's value.
-                image.setColor(Color.decode("#EE7D16"));
+                image.setColor(toGFColor(Color.decode("#EE7D16")));
                 image.fillRect(textLength + 4, 3, valLength + 2, 15);
 
                 image.setColor(textColor);
@@ -1043,7 +1044,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     
     public class ScratchList extends Scratch implements nonInteractive
     {
-        private final java.awt.Font font = new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
+        private final greenfoot.Font font = new greenfoot.Font("Arial", false, false, 12);
         private ArrayList<Variable> contents;
         private String name;
         int xLoc, yLoc;
@@ -1088,7 +1089,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 xLoc = translateToGreenfootX(getX()) - getImage().getWidth() / 2;
                 yLoc = translateToGreenfootY(getY()) - getImage().getHeight() / 2;
             }
-            java.awt.FontMetrics fm = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics().getFontMetrics(font);
+            java.awt.FontMetrics fm = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).getGraphics().getFontMetrics(new java.awt.Font("Arial", java.awt.Font.PLAIN, 12));
             int width = fm.stringWidth(name);
             int height = (length() + 1) * 18 + 8;
             for (Variable v : contents) {
@@ -1103,9 +1104,9 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
             
             GreenfootImage img = new GreenfootImage(width, height);
-            img.setColor(Color.lightGray);
+            img.setColor(greenfoot.Color.LIGHT_GRAY);
             img.fill();
-            img.setColor(Color.black);
+            img.setColor(greenfoot.Color.BLACK);
             img.drawString(name, 4, 12);
             for (int i = 0; i < length(); i++) {
                 img.drawImage(contents.get(i).getImage(), 4, (i + 1) * 18);
@@ -2713,7 +2714,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     if (fx < 0 || fy < 0 || fx >= oim.get(i).getWidth() || fy >= oim.get(i).getHeight()) {
                         continue;
                     }
-                    Color pixel = oim.get(i).getColorAt(fx, fy);
+                    greenfoot.Color pixel = oim.get(i).getColorAt(fx, fy);
                     if (rgb == null) {
                         if (pixel.getAlpha() != 0) {
                             return true;
@@ -2740,7 +2741,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                         continue;
                     }
                     // See if the pixel at this location in the background is of the given color.
-                    Color bkg = getWorld().getBackground().getColorAt(translateToGreenfootX(cx + x), translateToGreenfootY(cy - y));
+                    greenfoot.Color bkg = getWorld().getBackground().getColorAt(translateToGreenfootX(cx + x), translateToGreenfootY(cy - y));
                     
                     if (Math.abs(bkg.getRed() - rgb.getRed()) < 8 // Compare the top 5 bits of red/green and top 4 of blue
                         && Math.abs(bkg.getGreen() - rgb.getGreen()) < 8
@@ -3419,6 +3420,14 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         return getWorld().getHeight() / 2 - y;
     }
+    
+    /*
+     * toGFColor - converts a java.awt.Color to a greenfoot.Color object 
+     */
+    public greenfoot.Color toGFColor(Color awtcolor)
+    {
+        return new greenfoot.Color(awtcolor.getRed(), awtcolor.getGreen(), awtcolor.getBlue(), awtcolor.getAlpha());
+    }
 
     /**
      * Sayer: a bubble that follows a Scratch actor around, displaying what
@@ -3475,7 +3484,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 img.drawImage(sayExt, i, 0);
             }
             img.drawImage(sayEnd, imgW - 8, 0);
-            img.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
+            img.setFont(new greenfoot.Font("Arial", true, false, 14));
             img.drawString(str, 8, 20);
             setImage(img);
         }
