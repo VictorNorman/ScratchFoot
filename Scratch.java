@@ -28,6 +28,8 @@ import java.util.ListIterator;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.Stack;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.AffineTransformOp;
@@ -96,7 +98,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
     static final GreenfootImage sayExt = new GreenfootImage("say2.png");
     static final GreenfootImage sayEnd = new GreenfootImage("say3.png");
     static final GreenfootImage sayThink = new GreenfootImage("think.png");
-
+    
+    // Instrument and Drum patch numbers
+    static final int[] scratchInstruments = {0, 0, 2, 19, 24, 27, 32, 45, 42, 57, 71, 64, 
+                                             73, 75, 70, 91, 11, 10, 114, 12, 82, 90};
+    static final int[] scratchDrums = {0 ,38, 36, 37, 49, 46, 42, 54, 39, 75,
+                                       77, 56, 81, 61, 64, 69, 74, 58, 79};
     private boolean isPenDown = false;
     private Color penColor = Color.BLUE;
     private int penColorNumber = 133;         // an integer that is mod 200 -- 0 to 199.
@@ -345,8 +352,9 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // the new copies.
     private HashMap<String, Variable> variables = new HashMap<String, Variable>();
 
-    // Declare the midi Synth
-    private static Synthesizer synth;
+    // Declare the midi Synth, since it is static, it won't be redeclared when
+    // the scenario is reset.
+    private static MidiPlayer midi = new MidiPlayer();
     
 
     /**
@@ -1288,13 +1296,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
         name = this.getClass().getName();
         // Load sounds in this class's directory
         if (!isClone && !(this instanceof Sayer)) {
-            try {
-                if (synth == null) { // Instantiate the synth if it hasn't yet been
-                    synth = MidiSystem.getSynthesizer();
-                    synth.open();
-                }
-            } catch (MidiUnavailableException e) {
-                System.out.println("Midi synthesizer could not be initialized");
+            if (!midi.isAlive()) {
+                midi.start(); // Start the midiPlayer if it hasn't been started yet
             }
             loadSounds();
         }
@@ -3219,27 +3222,129 @@ public class Scratch extends Actor implements Comparable<Scratch>
         }
     }
     
+    /**
+     * Plays the given note using the currently selected instrument
+     * if this sprite already has a note playing, it will wait for that
+     * one to finish first. Note that this uses the Scratch drumset,
+     * not the GM drumset.
+     */
     public void playNote(int pitch, double length, Sequence s) 
     {
         long start = System.currentTimeMillis();
-        MidiChannel channel = synth.getChannels()[0];
-        channel.noteOn(pitch, 255);
-        wait(s, length);
-        /*while (System.currentTimeMillis() < start + (long)(length * 1000)) {
-            continue;
-        }*/
-        channel.noteOff(pitch, 255);
+        while (!midi.playNote(pitch, 255, 0, length, name)) {
+            yield(s); // Yield until the note is successfully played
+        }
     }
     
+    /**
+     * sets the Instrument to the given one. Note that this uses the
+     * Scratch instrment set, not the GM instrument set.
+     */
+    public void changeInstrument(int instrument) 
+    {
+        midi.setInstrument(scratchInstruments[instrument], 0);
+    }
+    
+    /**
+     * Plays the given drum using the currently selected instrument
+     * if this sprite already has a drum playing, it will wait for that
+     * one to finish first.
+     */
     public void playDrum(int drum, double length, Sequence s) {
         long start = System.currentTimeMillis();
-        MidiChannel channel = synth.getChannels()[9];
-        channel.noteOn(drum, 255);
-        wait(s, length);
-        /*while (System.currentTimeMillis() < start + (long)(length * 1000)) {
-            continue;
-        }*/
-        channel.noteOff(drum, 255);
+        while (!midi.playNote(scratchDrums[drum], 255, 9, length, name)) {
+            yield(s); // Yield until the note is successfully played
+        }
+    }
+    
+    static class MidiPlayer extends Thread 
+    {
+        Synthesizer synth;
+        int tempo = 60;
+        double whole; // Length in ms of 1 beat
+        
+        LinkedTransferQueue<Note> notes = new LinkedTransferQueue<Note>(); // Stores pending notes that are to be played
+        Stack<Note> activeNotes = new Stack<Note>(); // Stores currently playing notes
+        ArrayList<String> active = new ArrayList<String>(); // Store sprites that are currently playing notes
+        
+        public MidiPlayer() {
+            whole = (double)tempo * 1000 / 60;
+            try {
+                synth = MidiSystem.getSynthesizer();
+                synth.open();
+            } catch (MidiUnavailableException e) {
+                System.out.println("Midi synthesizer could not be initialized, instruments and drums won't work");
+            }
+            setTempo(tempo);
+        }
+        
+        public void run() {
+            int p = 0;
+            while (true) {
+                // Pull a note off the stack if one exists
+                try {
+                    // Poll for any new notes to play for 100micros
+                    Note note = notes.poll(100, java.util.concurrent.TimeUnit.MICROSECONDS);
+                    if (note != null) { // If a note was found
+                        // Play the new note
+                        synth.getChannels()[note.channel].noteOn(note.pitch, note.vel);
+                        // Set the note to active
+                        activeNotes.push(note);
+                    }
+                } catch (InterruptedException e) { // This should never happen since we aren't interrupting it
+                    System.err.println("Midi system interrupted");
+                }
+                // Check all active notes and end any that have passed their end time
+                for (int i = 0; i < activeNotes.size(); i++) { 
+                    Note n = activeNotes.pop(); 
+                    if (System.currentTimeMillis() > n.start + n.length) {
+                        active.remove(n.caller); // If the note has ended, remove it's caller from the active list
+                        synth.getChannels()[n.channel].noteOff(n.pitch, n.vel);
+                    } else {
+                        activeNotes.push(n); // If the note has not finished, put it back on the stack
+                    }
+                }
+                
+                
+            }
+        }
+        
+        synchronized public boolean playNote(int pitch, int vel, int channel, double length, String caller) {
+            length *= whole; // Adjust beat time to milliseconds
+            long start = System.currentTimeMillis(); // get appropriate start time
+            // Ensure exclusive access to active and notes arrays
+            if (active.contains(caller)) { // if the caller has a note active, return false
+                return false;              // Caller should retry until it succeeds
+            }
+            active.add(caller); // Activate this caller
+            notes.add(new Note(pitch, vel, channel, length, start, caller)); // Add the note as pending
+
+            return true; // Note was successfully played, return to normal execution
+        }
+        
+        synchronized public void setTempo(int bpm) {
+            tempo = bpm;
+            whole = tempo * 1000 / 60; // Length in ms of 1 beat
+        }
+        
+        synchronized public void setInstrument(int instrument, int channel) {
+            synth.getChannels()[channel].programChange(instrument);
+        }
+        
+        private class Note {
+            public int pitch, vel, channel;
+            public double length;
+            public long start;
+            public String caller;
+            public Note(int p, int v, int c, double l, long s, String C) {
+                pitch = p;
+                vel = v;
+                channel = c;
+                length = l;
+                start = s;
+                caller = C;
+            }
+        }
     }
 
     /*
