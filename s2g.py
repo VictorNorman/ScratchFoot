@@ -677,6 +677,14 @@ class SpriteOrStage:
             # Sound commands
             'playSound:': self.playSound,
             'doPlaySoundAndWait': self.playSoundUntilDone,
+            
+            #Midi commands
+            'noteOn:duration:elapsed:from:': self.noteOn,
+            'instrument:': self.instrument,
+            'playDrum': self.playDrum,
+            'rest:elapsed:from:': self.rest,
+            'changeTempoBy:': self.changeTempoBy,
+            'setTempoTo:': self.setTempoTo
 
             }
         if debug:
@@ -1829,13 +1837,49 @@ class SpriteOrStage:
         """ Play the given sound
         """
         assert len(tokens) == 2 and tokens[0] == "playSound:"
-        return genIndent(level) + "playSound(\"" + strExpr(tokens[1]) + "\");\n"
+        return genIndent(level) + "playSound(" + self.strExpr(tokens[1]) + ");\n"
 
     def playSoundUntilDone(self, level, tokens):
         """ Play the given sound without interrupting it.
         """
         assert len(tokens) == 2 and tokens[0] == "doPlaySoundAndWait"
-        return genIndent(level) + "playSoundUntilDone(\"" + strExpr(tokens[1]) + "\");\n"
+        return genIndent(level) + "playSoundUntilDone(" + self.strExpr(tokens[1]) + ");\n"
+    
+    def noteOn(self, level, tokens):
+        """ Play the given note
+        """
+        assert len(tokens) == 3 and tokens[0] == "noteOn:duration:elapsed:from:"
+        return genIndent(level) + "playNote(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n";
+    
+    def instrument(self, level, tokens):
+        """ Play the given note
+        """
+        assert len(tokens) == 2 and tokens[0] == "instrument:"
+        return genIndent(level) + "changeInstrument(" + self.mathExpr(tokens[1]) + ");\n";
+    
+    def playDrum(self, level, tokens):
+        """ Play the given note
+        """
+        assert len(tokens) == 3 and tokens[0] == "playDrum"
+        return genIndent(level) + "playDrum(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n";
+    
+    def rest(self, level, tokens):
+        """ Play the given note
+        """
+        assert len(tokens) == 2 and tokens[0] == "rest:elapsed:from:"
+        return genIndent(level) + "rest(" + self.mathExpr(tokens[1]) + ", s);\n";
+    
+    def changeTempoBy(self, level, tokens):
+        """ Play the given note
+        """
+        assert len(tokens) == 2 and tokens[0] == "changeTempoBy:"
+        return genIndent(level) + "changeTempoBy(" + self.mathExpr(tokens[1]) + ");\n";
+    
+    def setTempoTo(self, level, tokens):
+        """ Play the given note
+        """
+        assert len(tokens) == 2 and tokens[0] == "setTempoTo:"
+        return genIndent(level) + "setTempo(" + self.mathExpr(tokens[1]) + ");\n";
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a

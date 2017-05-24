@@ -3220,6 +3220,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         for (Clip clip : soundList.values()) {
             clip.stop();
         }
+        midi.soundOff();
     }
     
     /**
@@ -3230,7 +3231,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void playNote(int pitch, double length, Sequence s) 
     {
-        long start = System.currentTimeMillis();
+        if (pitch > 127) {
+            pitch = 127;
+        } else if (pitch < 1) {
+            pitch = 1;
+        }
+        //int volume = 255 * 
         while (!midi.playNote(pitch, 255, 0, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
@@ -3242,6 +3248,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void changeInstrument(int instrument) 
     {
+        if (instrument > 21) {
+            instrument = 21;
+        } else if (instrument < 1) {
+            instrument = 1;
+        }
         midi.setInstrument(scratchInstruments[instrument], 0);
     }
     
@@ -3252,9 +3263,47 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void playDrum(int drum, double length, Sequence s) {
         long start = System.currentTimeMillis();
+        if (drum > 18) {
+            drum = 18;
+        } else if (drum < 1) {
+            drum = 1;
+        }
         while (!midi.playNote(scratchDrums[drum], 255, 9, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
+    }
+    
+    /**
+     * Plays a silent note for the given time, delaying its other notes
+     * if this sprite already has a drum/instrument playing, it will wait for that
+     * one to finish first.
+     */
+    public void rest(int length, Sequence s) {
+        while (!midi.playNote(0, 0, 16, length, name)) {
+            yield(s); // Yield until the note is successfully played
+        }
+    }
+    
+    /**
+     * Sets the tempo to the provided value
+     */
+    public void setTempo(int bpm)
+    {
+        if (bpm < 0) {
+            return; // if bpm is negative do nothing
+        }
+        midi.setTempo(bpm);
+    }
+    
+    /**
+     * Adds the provided value to the current tempo
+     */
+    public void changeTempoBy(int bpm)
+    {
+        if (midi.tempo + bpm < 0) {
+            return; // if bpm is negative do nothing
+        }
+        midi.setTempo(midi.tempo + bpm);
     }
     
     static class MidiPlayer extends Thread 
@@ -3329,6 +3378,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
         
         synchronized public void setInstrument(int instrument, int channel) {
             synth.getChannels()[channel].programChange(instrument);
+        }
+        
+        synchronized public void soundOff() {
+            for (int i = 0; i < 16; i++) { // loop through all midi channels
+                synth.getChannels()[i].allSoundOff(); // Immediately cut sound
+            }
         }
         
         private class Note {
