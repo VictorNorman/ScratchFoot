@@ -2408,14 +2408,14 @@ projectFileCode.append("class.ScratchWorld.superclass=greenfoot.World\n")
 # default values.
 if not os.path.isfile(os.path.join(PROJECT_DIR, "project.greenfoot")):
     with open(os.path.join(PROJECT_DIR, "project.greenfoot"), "w") as projF:
-        projF.write("mainWindow.height=500\n")
-        projF.write("mainWindow.width=750\n")
+        projF.write("mainWindow.height=550\n")
+        projF.write("mainWindow.width=800\n")
         projF.write("mainWindow.x=40\n")
         projF.write("mainWindow.y=40\n")
         projF.write("package.numDependencies=0\n")
         projF.write("package.numTargets=0\n")
         projF.write("project.charset=UTF-8\n")
-        projF.write("version=2.7.1\n")
+        projF.write("version=3.1.0\n")
     
 # Read all lines into variable lines.
 lines = []

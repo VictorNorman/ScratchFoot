@@ -3278,7 +3278,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * if this sprite already has a drum/instrument playing, it will wait for that
      * one to finish first.
      */
-    public void rest(int length, Sequence s) {
+    public void rest(double length, Sequence s) {
         while (!midi.playNote(0, 0, 16, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
