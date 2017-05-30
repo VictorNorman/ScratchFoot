@@ -109,7 +109,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
     private int penColorNumber = 133;         // an integer that is mod 200 -- 0 to 199.
     private float penSize = 1;
     private int currCostume = 0;
-    private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
     private String name;                    // Sprite's class name, for sound lookup
     
     /**
@@ -352,9 +351,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // the new copies.
     private HashMap<String, Variable> variables = new HashMap<String, Variable>();
 
-    // Declare the midi Synth, since it is static, it won't be redeclared when
-    // the scenario is reset.
-    private static MidiPlayer midi = new MidiPlayer();
+    // Declare the SoundPlayer, since it is static, it won't be redeclared when
+    // the scenario is reset. The SoundPlayer can play Clips and Midi notes.
+   private static SoundPlayer soundPlayer = new SoundPlayer();
+    
     
 
     /**
@@ -395,7 +395,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
         // run the sequence has not been met yet.  E.g., a key press
         // sequence will have triggered false when the key has not by hit by the user yet.
         protected boolean triggered; 
-
+        // isReady tracks whether the sequence has been told to begin or not
+        // since it must wake up to check if greenfoot has been reset, this
+        // will tell the thread if it has timed out or been notified
+        protected boolean isReady;
+        
         private Object objToCall;
         private String methodToCall;
 
@@ -404,6 +408,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
          */
         public Sequence(Object obj, String method)
         {
+            // Give this thread the name "Sequence" and add it to the thread group
+            super(ScratchWorld.threadGroup, "Sequence"); 
             this.sequenceLock = this;
             doneSequence = true;
             terminated = false;
@@ -412,6 +418,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             triggered = true;      // override this for non-automatically triggered sequences.
             this.objToCall = obj;
             this.methodToCall = method;
+            isReady = false;
             // System.out.println("Sequence ctor: obj " + obj + " method " + method);
         }
 
@@ -432,9 +439,17 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 synchronized (sequenceLock) {
 
                     while (doneSequence) {
-                        // System.out.println(methodToCall + ": run(): Calling seqLock.wait");
-                        sequenceLock.wait();
-                        // System.out.println(methodToCall + ": run(): done with seqLock.wait");
+                        //System.out.println(methodToCall + ": run(): Calling seqLock.wait");
+                        while (!isReady) {
+                            sequenceLock.wait(100);
+                            if (interrupted()) {
+                                terminated = true;
+                                return;
+                            }
+                            //System.out.println("thread running: " + this.getName());
+                            //System.out.println("Comparing: " + id + " against: " + ScratchWorld.id);
+                        }
+                        //System.out.println(methodToCall + ": run(): done with seqLock.wait, donesequence: " + doneSequence);
                     }
 
                     java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
@@ -457,6 +472,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     i.printStackTrace();
                 }
             } catch (InterruptedException ie) {
+                terminated = true;
+                return;
             } catch (Throwable t) {
                 t.printStackTrace();
             }
@@ -474,11 +491,17 @@ public class Scratch extends Actor implements Comparable<Scratch>
         public void waitForNextSequence() throws InterruptedException
         {
             doneSequence = true;
+            isReady = true;
             sequenceLock.notify();
 
             while (doneSequence) {
                 // System.out.println(methodToCall + ": waitForNextSequence(): calling seqLock.wait()");
-                sequenceLock.wait();
+                try {
+                    sequenceLock.wait();
+                } catch (InterruptedException e) {
+                    // If the wait is interrupted, the script should stop
+                    throw new StopScriptException();
+                }
                 // System.out.println(methodToCall + ": waitForNextSequence(): done with seqLock.wait()");
             }
         }
@@ -500,16 +523,19 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
                     doneSequence = false;
                     // System.out.println(methodToCall + ": perfSeq: calling notify()");
+                    isReady = true;
                     sequenceLock.notify();  // Thread now continues
 
                     while (! doneSequence) {
-                        // System.out.println(methodToCall + ": perfSeq: calling wait()");
+                        // System.out.println(methodToCall + ": perfSeq: calling wait() " + doneSequence);
                         sequenceLock.wait(); // Wait for thread to notify us it's done
                         // System.out.println(methodToCall + ": perfSeq: done with wait()");
                     }
                 }
             }
             catch (InterruptedException ie) {
+                System.out.println("PerfSeq exiting");
+                return;
             }
             // System.out.println(methodToCall + ": perfSeq: done");
         }
@@ -1274,6 +1300,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         l.act();
         return l;
     }
+    
 
     /*
      * Start of code!
@@ -1282,7 +1309,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public Scratch()
     {
         super();
-
+        
+        
         // put the first costume in our array of costumes.
         costumes.add(new Costume(getImage(), "Sprite1"));
 
@@ -1296,8 +1324,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
         name = this.getClass().getName();
         // Load sounds in this class's directory
         if (!isClone && !(this instanceof Sayer)) {
-            if (!midi.isAlive()) {
-                midi.start(); // Start the midiPlayer if it hasn't been started yet
+            if (!soundPlayer.isAlive()) {
+                soundPlayer.start(); // Start the soundPlayer if it hasn't been started yet
             }
             loadSounds();
         }
@@ -1406,7 +1434,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public void act()
     {
         // Call all the registered "whenFlagClicked" scripts.
-
+        
         // Remove all terminated sequences from the main sequences list.
         for (ListIterator<Sequence> iter = sequences.listIterator(); iter.hasNext(); ) {
             if (iter.next().isTerminated()) {
@@ -3150,47 +3178,15 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void loadSounds()
     {
-        // Access sound directory
-        File soundDir = new File("sounds/" + name);
-        System.out.println("Looking for sounds in: " + soundDir.getAbsolutePath());
-        AudioInputStream aIn;
-        File[] ls = soundDir.listFiles();
-        
-        if (ls != null) {
-            for (File f : ls) {
-                try {
-                    aIn = AudioSystem.getAudioInputStream(f);
-                    Clip clip = AudioSystem.getClip();
-                    clip.open(aIn);
-                    soundList.put(f.getName(), clip);
-                    System.out.println("Added clip: " + f.getName() + " for sprite: " + name);
-                } catch (UnsupportedAudioFileException e) {
-                    System.err.println("Only pcm .wav filetypes are acceptable: " + f.getName());
-                    //e.printStackTrace();
-                } catch (LineUnavailableException e) {
-                    System.err.println("Sounds did not unload properly, Please restart Greenfoot");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+        soundPlayer.loadSounds(name);
     }
 
     /**
      * Plays a sound until it has finished
      */
-    public void playSoundUntilDone(String name)
+    public void playSoundUntilDone(String clipName)
     {
-        name += ".wav";
-        Clip toPlay = soundList.get(name);
-        if (toPlay != null) {
-            if (!toPlay.isActive()) {
-                toPlay.setFramePosition(0);
-            }
-            toPlay.start();
-        } else {
-            System.err.println("Attempted to play non-existent sound");
-        }
+        soundPlayer.playSoundUntilDone(name, clipName);
     }
 
     /**
@@ -3198,18 +3194,9 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * This currently works the same as playUntilDone because greenfoot does not restart sounds
      * that are stopped and replayed on the same frame, and doing so causes massive performance drops.
      */
-    public void playSound(String name)
+    public void playSound(String clipName)
     {
-        name += ".wav";
-        Clip toPlay = soundList.get(name);
-        if (toPlay != null) {
-            toPlay.setFramePosition(0);
-            if (!toPlay.isActive()) {
-                toPlay.start();
-            }
-        } else {
-            System.err.println("Attempted to play non-existent sound");
-        }
+        soundPlayer.playSound(name, clipName);
     }
 
     /**
@@ -3217,10 +3204,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void stopAllSounds()
     {
-        for (Clip clip : soundList.values()) {
-            clip.stop();
-        }
-        midi.soundOff();
+        soundPlayer.stopAllSounds();
     }
     
     /**
@@ -3231,13 +3215,14 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void playNote(int pitch, double length, Sequence s) 
     {
+        // Ensure the pitch is valid
         if (pitch > 127) {
             pitch = 127;
         } else if (pitch < 1) {
             pitch = 1;
         }
         //int volume = 255 * 
-        while (!midi.playNote(pitch, 255, 0, length, name)) {
+        while (!soundPlayer.playNote(pitch, 255, 0, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
     }
@@ -3248,12 +3233,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void changeInstrument(int instrument) 
     {
+        // Ensure the instrument will not go out of bounds
         if (instrument > 21) {
             instrument = 21;
         } else if (instrument < 1) {
             instrument = 1;
         }
-        midi.setInstrument(scratchInstruments[instrument], 0);
+        soundPlayer.setInstrument(scratchInstruments[instrument], 0);
     }
     
     /**
@@ -3263,12 +3249,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void playDrum(int drum, double length, Sequence s) {
         long start = System.currentTimeMillis();
+        // Ensure the drum is valid
         if (drum > 18) {
             drum = 18;
         } else if (drum < 1) {
             drum = 1;
         }
-        while (!midi.playNote(scratchDrums[drum], 255, 9, length, name)) {
+        while (!soundPlayer.playNote(scratchDrums[drum], 255, 9, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
     }
@@ -3279,7 +3266,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * one to finish first.
      */
     public void rest(double length, Sequence s) {
-        while (!midi.playNote(0, 0, 16, length, name)) {
+        while (!soundPlayer.playNote(0, 0, 16, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
     }
@@ -3289,10 +3276,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void setTempo(int bpm)
     {
-        if (bpm < 0) {
-            return; // if bpm is negative do nothing
+        if (bpm <= 0) {
+            return; // if bpm is negative or 0 do nothing
         }
-        midi.setTempo(bpm);
+        soundPlayer.setTempo(bpm);
     }
     
     /**
@@ -3300,13 +3287,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void changeTempoBy(int bpm)
     {
-        if (midi.tempo + bpm < 0) {
+        if (soundPlayer.tempo + bpm < 0) {
             return; // if bpm is negative do nothing
         }
-        midi.setTempo(midi.tempo + bpm);
+        soundPlayer.setTempo(soundPlayer.tempo + bpm);
     }
     
-    static class MidiPlayer extends Thread 
+    static class SoundPlayer extends Thread 
     {
         Synthesizer synth;
         int tempo = 60;
@@ -3315,8 +3302,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
         LinkedTransferQueue<Note> notes = new LinkedTransferQueue<Note>(); // Stores pending notes that are to be played
         Stack<Note> activeNotes = new Stack<Note>(); // Stores currently playing notes
         ArrayList<String> active = new ArrayList<String>(); // Store sprites that are currently playing notes
+        private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
+        public int id;
         
-        public MidiPlayer() {
+        public SoundPlayer() {
+            super("Midi"); // Set this threads name to Midi
             whole = (double)tempo * 1000 / 60;
             try {
                 synth = MidiSystem.getSynthesizer();
@@ -3333,15 +3323,23 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 // Pull a note off the stack if one exists
                 try {
                     // Poll for any new notes to play for 100micros
-                    Note note = notes.poll(100, java.util.concurrent.TimeUnit.MICROSECONDS);
+                    Note note = notes.poll(1, java.util.concurrent.TimeUnit.MILLISECONDS);
+                    if (interrupted()) {
+                        // Release all resources held by this thread
+                        close();
+                        return;
+                    }
                     if (note != null) { // If a note was found
                         // Play the new note
                         synth.getChannels()[note.channel].noteOn(note.pitch, note.vel);
                         // Set the note to active
                         activeNotes.push(note);
                     }
-                } catch (InterruptedException e) { // This should never happen since we aren't interrupting it
-                    System.err.println("Midi system interrupted");
+                    // The midi will be interrupted when scratch is recompiled
+                } catch (InterruptedException e) {
+                    // Release all resources held by this thread
+                    close();
+                    return;
                 }
                 // Check all active notes and end any that have passed their end time
                 for (int i = 0; i < activeNotes.size(); i++) { 
@@ -3353,8 +3351,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
                         activeNotes.push(n); // If the note has not finished, put it back on the stack
                     }
                 }
-                
-                
             }
         }
         
@@ -3400,6 +3396,140 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 caller = C;
             }
         }
+        
+        /**
+         * Add all sounds in the "proj/sounds/[spritename]" directory to the sound dictionary. Uses filename as key.
+         * Not to be called by users
+         */
+        public void loadSounds(String name)
+        {
+            close(name);
+            // Access sound directory
+            File soundDir = new File("sounds/" + name);
+            System.out.println("Looking for sounds in: " + soundDir.getAbsolutePath());
+            AudioInputStream aIn = null;
+            File[] ls = soundDir.listFiles();
+            
+            if (ls != null) {
+                for (File f : ls) {
+                    try {
+                        // Get the input stream from the found file
+                        AudioInputStream fileIn = AudioSystem.getAudioInputStream(f);
+                        // Try to convert it to PCM, if possible
+                        aIn = AudioSystem.getAudioInputStream(AudioFormat.Encoding.PCM_SIGNED, fileIn);
+                        // Create an empty clip object
+                        Clip clip = AudioSystem.getClip();
+                        // Load the sound file into the clip
+                        clip.open(aIn);
+                        // Add the clip to the list of sounds
+                        soundList.put(name + "/" + f.getName(), clip);
+                        System.err.println("Added clip: " + f.getName() + " for sprite: " + name);
+                    } catch (UnsupportedAudioFileException e) {
+                        System.err.println("Only pcm .wav filetypes are acceptable: " + f.getName());
+                        //e.printStackTrace();
+                    } catch (LineUnavailableException e) {
+                        System.err.println("Sounds did not unload properly, Please restart Greenfoot");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            aIn.close();
+                        } catch (java.io.IOException e) {
+                            System.err.println("couldn't close Ain");
+                        }
+                    }
+                }
+                
+            }
+        }
+    
+        /**
+         * Plays a sound until it has finished
+         */
+        public void playSoundUntilDone(String sprite, String name)
+        {
+            String clipName = sprite + "/" + name + ".wav";
+            Clip toPlay = soundList.get(clipName);
+            if (toPlay != null) {
+                if (!toPlay.isActive()) {
+                    toPlay.setFramePosition(0);
+                }
+                toPlay.start();
+            } else {
+                System.err.println("Attempted to play non-existent sound");
+            }
+        }
+    
+        /**
+         * Plays a sound, restarting it if it is currently playing
+         * This currently works the same as playUntilDone because greenfoot does not restart sounds
+         * that are stopped and replayed on the same frame, and doing so causes massive performance drops.
+         */
+        public void playSound(String sprite, String name)
+        {
+            String clipName = sprite + "/" + name + ".wav";
+            Clip toPlay = soundList.get(clipName);
+            if (toPlay != null) {
+                toPlay.setFramePosition(0);
+                if (!toPlay.isActive()) {
+                    toPlay.start();
+                }
+            } else {
+                System.err.println("Attempted to play non-existent sound");
+            }
+        }
+    
+        /**
+         * Stops all currently playing sounds
+         */
+        public void stopAllSounds()
+        {
+            for (Clip clip : soundList.values()) {
+                clip.stop();
+            }
+            soundList.clear();
+            soundPlayer.soundOff();
+        }
+        
+        /**
+         * Closes down the player, releasing all held resources
+         */
+        public void close() {
+            soundPlayer.soundOff();
+            for (Clip c : soundList.values()) {
+                c.close();
+                //System.err.println("Closing sound on shutdown");
+            }
+        }
+        
+        /**
+         * Closes all clips for a specific sprite
+         * This is used to release resources held by the sprites
+         * when greenfoot is reloaded.
+         */
+        public void close(String name) {
+            soundPlayer.soundOff();
+            //System.err.println("Closing sound for sprite: " + name);
+            ArrayList<String> keysToRemove = new ArrayList<String>();
+            for (String key : soundList.keySet()) {
+                // If the first part of the name of the sound is this sprites name
+                // then the sound belongs to that sprite, and it should be removed
+                if (key.split("/")[0].equals(name)) {
+                    // Close the clip, releasing any resources it has
+                    soundList.get(key).stop();
+                    soundList.get(key).close();
+                    // Store the keys we need to remove from the hash table
+                    // We can't remove it here because you can't remove elements
+                    // from a set while you are iterating over it.
+                    keysToRemove.add(key);
+                }
+            }
+            for (String key : keysToRemove) {
+                // remove all the closed clips from the table
+                soundList.remove(key);
+            }
+        }
+
     }
 
     /*

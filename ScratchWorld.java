@@ -73,6 +73,10 @@ public class ScratchWorld extends World
     // This variable tracks which frame the last backdrop switch happened.
     // This allows the backdropSwitch sequence to tell if it's switched
     private long backdropSwitchFrame;
+    
+    // A random id generated when the world is constructed
+    // Any thread with a different id to this will destroy itself
+    protected static int id;
 
     /*
      * This class is just a pairing of backdrop image with its name.
@@ -118,12 +122,48 @@ public class ScratchWorld extends World
     // goToFront(), etc., to change the paint order.
     private ArrayList<Class> clses4PaintOrder = new ArrayList<Class>();
 
+    static ThreadGroup threadGroup = new ThreadGroup("Sequences");
+    
+    // This static initializer will be called whenever this class is loaded.
+    // this will happen whenever the greenfoot project is recompiled.
+    // When this happens, the static reference to the threadgroup is lost,
+    // so we instead search for threads with the name "Sequence" and
+    // terminate them individually.
+    static {
+        // get a set of all running threads
+        ThreadGroup rootGroup = Thread.currentThread().getThreadGroup();
+        ThreadGroup parentGroup;
+        while ((parentGroup = rootGroup.getParent()) != null) {
+            rootGroup = parentGroup;
+        }
+        Thread[] threads = new Thread[rootGroup.activeCount()];
+        while (rootGroup.enumerate(threads, true) == threads.length) {
+            threads = new Thread[threads.length * 2];
+        } // the code to get active threads was copied from stackoverflow
+        
+        // Iterate through all running threads, terminating any started by scratch.java
+        for (Thread t : threads) {
+            if (t != null) {
+                if (t.getName().equals("Sequence") || t.getName().equals("Midi")) {
+                    // Interrupt all threads we've made, causing them to stop running
+                    t.interrupt();
+                }
+            }
+        }
+    }
+
     /**
      * Constructor for objects of class ScratchWorld.
      */
     public ScratchWorld(int width, int height, int cellSize)
     {    
         super(width, height, cellSize);
+        
+        // If the threadGroup has been created, we must first close all existing threads
+        // otherwise they will continue to run, taking up resources
+        if (threadGroup != null) {
+            threadGroup.interrupt();
+        }
     }
 
     /**
