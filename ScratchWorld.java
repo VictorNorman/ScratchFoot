@@ -425,7 +425,7 @@ public class ScratchWorld extends World
      */
     public int getBackdropNumber() 
     {
-        return currBackdrop;
+        return currBackdrop + 1;
     }
 
     /**
@@ -438,15 +438,24 @@ public class ScratchWorld extends World
 
     /**
      * switch backdrop to the one with the given name.
+     * If "next backdrop" or "previous backdrop" is put as the name,
+     * switch to that backdrop instead of looking for one with the
+     * same name.
      */
     public void switchBackdropTo(String backdropName)
     {
-        for (int i = 0; i < backdrops.size(); i++) {
-            if (backdrops.get(i).name.equals(backdropName)) {
-                currBackdrop = i;
-                setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
-                backdropSwitchFrame = frameNumber;
-                return;
+        if (backdropName.equals("next backdrop")) {
+            nextBackdrop();
+        } else if (backdropName.equals("previous backdrop")) {
+            previousBackdrop();
+        } else {
+            for (int i = 0; i < backdrops.size(); i++) {
+                if (backdrops.get(i).name.equals(backdropName)) {
+                    currBackdrop = i;
+                    setBackground(new GreenfootImage(backdrops.get(currBackdrop).img));
+                    backdropSwitchFrame = frameNumber;
+                    return;
+                }
             }
         }
         // Do nothing if the given backdropName is not found.  (Should

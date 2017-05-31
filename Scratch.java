@@ -2701,6 +2701,27 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         return getWorld().getBackdropNumber();
     }
+    
+    /**
+     * Switches to the provided backdrop number
+     */
+    public void switchBackdropTo(int num) {
+        getWorld().switchBackdropTo(num);
+    }
+    
+    /**
+     * Switches to the backdrop with the given name
+     */
+    public void switchBackdropTo(String name) {
+        getWorld().switchBackdropTo(name);
+    }
+    
+    /**
+     * Switches to the backdrop with the given name
+     */
+    public void nextBackdrop() {
+        getWorld().nextBackdrop();
+    }
 
     /*
      * ---------------------------------------------------------------------
@@ -2873,8 +2894,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public boolean isTouchingEdge()
     {
         ScratchImage img = costumes.get(currCostume).image;
-        return (super.getX() + img.pixelWidth() / 2 >= img.pixelWidth() - 1 || super.getX() - img.pixelWidth() / 2 <= 0 || 
-            super.getY() + img.pixelHeight() / 2 >= img.pixelHeight() - 1 || super.getY() - img.pixelHeight() / 2 <= 0);
+        return (super.getX() + img.pixelWidth() / 2 >= getWorld().getWidth() - 1 || super.getX() - img.pixelWidth() / 2 <= 0 || 
+            super.getY() + img.pixelHeight() / 2 >= getWorld().getHeight() - 1 || super.getY() - img.pixelHeight() / 2 <= 0);
     }
 
     /**
@@ -3698,6 +3719,16 @@ public class Scratch extends Actor implements Comparable<Scratch>
         // getRandomNumber gets a number between 0 (inclusive) and high (exclusive).
         // so we have add low to the value.
         return Greenfoot.getRandomNumber(high - low + 1) + low;
+    }
+    
+    /**
+     * return a random number between low and high, inclusive (for both).
+     */
+    public double pickRandom(double low, double high)
+    {
+        // getRandomNumber gets a number between 0 (inclusive) and high (exclusive).
+        // so we have add low to the value.
+        return low + (high - low) * new java.util.Random().nextDouble();
     }
 
     public int getWorldMinX()
