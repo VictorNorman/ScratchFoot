@@ -130,21 +130,21 @@ public class ScratchWorld extends World
     // so we instead search for threads with the name "Sequence" and
     // terminate them individually.
     static {
-        // get a set of all running threads
+        // get a group of all running threads in the current group
         ThreadGroup rootGroup = Thread.currentThread().getThreadGroup();
-        ThreadGroup parentGroup;
-        while ((parentGroup = rootGroup.getParent()) != null) {
-            rootGroup = parentGroup;
-        }
+        // create an array to hold the threads in the current group
         Thread[] threads = new Thread[rootGroup.activeCount()];
+        // dump all the threads from the current group into the array
         while (rootGroup.enumerate(threads, true) == threads.length) {
+            // if the array wasn't big enough to hold them all, increase its size
             threads = new Thread[threads.length * 2];
-        } // the code to get active threads was copied from stackoverflow
+        }
         
         // Iterate through all running threads, terminating any started by scratch.java
         for (Thread t : threads) {
             if (t != null) {
-                if (t.getName().equals("Sequence") || t.getName().equals("Midi")) {
+                // The threads ScratchFoot can spawn are "ScratchSequence" and "ScratchSound"
+                if (t.getName().equals("ScratchSequence") || t.getName().equals("ScratchSound")) {
                     // Interrupt all threads we've made, causing them to stop running
                     t.interrupt();
                 }

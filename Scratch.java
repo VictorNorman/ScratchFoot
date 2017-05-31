@@ -408,8 +408,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
          */
         public Sequence(Object obj, String method)
         {
-            // Give this thread the name "Sequence" and add it to the thread group
-            super(ScratchWorld.threadGroup, "Sequence"); 
+            // Give this thread the name "ScratchSequence" and add it to the thread group
+            super(ScratchWorld.threadGroup, "ScratchSequence"); 
             this.sequenceLock = this;
             doneSequence = true;
             terminated = false;
@@ -3299,14 +3299,18 @@ public class Scratch extends Actor implements Comparable<Scratch>
         int tempo = 60;
         double whole; // Length in ms of 1 beat
         
-        LinkedTransferQueue<Note> notes = new LinkedTransferQueue<Note>(); // Stores pending notes that are to be played
-        Stack<Note> activeNotes = new Stack<Note>(); // Stores currently playing notes
-        ArrayList<String> active = new ArrayList<String>(); // Store sprites that are currently playing notes
-        private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>(); // List of this sprites sounds
-        public int id;
+        // Stores pending notes that are to be played
+        LinkedTransferQueue<Note> notes = new LinkedTransferQueue<Note>();
+        // Stores currently playing notes
+        Stack<Note> activeNotes = new Stack<Note>();
+        // Store the names of sprites that are currently playing notes
+        ArrayList<String> active = new ArrayList<String>();
+        // List of this sprites sounds
+        private Hashtable<String, Clip> soundList = new Hashtable<String, Clip>();
         
         public SoundPlayer() {
-            super("Midi"); // Set this threads name to Midi
+            // Set this threads name to ScratchSound, so we can find it later
+            super("ScratchSound");
             whole = (double)tempo * 1000 / 60;
             try {
                 synth = MidiSystem.getSynthesizer();
@@ -3345,10 +3349,14 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 for (int i = 0; i < activeNotes.size(); i++) { 
                     Note n = activeNotes.pop(); 
                     if (System.currentTimeMillis() > n.start + n.length) {
-                        active.remove(n.caller); // If the note has ended, remove it's caller from the active list
+                        // If the note has ended, remove its caller from the active list
+                        active.remove(n.caller);
+                        // Turn the note off. This will not immediately stop the sound,
+                        // different instruments react differently to noteOff messages
                         synth.getChannels()[n.channel].noteOff(n.pitch, n.vel);
                     } else {
-                        activeNotes.push(n); // If the note has not finished, put it back on the stack
+                        // If the note has not finished, put it back on the stack
+                        activeNotes.push(n);
                     }
                 }
             }
@@ -3398,15 +3406,15 @@ public class Scratch extends Actor implements Comparable<Scratch>
         }
         
         /**
-         * Add all sounds in the "proj/sounds/[spritename]" directory to the sound dictionary. Uses filename as key.
-         * Not to be called by users
+         * Add all sounds in the "proj/sounds/[spritename]" 
+         * directory to the sound dictionary. Uses "[spritename]/filename" as key.
          */
-        public void loadSounds(String name)
+        private void loadSounds(String name)
         {
             close(name);
             // Access sound directory
             File soundDir = new File("sounds/" + name);
-            System.out.println("Looking for sounds in: " + soundDir.getAbsolutePath());
+            //System.out.println("Looking for sounds in: " + soundDir.getAbsolutePath());
             AudioInputStream aIn = null;
             File[] ls = soundDir.listFiles();
             
@@ -3423,7 +3431,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                         clip.open(aIn);
                         // Add the clip to the list of sounds
                         soundList.put(name + "/" + f.getName(), clip);
-                        System.err.println("Added clip: " + f.getName() + " for sprite: " + name);
+                        System.out.println("Added sound clip: " + f.getName() + " for sprite: " + name);
                     } catch (UnsupportedAudioFileException e) {
                         System.err.println("Only pcm .wav filetypes are acceptable: " + f.getName());
                         //e.printStackTrace();
@@ -3439,7 +3447,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
                         }
                     }
                 }
-                
             }
         }
     
@@ -3496,9 +3503,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
          */
         public void close() {
             soundPlayer.soundOff();
+            synth.close();
             for (Clip c : soundList.values()) {
                 c.close();
-                //System.err.println("Closing sound on shutdown");
+                //System.out.println("Closing sound on shutdown");
             }
         }
         
@@ -3509,7 +3517,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
          */
         public void close(String name) {
             soundPlayer.soundOff();
-            //System.err.println("Closing sound for sprite: " + name);
+            //System.out.println("Closing sound for sprite: " + name);
             ArrayList<String> keysToRemove = new ArrayList<String>();
             for (String key : soundList.keySet()) {
                 // If the first part of the name of the sound is this sprites name
@@ -3519,8 +3527,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     soundList.get(key).stop();
                     soundList.get(key).close();
                     // Store the keys we need to remove from the hash table
-                    // We can't remove it here because you can't remove elements
-                    // from a set while you are iterating over it.
+                    // removing them here would throw a concurrentModificationException
                     keysToRemove.add(key);
                 }
             }
