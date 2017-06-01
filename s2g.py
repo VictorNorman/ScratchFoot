@@ -67,6 +67,13 @@ SCRATCH_PROJ_DIR = "scratch_code"
 imagesDir = os.path.join(PROJECT_DIR, "images")
 soundsDir = os.path.join(PROJECT_DIR, "sounds")
 
+JAVA_KEYWORDS = ('abstract', 'continue', 'for', 'new', 'switch', 'assert', 'default', 'goto',\
+                 'package', 'synchronized', 'boolean', 'do', 'if', 'private', 'this', 'break',\
+                 'double', 'implements', 'protected', 'throw', 'byte', 'else', 'import', 'public',\
+                 'throws', 'case', 'enum', 'instanceof', 'return', 'transient', 'catch', 'extends',\
+                 'int', 'short', 'try', 'char', 'final', 'interface', 'static', 'void', 'class', 'finally',\
+                 'long', 'strictfp', 'volatile', 'const', 'float', 'native', 'super', 'while')
+
 class CodeAndCb:
     """This class binds together code, and possibly code that that code
     will call that belongs in a callback."""
@@ -163,6 +170,10 @@ def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
 
     if capitalizeFirst and not res[0].isdigit():
         res = res[0].upper() + res[1:]
+    
+    # Ensure that the resulting name is not a java keyword
+    if res in JAVA_KEYWORDS:
+        res += '_'
     return res
 
 
@@ -1067,6 +1078,30 @@ class SpriteOrStage:
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
         cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr) 
+        
+    def whenSwitchToBackdrop(self, codeObj, backdrop, tokens):
+        """Generate code to handle the whenSwitchToBackdrop block.  key is
+        the key to wait for, and tokens is the list of stmts to be put
+        into a callback to be called when that key is pressed.
+        """
+        scriptNum = codeObj.getNextScriptId()
+
+        # Build a name like whenAPressedCb0 or whenLeftPressedCb0.
+        cbName = 'whenSwitchedToBackdropCb' + str(scriptNum)
+
+        # Code in the constructor is always level 2.
+        codeObj.addToCode(genIndent(2) + 'whenSwitchToBackdrop("' +
+                          backdrop + '", "' + cbName + '");\n')
+
+        level = 1    # all callbacks are at level 1.
+
+        # Generate callback code, into the codeObj's cbCode string.
+        # Add two blank lines before each method definition.
+        cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
+                "(Sequence s)\n"
+        cbStr += self.block(level, tokens) + "\n"  # add blank line after defn.
+
+        codeObj.addToCbCode(cbStr)
 
 
     def doForever(self, level, tokens):
@@ -1788,7 +1823,7 @@ class SpriteOrStage:
                 elif blockAndParamTypes[idx] == "b":
                     paramTypes.append("boolean")
                 elif blockAndParamTypes[idx] == "n":
-                    paramTypes.append("float")	# TODO: probably usually int
+                    paramTypes.append("double")	# TODO: probably usually int
                 else:
                     raise ValueError("unknown Block param type %" +
                                      blockAndParamTypes[idx])
@@ -1922,6 +1957,8 @@ class SpriteOrStage:
             self.whenKeyPressed(codeObj, script[0][1], script[1:])
         elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
             self.whenIReceive(codeObj, script[0][1], script[1:])
+        elif isinstance(script[0], list) and script[0][0] == 'whenSceneStarts':
+            self.whenSwitchToBackdrop(codeObj, script[0][1], script[1:])
         elif isinstance(script[0], list) and script[0][0] == 'procDef':
             # Defining a procedure in Scratch.
             self.genProcDefCode(codeObj, script)
@@ -2344,6 +2381,8 @@ for sprData in spritesData:
 # Because the stage can have script in it much like any sprite,
 # we have to process it similarly.  So, lots of repeated code here
 # from above -- although small parts are different enough.
+
+stage.copySounds()
 
 # Write out a line to the project.greenfoot file to indicate that this
 # sprite is a subclass of the Scratch class.

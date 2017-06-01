@@ -433,7 +433,7 @@ public class ScratchWorld extends World
      */
     public String getBackdropName()
     {
-        return backdrops.get(currBackdrop - 1).name;
+        return backdrops.get(currBackdrop).name;
     }
 
     /**

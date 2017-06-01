@@ -1248,7 +1248,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
         // Use in mathExpr
         public Double numberAt(int index)
         {
-            return ((Number)get(index)).doubleValue();
+            if (get(index) instanceof String) { 
+                return Double.valueOf(index); 
+            } else { 
+                return ((Number)get(index)).doubleValue();
+            } 
         }
         public Double numberAt(String key)
         {
