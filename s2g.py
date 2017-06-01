@@ -473,15 +473,15 @@ class SpriteOrStage:
             # TODO: FIX THIS: move code into subclass!!!
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
             if self.getNameTypeAndLocalGlobal(name)[2]:
-                self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, name)
+                self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, sanname)
             else:
-                self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, name)
+                self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
                 
             # Something like "score = createIntVariable((MyWorld) world, "score", 0);
             self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                (genIndent(2), name, varType, worldClassName, label, str(value))
+                (genIndent(2), sanname, varType, worldClassName, label, str(value))
             if not visible:
-                self._addedToWorldCode += genIndent(2) + name + ".hide();\n"
+                self._addedToWorldCode += genIndent(2) + sanname + ".hide();\n"
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
         self._addedToWorldCode += genIndent(2) + "// List initializations.\n"
@@ -500,9 +500,9 @@ class SpriteOrStage:
             # I know this is bad style, but at the moment it's necessary
             # Later down the line we can move all this code to subclasses instead
             if type(self) == Stage:
-                self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % (name)
+                self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % (sanname)
             else:
-                self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % (name)
+                self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % (sanname)
             
             self._addedToWorldCode += '%s%s = createList(world, "%s"' % (genIndent(2), sanname, name)
             for obj in contents:
