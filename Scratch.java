@@ -2854,6 +2854,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public boolean isTouching(String spriteName) 
     {
         Scratch other = getWorld().getActorByName(spriteName);
+        if (other == null) { 
+            System.err.println("isTouching() could not find sprite " + spriteName); 
+            return false; 
+        } 
         return isTouching(other);
     }
 
