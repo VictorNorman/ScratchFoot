@@ -1690,8 +1690,8 @@ class SpriteOrStage:
         """
         assert len(tokens) == 3 and tokens[0] == "doRepeat"
 
-        retStr = genIndent(level) + "for (int i = 0; i < " + \
-                 self.mathExpr(tokens[1]) + "; i++)\n"
+        retStr = genIndent(level) + "for (int i" + str(level) + " = 0; i" + str(level) + " < " + \
+                 self.mathExpr(tokens[1]) + "; i" + str(level) + "++)\n"
         retStr += genIndent(level) + "{\n"
         retStr += self.stmts(level, tokens[2])
         if (deferYield):
