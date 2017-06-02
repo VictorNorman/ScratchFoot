@@ -575,17 +575,17 @@ class SpriteOrStage:
         outFile.close()
 
 
-    def block(self, level, stmtList):
+    def block(self, level, stmtList, deferYield = False):
         """Handle block: a list of statements wrapped in { }."""
 
         if debug:
             print("block: stmtList = ")
             pprint(stmtList)
-        return genIndent(level) + "{\n" + self.stmts(level, stmtList) + \
+        return genIndent(level) + "{\n" + self.stmts(level, stmtList, deferYield) + \
                genIndent(level) + "}\n"
 
 
-    def stmts(self, level, stmtList):
+    def stmts(self, level, stmtList, deferYield = False):
         """Generate code for the list of statements, by repeatedly calling stmt()"""
         if stmtList is None:
             return ""
@@ -593,11 +593,11 @@ class SpriteOrStage:
         for aStmt in stmtList:
             # Call stmt to generate the statement, appending the result to the
             # overall resulting string.
-            retStr += self.stmt(level + 1, aStmt)
+            retStr += self.stmt(level + 1, aStmt, deferYield)
         return retStr
 
 
-    def stmt(self, level, tokenList):
+    def stmt(self, level, tokenList, deferYield = False):
         """Handle a statement, which is a <cmd> followed by expressions.
         The stmt might be something like [doForever [<stmts>]].
         """
@@ -708,7 +708,7 @@ class SpriteOrStage:
             genCodeFunc = scratchStmt2genCode[cmd]
             # Call the function to generate the code, passing in the rest of
             # the tokens. 
-            return genCodeFunc(level, tokenList)
+            return genCodeFunc(level, tokenList, deferYield)
         else:
             return genIndent(level) + 'System.out.println("Unimplemented stmt: ' + cmd + '");\n'
 
@@ -1104,7 +1104,7 @@ class SpriteOrStage:
         codeObj.addToCbCode(cbStr)
 
 
-    def doForever(self, level, tokens):
+    def doForever(self, level, tokens, deferYield = False):
         """Generate doForever code.  tokens is a list of comments.
         forever loop is turned into a while (true) loop, with the last
         operation being a yield(s) call.
@@ -1112,11 +1112,16 @@ class SpriteOrStage:
         retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
         retStr += genIndent(level) + "{\n"
         retStr += self.stmts(level, tokens[1])
-        retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
+        if (deferYield):
+            retStr += genIndent(level + 1) + \
+                        "deferredYield(s);   // allow other sequences to run occasionally\n"
+        else:
+            retStr += genIndent(level + 1) + \
+                        "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
 
-    def doIf(self, level, tokens):
+    def doIf(self, level, tokens, deferYield = False):
         """Generate code for if <test> : <block>.  Format of tokens is
         'doIf' [test expression] [true-block]
         """
@@ -1131,7 +1136,7 @@ class SpriteOrStage:
         return resStr
 
 
-    def doIfElse(self, level, tokens):
+    def doIfElse(self, level, tokens, deferYield = False):
         """Generate code for if <test> : <block> else: <block>.  Format of tokens is
         'doIfElse' [test expression] [true-block] [else-block]
         """
@@ -1147,7 +1152,7 @@ class SpriteOrStage:
         return resStr
 
 
-    def motion0Arg(self, level, tokens):
+    def motion0Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Motion blocks with 0 arguments"""
         assert len(tokens) == 1
         cmd = tokens[0]
@@ -1156,7 +1161,7 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def motion1Arg(self, level, tokens):
+    def motion1Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Motion blocks with 1 argument:
         forward:, turnLeft:, turnRight:, etc."""
         assert len(tokens) == 2
@@ -1197,7 +1202,7 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def motion2Arg(self, level, tokens):
+    def motion2Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Motion blocks with 2 arguments:
         gotoX:y:, etc."""
         cmd, arg1, arg2 = tokens
@@ -1207,7 +1212,7 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def pointTowards(self, level, tokens):
+    def pointTowards(self, level, tokens, deferYield = False):
         """Generate code to turn the sprite to point to something.
         """
         cmd, arg1 = tokens
@@ -1217,7 +1222,7 @@ class SpriteOrStage:
             return genIndent(level) + 'pointToward("' + arg1 + '");\n'
 
 
-    def glideTo(self, level, tokens):
+    def glideTo(self, level, tokens, deferYield = False):
         """Generate code to make the sprite glide to a certain x,y position
         in a certain amount of time.
         Format of the cmd is: ["glideSecs:toX:y:elapsed:from:", time, x, y]
@@ -1226,7 +1231,7 @@ class SpriteOrStage:
         return genIndent(level) + "glideTo(s, %s, %s, %s);\n" % \
                (self.mathExpr(time), self.mathExpr(x), self.mathExpr(y))
 
-    def sayForSecs(self, level, tokens):
+    def sayForSecs(self, level, tokens, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.
         """
         cmd, arg1, arg2 = tokens
@@ -1234,14 +1239,14 @@ class SpriteOrStage:
         return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
                self.mathExpr(arg2) + ");\n"
 
-    def say(self, level, tokens):
+    def say(self, level, tokens, deferYield = False):
         """Generate code to handle say <str>.
         """
         cmd, arg1 = tokens
         assert cmd == "say:"
         return genIndent(level) + "say(" + self.strExpr(arg1) + ");\n"
     
-    def thinkForSecs(self, level, tokens):
+    def thinkForSecs(self, level, tokens, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.
         """
         cmd, arg1, arg2 = tokens
@@ -1249,26 +1254,26 @@ class SpriteOrStage:
         return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(arg1) + ", " + \
                self.mathExpr(arg2) + ");\n"
     
-    def think(self, level, tokens):
+    def think(self, level, tokens, deferYield = False):
         """Generate code to handle say <str>.
         """
         cmd, arg1 = tokens
         assert cmd == "think:"
         return genIndent(level) + "think(" + self.strExpr(arg1) + ");\n"
 
-    def show(self, level, tokens):
+    def show(self, level, tokens, deferYield = False):
         """Generate code for the show block.
         """
         assert tokens[0] == "show"
         return genIndent(level) + "show();\n"
 
-    def hide(self, level, tokens):
+    def hide(self, level, tokens, deferYield = False):
         """Generate code for the show block.
         """
         assert tokens[0] == "hide"
         return genIndent(level) + "hide();\n"
 
-    def switchCostumeTo(self, level, tokens):
+    def switchCostumeTo(self, level, tokens, deferYield = False):
         """Generate code for the switch costume block.
         """
         cmd, arg1 = tokens
@@ -1279,52 +1284,52 @@ class SpriteOrStage:
             # if mathExpr is unable to resolve arg1, use strExpr instead
             return genIndent(level) + "switchToCostume(" + self.strExpr(arg1) + ");\n"
 
-    def nextCostume(self, level, tokens):
+    def nextCostume(self, level, tokens, deferYield = False):
         """Generate code for the next costume block.
         """
         assert tokens[0] == "nextCostume"
         return genIndent(level) + "nextCostume();\n"
 
-    def switchBackdropTo(self, level, tokens):
+    def switchBackdropTo(self, level, tokens, deferYield = False):
         """Generate code to switch the backdrop.
         """
         cmd, arg1 = tokens
         assert cmd == "startScene"
         return genIndent(level) + "switchBackdropTo(" + self.strExpr(arg1) + ");\n"
 
-    def nextBackdrop(self, level, tokens):
+    def nextBackdrop(self, level, tokens, deferYield = False):
         """Generate code to switch to the next backdrop.
         """
         return genIndent(level) + "nextBackdrop();\n"
 
-    def changeSizeBy(self, level, tokens):
+    def changeSizeBy(self, level, tokens, deferYield = False):
         """Generate code to change the size of the sprite
         """
         cmd, arg1 = tokens
         assert cmd == "changeSizeBy:"
         return genIndent(level) + "changeSizeBy(" + self.mathExpr(arg1) + ");\n"
 
-    def setSizeTo(self, level, tokens):
+    def setSizeTo(self, level, tokens, deferYield = False):
         """Generate code to change the size of the sprite to a certain percentage
         """
         cmd, arg1 = tokens
         assert cmd == "setSizeTo:"
         return genIndent(level) + "setSizeTo(" + self.mathExpr(arg1) + ");\n"
 
-    def goToFront(self, level, tokens):
+    def goToFront(self, level, tokens, deferYield = False):
         """Generate code to move the sprite to the front
         """
         assert tokens[0] == "comeToFront"
         return genIndent(level) + "goToFront();\n"
 
-    def goBackNLayers(self, level, tokens):
+    def goBackNLayers(self, level, tokens, deferYield = False):
         """Generate code to move the sprite back 1 layer in the paint order
         """
         cmd, arg1 = tokens
         assert cmd == "goBackByLayers:"
         return genIndent(level) + "goBackNLayers(" + self.mathExpr(arg1) + ");\n"
 
-    def changeGraphicBy(self, level, tokens):
+    def changeGraphicBy(self, level, tokens, deferYield = False):
         cmd, arg1, arg2 = tokens
         assert(cmd == "changeGraphicEffect:by:")
         if arg1 == "ghost":
@@ -1332,7 +1337,7 @@ class SpriteOrStage:
         else:
             return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
         
-    def setGraphicTo(self, level, tokens):
+    def setGraphicTo(self, level, tokens, deferYield = False):
         cmd, arg1, arg2 = tokens
         assert(cmd == "setGraphicEffect:to:")
         if arg1 == "ghost":
@@ -1340,7 +1345,7 @@ class SpriteOrStage:
         else:
             return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
         
-    def pen0Arg(self, level, tokens):
+    def pen0Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Pen blocks with 0 arguments"""
         assert len(tokens) == 1
         resStr = genIndent(level)
@@ -1356,7 +1361,7 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def pen1Arg(self, level, tokens):
+    def pen1Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Pen blocks with 1 argument."""
 
         assert len(tokens) == 2
@@ -1409,7 +1414,7 @@ class SpriteOrStage:
             return (name, True)
         raise ValueError("Sprite " + self._name + " list " + listTok + " unknown.")
 
-    def setVariable(self, level, tokens):
+    def setVariable(self, level, tokens, deferYield = False):
         """Set a variable's value from within the code.
         Generate code like this:
         var.set(value)
@@ -1452,7 +1457,7 @@ class SpriteOrStage:
             return varName + ".get()"
 
 
-    def hideVariable(self, level, tokens):
+    def hideVariable(self, level, tokens, deferYield = False):
         """Generate code to hide a variable.
         """
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
@@ -1463,7 +1468,7 @@ class SpriteOrStage:
             return genIndent(level) + varName + ".hide();\n"
 
 
-    def showVariable(self, level, tokens):
+    def showVariable(self, level, tokens, deferYield = False):
         """Generate code to hide a variable.
         """
         varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
@@ -1474,7 +1479,7 @@ class SpriteOrStage:
             return genIndent(level) + varName + ".show();\n"
 
 
-    def changeVarBy(self, level, tokens):
+    def changeVarBy(self, level, tokens, deferYield = False):
         """Generate code to change the value of a variable.
         Code will be like this:
         aVar.set(aVar.get() + 3);
@@ -1533,7 +1538,7 @@ class SpriteOrStage:
         else:
             return "%s.length()" % (disp)
         
-    def listAppend(self, level, tokens):
+    def listAppend(self, level, tokens, deferYield = False):
         cmd, obj, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'append:toList:'
@@ -1551,7 +1556,7 @@ class SpriteOrStage:
         else:
             return '%s%s.add(%s);\n' % (genIndent(level), disp, obj)
         
-    def listRemove(self, level, tokens):
+    def listRemove(self, level, tokens, deferYield = False):
         cmd, index, name = tokens;
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'deleteLine:ofList:'        
@@ -1572,7 +1577,7 @@ class SpriteOrStage:
         else:
             return "%s%s.delete(%s);\n" % (genIndent(level), disp, index)
     
-    def listInsert(self, level, tokens):
+    def listInsert(self, level, tokens, deferYield = False):
         cmd, obj, index, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'insert:at:ofList:'
@@ -1601,7 +1606,7 @@ class SpriteOrStage:
         else:
             return '%s%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
                 
-    def listSet(self, level, tokens):
+    def listSet(self, level, tokens, deferYield = False):
         cmd, index, name, obj = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'setLine:ofList:to:'
@@ -1630,7 +1635,7 @@ class SpriteOrStage:
         else:
             return '%s%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
                     
-    def hideList(self, level, tokens):
+    def hideList(self, level, tokens, deferYield = False):
         cmd, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'hideList:'
@@ -1639,7 +1644,7 @@ class SpriteOrStage:
         else:
             return "%s%s.hide();\n" % (genIndent(level), disp)
         
-    def showList(self, level, tokens):
+    def showList(self, level, tokens, deferYield = False):
         cmd, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'showList:'
@@ -1648,7 +1653,7 @@ class SpriteOrStage:
         else:
             return "%s%s.show();\n" % (genIndent(level), disp)
 
-    def broadcast(self, level, tokens):
+    def broadcast(self, level, tokens, deferYield = False):
         """Generate code to handle sending a broacast message.
         """
         cmd, arg1 = tokens
@@ -1656,7 +1661,7 @@ class SpriteOrStage:
         return genIndent(level) + "broadcast(" + self.strExpr(arg1) + ");\n"
 
 
-    def broadcastAndWait(self, level, tokens):
+    def broadcastAndWait(self, level, tokens, deferYield = False):
         """Generate code to handle sending a broacast message and
         waiting until all the handlers have completed.
         """
@@ -1665,7 +1670,7 @@ class SpriteOrStage:
         return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(arg1) + ");\n"
 
 
-    def doAsk(self, level, tokens):
+    def doAsk(self, level, tokens, deferYield = False):
         """Generate code to ask the user for input.  Returns the resulting String."""
 
         assert len(tokens) == 2 and tokens[0] == "doAsk"
@@ -1674,13 +1679,13 @@ class SpriteOrStage:
                self.strExpr(quest) + ");\t\t// may want to replace answer with a better name\n"
 
 
-    def doWait(self, level, tokens):
+    def doWait(self, level, tokens, deferYield = False):
         """Generate a wait call."""
         assert len(tokens) == 2 and tokens[0] == "wait:elapsed:from:"
         return genIndent(level) + "wait(s, " + self.mathExpr(tokens[1]) + ");\n"
 
 
-    def doRepeat(self, level, tokens):
+    def doRepeat(self, level, tokens, deferYield = False):
         """Generate a repeat <n> times loop.
         """
         assert len(tokens) == 3 and tokens[0] == "doRepeat"
@@ -1689,11 +1694,16 @@ class SpriteOrStage:
                  self.mathExpr(tokens[1]) + "; i++)\n"
         retStr += genIndent(level) + "{\n"
         retStr += self.stmts(level, tokens[2])
-        retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
+        if (deferYield):
+            retStr += genIndent(level + 1) + \
+                        "deferredYield(s);   // allow other sequences to run occasionally\n"
+        else:
+            retStr += genIndent(level + 1) + \
+                        "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
 
-    def doWaitUntil(self, level, tokens):
+    def doWaitUntil(self, level, tokens, deferYield = False):
         """Generate doWaitUtil code: in java we'll do this:
            while (true) {
                if (condition)
@@ -1710,7 +1720,7 @@ class SpriteOrStage:
         return retStr + genIndent(level) + "}\n"
 
 
-    def repeatUntil(self, level, tokens):
+    def repeatUntil(self, level, tokens, deferYield = False):
         """Generate doUntil code, which translates to this:
            while (! condition)
            {
@@ -1724,11 +1734,16 @@ class SpriteOrStage:
         retStr += genIndent(level) + "while (! " + self.boolExpr(tokens[1]) + ")\n"
         retStr += genIndent(level) + "{\n"
         retStr += self.stmts(level, tokens[2])
-        retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
+        if (deferYield):
+            retStr += genIndent(level + 1) + \
+                        "deferredYield(s);   // allow other sequences to run occasionally\n"
+        else:
+            retStr += genIndent(level + 1) + \
+                        "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
 
-    def stopScripts(self, level, tokens):
+    def stopScripts(self, level, tokens, deferYield = False):
         """Generate code to stop all scripts.
         """
         assert len(tokens) == 2 and tokens[0] == "stopScripts"
@@ -1742,7 +1757,7 @@ class SpriteOrStage:
             raise ValueError("stopScripts: unknown type")
 
 
-    def createCloneOf(self, level, tokens):
+    def createCloneOf(self, level, tokens, deferYield = False):
         """Create a clone of the sprite itself or of the given sprite.
         """
         assert len(tokens) == 2 and tokens[0] == "createCloneOf"
@@ -1752,14 +1767,14 @@ class SpriteOrStage:
         return genIndent(level) + 'createCloneOf("' + tokens[1] + '");\n'
 
 
-    def deleteThisClone(self, level, tokens):
+    def deleteThisClone(self, level, tokens, deferYield = False):
         """Delete this sprite.
         """
         assert len(tokens) == 1 and tokens[0] == "deleteClone"
         return genIndent(level) + "deleteThisClone();\n"
 
 
-    def resetTimer(self, level, tokens):
+    def resetTimer(self, level, tokens, deferYield = False):
         return genIndent(level) + "resetTimer();\n"
 
 
@@ -1843,12 +1858,12 @@ class SpriteOrStage:
                 codeObj.addToCbCode(", ")
 
         codeObj.addToCbCode(")\n")
-        codeObj.addToCbCode(self.block(1, code))
+        codeObj.addToCbCode(self.block(1, code, decl[4]))
         codeObj.addToCbCode("\n")	# add blank line after function defn.
         return codeObj
 
 
-    def callABlock(self, level, tokens):
+    def callABlock(self, level, tokens, deferYield = False):
         """Generate a call to a custom-defined block.
         Format of tokens is: ["call", "blockToCall", param code]
         blockToCall has the param type specs in it: "blockToCall %n %s %b"
@@ -1868,49 +1883,49 @@ class SpriteOrStage:
         resStr += self.mathExpr(tokens[-1]) + ");\n"
         return resStr
 
-    def playSound(self, level, tokens):
+    def playSound(self, level, tokens, deferYield = False):
         """ Play the given sound
         """
         assert len(tokens) == 2 and tokens[0] == "playSound:"
         return genIndent(level) + "playSound(" + self.strExpr(tokens[1]) + ");\n"
 
-    def playSoundUntilDone(self, level, tokens):
+    def playSoundUntilDone(self, level, tokens, deferYield = False):
         """ Play the given sound without interrupting it.
         """
         assert len(tokens) == 2 and tokens[0] == "doPlaySoundAndWait"
         return genIndent(level) + "playSoundUntilDone(" + self.strExpr(tokens[1]) + ");\n"
     
-    def noteOn(self, level, tokens):
+    def noteOn(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 3 and tokens[0] == "noteOn:duration:elapsed:from:"
         return genIndent(level) + "playNote(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n";
     
-    def instrument(self, level, tokens):
+    def instrument(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "instrument:"
         return genIndent(level) + "changeInstrument(" + self.mathExpr(tokens[1]) + ");\n";
     
-    def playDrum(self, level, tokens):
+    def playDrum(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 3 and tokens[0] == "playDrum"
         return genIndent(level) + "playDrum(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n";
     
-    def rest(self, level, tokens):
+    def rest(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "rest:elapsed:from:"
         return genIndent(level) + "rest(" + self.mathExpr(tokens[1]) + ", s);\n";
     
-    def changeTempoBy(self, level, tokens):
+    def changeTempoBy(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "changeTempoBy:"
         return genIndent(level) + "changeTempoBy(" + self.mathExpr(tokens[1]) + ");\n";
     
-    def setTempoTo(self, level, tokens):
+    def setTempoTo(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "setTempoTo:"

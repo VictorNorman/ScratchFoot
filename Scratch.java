@@ -110,6 +110,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     private float penSize = 1;
     private int currCostume = 0;
     private String name;                    // Sprite's class name, for sound lookup
+    private long deferredWait; // What time the next deferred yield should take place
     
     /**
      * This class holds a Greenfoot 'baseImage' as well as several fields that dictate
@@ -1178,9 +1179,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 index = length();
                 delete(index);
             } else if (key.equals("all")) {
-                while (length() > 0) {
-                    delete(1);
-                }
+                contents.clear();
+                updateIndex(); 
             }
             
         }
@@ -1262,7 +1262,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             } else if (key.equals("random")) {
                 index = pickRandom(1, length());
             } else {
-                System.err.println("Unknow list key: " + key);
+                index = Double.valueOf(key).intValue();
             }
             return numberAt(index);
         }
@@ -1270,6 +1270,18 @@ public class Scratch extends Actor implements Comparable<Scratch>
         public int intAt(int index)
         {
             return numberAt(index).intValue();
+        }
+        public int intAt(String key)
+        {
+            int index = 0;
+            if (key.equals("last")) {
+                index = length();
+            } else if (key.equals("random")) {
+                index = pickRandom(1, length());
+            } else {
+                index = Double.valueOf(key).intValue();
+            }
+            return intAt(index);
         }
         public int length()
         {
@@ -1896,7 +1908,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public void setPenColor(int c)
     {
         // the colors are numbered between 0 and 199, and then wraparound: 200 is 0, etc.
-        penColorNumber = c % 200;
+        penColorNumber = Math.floorMod(c, 200);
         penColor = Color.decode(numberedColors[penColorNumber]);
     }
 
@@ -3669,6 +3681,23 @@ public class Scratch extends Actor implements Comparable<Scratch>
             s.waitForNextSequence();
         } catch (InterruptedException ie) {
             ie.printStackTrace();
+        }
+    }
+    
+    /**
+     * offer the CPU to other Sequences, but only every half second
+     */
+    public void deferredYield(Sequence s)
+    {
+        if (deferredWait == -1) {
+            deferredWait = System.currentTimeMillis() + 500;
+        } else if (deferredWait < System.currentTimeMillis()) {
+            try {
+                s.waitForNextSequence();
+                deferredWait = -1;
+            } catch (InterruptedException ie) {
+                ie.printStackTrace();
+            }
         }
     }
 
