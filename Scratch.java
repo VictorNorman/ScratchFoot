@@ -1856,17 +1856,41 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void stopOtherScriptsInSprite()
     {
-
-        if (! inCbScript) {
-            // Just make all callback scripts methods inactive.
-            for (Sequence seq : sequences) {
-                seq.active = false;
+        // Iterate through all of this sprite's sequences, interrupting them
+        // if they are not the currently running thread.
+        for (Sequence s : sequences) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
             }
-        } else {
-            for (Sequence seq : sequences) {
-                if (! seq.isRunning) {
-                    seq.active = false;
-                }
+        }
+        for (Sequence s : keySeqs) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
+            }
+        }
+        for (Sequence s : actorClickedSeqs) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
+            }
+        }
+        for (Sequence s : stageClickedSeqs) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
+            }
+        }
+        for (Sequence s : mesgRecvdSeqs) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
+            }
+        }
+        for (Sequence s : cloneStartSeqs) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
+            }
+        }
+        for (Sequence s : switchToBackdropSeqs) {
+            if (Thread.currentThread() != s) {
+                s.interrupt();
             }
         }
     }
@@ -3689,11 +3713,15 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void deferredYield(Sequence s)
     {
+        // If this is the first deferredyeild then get the time 500ms from now
         if (deferredWait == -1) {
             deferredWait = System.currentTimeMillis() + 500;
+        // If the time has passed the original time
         } else if (deferredWait < System.currentTimeMillis()) {
             try {
+                // Allow other sequences to run
                 s.waitForNextSequence();
+                // Reset the timer
                 deferredWait = -1;
             } catch (InterruptedException ie) {
                 ie.printStackTrace();
