@@ -384,14 +384,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private Object sequenceLock;
         private boolean doneSequence;
         private boolean terminated;
-        // active records if the registered sequence should continue to be run in the future.
-        // It is set to false when stopThisScript() or stopOtherScriptsForSprite() has been called.
-        private boolean active;
-        // isRunning records if this sequence is being run now.  It is used
-        // only in stopOtherScriptsForSprite. 
-        // This is similar to the variable above called inForeverloop,
-        // which is set to true if *any* sequence is being run at the time.
-        private boolean isRunning;
         // triggered is true indicates if this sequence is running.  It is false when the condition to 
         // run the sequence has not been met yet.  E.g., a key press
         // sequence will have triggered false when the key has not by hit by the user yet.
@@ -414,8 +406,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
             this.sequenceLock = this;
             doneSequence = true;
             terminated = false;
-            active = true;
-            isRunning = false;
             triggered = true;      // override this for non-automatically triggered sequences.
             this.objToCall = obj;
             this.methodToCall = method;
@@ -457,7 +447,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
                             Class.forName("Scratch$Sequence"));
                     System.out.println(methodToCall + ": run(): invoking callback");
                     inCbScript = true;
-                    isRunning = true;
                     m.invoke(objToCall, this);
 
                     // System.out.println(methodToCall + ": run(): done invoking callback");
@@ -465,8 +454,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 }
             } catch (InvocationTargetException i) {
                 if (i.getCause() instanceof StopScriptException) {
-                    System.out.println("Sequence.invoke: got StopScriptException: making script inactive");
-                    active = false;
                 } else {
                     // We had a problem with invoke(), but it wasn't the StopScript exception, so
                     // just print out the info.
@@ -480,7 +467,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
             System.out.println(methodToCall + ": run(): done");
             inCbScript = false;
-            isRunning = false;
 
             terminated = true;
             doneSequence = true;
