@@ -1461,6 +1461,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
         /* Loop through sequences that have been invoked already. */
         for (KeyPressSeq seq: keySeqs) {
+            // If the keyseq is ready, that means it is currently waiting on a yield
+            // statement. We should allow it to continue running even if the key has
+            // been released.
+            if (seq.isReady) {
+                seq.performSequence();
+                continue;
+            }
             // Prevents the sequence from being repeated until 30 frames after the initial
             // press. Releasing the button will reset this.
             if (seq.waitframes > 0) {
