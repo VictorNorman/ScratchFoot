@@ -683,6 +683,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
             "): for sprite " + this.getObj() +
             " calling clonePending.");
              */
+            // If the world is null, this object has been deleted
+            if (getWorld() == null) {
+                throw new StopScriptException();
+            }
             if (getWorld().clonePending(getObj())) {
                 /* if (! triggered) {
                     System.out.println("CloneStartSeq (" + System.identityHashCode(this) +
@@ -1564,9 +1568,14 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
         /* Loop through sequences that have been invoked already. */
         for (CloneStartSeq seq : cloneStartSeqs) {
-            if (seq.isTriggered()) {
-                seq.performSequence();
-            } 
+            try { 
+                if (seq.isTriggered()) {
+                    seq.performSequence();
+                } 
+            } catch (StopScriptException e) {
+                // If the script belongs to an object that has been deleted, stop i
+                seq.interrupt();
+            }
         }
         
         for (ListIterator<SwitchToBackdropSeq> iter = switchToBackdropSeqs.listIterator(); iter.hasNext(); ) {
@@ -1808,6 +1817,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         if (isClone) {        
             getWorld().removeObject(this);
+            Thread.currentThread().interrupt();
         }
     }
 
