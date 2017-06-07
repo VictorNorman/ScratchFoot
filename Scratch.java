@@ -128,7 +128,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private int ghost;
         private int color;
         private int fisheye;
-        private int whirl;
+        private double whirl;
         private double pixelate;
         private int mosaic;
         private int brightness;
@@ -210,7 +210,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
             updateImage();
         }
         public void setPixelate(double val) {
-            pixelate = val;
+            pixelate = Math.abs(val / 10d) + 1;
+            updateImage();
+        }
+        public void setWhirl(double val) {
+            whirl = val;
             updateImage();
         }
         public void setSize(int percent) {
@@ -222,9 +226,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
             // The order of these may affect the resulting image
             GreenfootImage trans = new GreenfootImage(baseImage);
             trans = updateRotation(trans);
-            trans = updateGhost(trans);
-            trans = updatePixelate(trans);
             trans = updateSize(trans);
+            trans = updateGhost(trans);
+            trans = updateWhirl(trans);
+            trans = updatePixelate(trans);
             image = trans;
         }
         private GreenfootImage updateGhost(GreenfootImage trans) {
@@ -232,7 +237,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             return trans;
         }
         private GreenfootImage updatePixelate(GreenfootImage trans) {
-            if (pixelate <= 1) {
+            if (pixelate == 1) {
                 return trans;
             }
             BufferedImage img = trans.getAwtImage();
@@ -241,14 +246,54 @@ public class Scratch extends Actor implements Comparable<Scratch>
             
             // Create an identically-sized output raster
             WritableRaster dest = src.createCompatibleWritableRaster();
-            
             // Loop through all pixels in the output
-            for(int y = 0; y < src.getHeight(); y++) {
-                for(int x = 0; x < src.getWidth(); x++) {
+            for (int y = 0; y < src.getHeight(); y++) {
+                for (int x = 0; x < src.getWidth(); x++) {
                     double dx = Math.floor(x / pixelate) * pixelate;
                     double dy = Math.floor(y / pixelate) * pixelate;
                     if (dy < src.getHeight() && dx < src.getWidth()) {
                         dest.setPixel(x, y, src.getPixel((int)Math.round(dx), (int)Math.round(dy), new double[4]));
+                    }
+                }
+            }
+            img.setData(dest);
+            return trans;
+        }
+        private GreenfootImage updateWhirl(GreenfootImage trans) {
+            if (whirl == 0) {
+                return trans;
+            }
+            
+            BufferedImage img = trans.getAwtImage();
+            // Get the raster data (array of pixels)
+            Raster src = img.getData();
+            
+            // Create an identically-sized output raster
+            WritableRaster dest = src.createCompatibleWritableRaster();
+            // Get center coords, whirl radius, and scale factors
+            double cx = src.getWidth() / 2;
+            double cy = src.getHeight() / 2;
+            double radius = Math.min(src.getWidth(), src.getHeight()) / 2;
+            double sx = (src.getWidth() > src.getHeight()) ? (src.getHeight() / src.getWidth()) : 1;
+            double sy = (src.getWidth() > src.getHeight()) ? 1 : (src.getWidth() / src.getHeight());
+            // Loop through all pixels in the output
+            for (int y = 0; y < src.getHeight(); y++) {
+                for (int x = 0; x < src.getWidth(); x++) {
+                    double dx = sx * (x - cx);
+                    double dy = sy * (y - cy);
+                    double length = Math.sqrt((dx * dx) + (dy * dy));
+                    double factor = 1.0d - (length / radius);
+                    double a = (Math.PI * whirl / 180) * factor * factor;
+                    double sin = Math.sin(a);
+                    double cos = Math.cos(a);
+                    double px = (((cos * dx) + (-sin * dy)) / sx);
+                    px += cx;
+                    double py = (((sin * dx) + (cos * dy)) / sy);
+                    py += cy;
+                    if (length > radius) {
+                        dest.setPixel(x, y, src.getPixel(x, y, new double[4]));
+                    } else if (py > 0 && py < src.getHeight() - 1 && px > 0 && px < src.getWidth() - 1) {
+                        dest.setPixel(x, y, src.getPixel((int)Math.round(px), (int)Math.round(py), new double[4]));
                     }
                 }
             }
@@ -340,7 +385,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
     private boolean isShowing = true;  // do we show the image or not?
     private int ghostEffect;           // image transparency.
-    private double pixelateEffect = 1; // image pixelation.
+    private double pixelateEffect; // image pixelation.
+    private double whirlEffect;
 
     // The layer this object (actually all objects of this class) is painted in.
     // Layer 0 is on top.  ScratchWorld object keeps a list of the overall paint
@@ -2689,11 +2735,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void setPixelateEffectTo(Number amount)
     {
-        if (amount.intValue() < 0) {
-            amount = 0;
-        }
         amount = amount.doubleValue();
-        pixelateEffect = amount.doubleValue() / 10d + 1;
+        pixelateEffect = amount.doubleValue();
         displayCostume();
     }
 
@@ -2702,10 +2745,25 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void changePixelateEffectBy(Number amount)
     {
-        pixelateEffect += amount.doubleValue() / 10d;
-        if (pixelateEffect < 0) {
-            pixelateEffect = 0;
-        }
+        pixelateEffect += amount.doubleValue();
+        displayCostume();
+    }
+    
+    /**
+     * set the whril effect to a value
+     */
+    public void setWhirlEffectTo(Number amount)
+    {
+        whirlEffect = amount.doubleValue();
+        displayCostume();
+    }
+
+	/**
+     * change the pixelate effect of this sprite by the given amount.
+     */
+    public void changeWhirlEffectBy(Number amount)
+    {
+        whirlEffect += amount.doubleValue();
         displayCostume();
     }
 
@@ -2785,6 +2843,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         Costume cost = costumes.get(currCostume);
         cost.image.setGhost(ghostEffect);
         cost.image.setPixelate(pixelateEffect);
+        cost.image.setWhirl(whirlEffect);
         cost.image.setSize(costumeSize);
         cost.image.setRotation(currDirection - 90);
         if (isShowing) {
