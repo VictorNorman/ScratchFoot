@@ -34,6 +34,8 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.AffineTransformOp;
 import java.awt.geom.AffineTransform;
+import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
 import java.lang.String;
 import java.lang.reflect.*;
 import javax.swing.JOptionPane;
@@ -124,6 +126,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private GreenfootImage baseImage;   
         public GreenfootImage image;        // modified by rotation, scaling, etc.
         private int ghost;
+        private int color;
+        private int fisheye;
+        private int whirl;
+        private double pixelate;
+        private int mosaic;
+        private int brightness;
         private int rotation;
         private int size;
         private boolean flipped;
@@ -133,6 +141,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             // without resizing
             style = RotationStyle.ALL_AROUND;
             ghost = 0;
+            pixelate = 1;
             rotation = 0;
             size = 100;
             flipped = false;
@@ -200,6 +209,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
             updateImage();
         }
+        public void setPixelate(double val) {
+            pixelate = val;
+            updateImage();
+        }
         public void setSize(int percent) {
             size = percent;
             updateImage();
@@ -210,11 +223,36 @@ public class Scratch extends Actor implements Comparable<Scratch>
             GreenfootImage trans = new GreenfootImage(baseImage);
             trans = updateRotation(trans);
             trans = updateGhost(trans);
+            trans = updatePixelate(trans);
             trans = updateSize(trans);
             image = trans;
         }
         private GreenfootImage updateGhost(GreenfootImage trans) {
             trans.setTransparency((int)((-1 * ghost + 100) * 2.55));
+            return trans;
+        }
+        private GreenfootImage updatePixelate(GreenfootImage trans) {
+            if (pixelate <= 1) {
+                return trans;
+            }
+            BufferedImage img = trans.getAwtImage();
+            // Get the raster data (array of pixels)
+            Raster src = img.getData();
+            
+            // Create an identically-sized output raster
+            WritableRaster dest = src.createCompatibleWritableRaster();
+            
+            // Loop through all pixels in the output
+            for(int y = 0; y < src.getHeight(); y++) {
+                for(int x = 0; x < src.getWidth(); x++) {
+                    double dx = Math.floor(x / pixelate) * pixelate;
+                    double dy = Math.floor(y / pixelate) * pixelate;
+                    if (dy < src.getHeight() && dx < src.getWidth()) {
+                        dest.setPixel(x, y, src.getPixel((int)Math.round(dx), (int)Math.round(dy), new double[4]));
+                    }
+                }
+            }
+            img.setData(dest);
             return trans;
         }
         private GreenfootImage updateRotation(GreenfootImage trans) {
@@ -302,6 +340,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
     private boolean isShowing = true;  // do we show the image or not?
     private int ghostEffect;           // image transparency.
+    private double pixelateEffect = 1; // image pixelation.
 
     // The layer this object (actually all objects of this class) is painted in.
     // Layer 0 is on top.  ScratchWorld object keeps a list of the overall paint
@@ -2644,6 +2683,31 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         setGhostEffectTo(ghostEffect + amount.intValue());
     }
+    
+    /**
+     * set the pixelate effect to a value
+     */
+    public void setPixelateEffectTo(Number amount)
+    {
+        if (amount.intValue() < 0) {
+            amount = 0;
+        }
+        amount = amount.doubleValue();
+        pixelateEffect = amount.doubleValue() / 10d + 1;
+        displayCostume();
+    }
+
+	/**
+     * change the pixelate effect of this sprite by the given amount.
+     */
+    public void changePixelateEffectBy(Number amount)
+    {
+        pixelateEffect += amount.doubleValue() / 10d;
+        if (pixelateEffect < 0) {
+            pixelateEffect = 0;
+        }
+        displayCostume();
+    }
 
     /**
      * change the size of this sprite by the given percent.
@@ -2720,6 +2784,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         Costume cost = costumes.get(currCostume);
         cost.image.setGhost(ghostEffect);
+        cost.image.setPixelate(pixelateEffect);
         cost.image.setSize(costumeSize);
         cost.image.setRotation(currDirection - 90);
         if (isShowing) {
