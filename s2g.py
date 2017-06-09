@@ -1334,6 +1334,18 @@ class SpriteOrStage:
         assert(cmd == "changeGraphicEffect:by:")
         if arg1 == "ghost":
             return genIndent(level) + "changeGhostEffectBy(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "pixelate":
+            return genIndent(level) + "changePixelateEffectBy(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "whirl":
+            return genIndent(level) + "changeWhirlEffectBy(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "fisheye":
+            return genIndent(level) + "changeFisheyeEffectBy(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "mosaic":
+            return genIndent(level) + "changeMosaicEffectBy(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "brightness":
+            return genIndent(level) + "changeBrightnessEffectBy(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "color":
+            return genIndent(level) + "changeColorEffectBy(" + self.mathExpr(arg2) + ");\n"
         else:
             return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
         
@@ -1342,8 +1354,20 @@ class SpriteOrStage:
         assert(cmd == "setGraphicEffect:to:")
         if arg1 == "ghost":
             return genIndent(level) + "setGhostEffectTo(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "pixelate":
+            return genIndent(level) + "setPixelateEffectTo(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "whirl":
+            return genIndent(level) + "setWhirlEffectTo(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "fisheye":
+            return genIndent(level) + "setFisheyeEffectTo(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "mosaic":
+            return genIndent(level) + "setMosaicEffectTo(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "brightness":
+            return genIndent(level) + "setBrightnessEffectTo(" + self.mathExpr(arg2) + ");\n"
+        elif arg1 == "color":
+            return genIndent(level) + "setColorEffectTo(" + self.mathExpr(arg2) + ");\n"
         else:
-            return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
+            return genIndent(level) + "// " + arg1 + " effect is not implemented\n"  
         
     def pen0Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Pen blocks with 0 arguments"""
