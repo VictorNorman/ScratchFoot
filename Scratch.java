@@ -3049,6 +3049,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // private helper function
     private void displayCostume()
     {
+        // Prevent the stage from updating its image
+        if (this instanceof Stage) {
+            return;
+        }
         Costume cost = costumes.get(currCostume);
         cost.image.setAll(0, ghostEffect, pixelateEffect, whirlEffect, fisheyeEffect, 
                           mosaicEffect, colorEffect, brightnessEffect, costumeSize);              
