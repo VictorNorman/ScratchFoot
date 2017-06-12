@@ -68,11 +68,9 @@ multiple "when key clicked" scripts, etc.  These scripts all seemingly run in pa
 * setting the "depth" of sprites to control the layering of the display of sprites.
 
 ### ScratchFoot limitations: 
-* Playing different instruments or drums is not supported.
-* Only the "ghost" effect of the graphics effects is implemented.
 * The video stuff and microphone stuff are not supported.
 * Does not handle rotating images around a non-center point.
-* s2g.py will not convert list variables (yet).
+* Due to the strong typing of java, variables may need adjustment
 
 ----------------------
 
@@ -82,7 +80,7 @@ The file s2g.py is a python 3 program that will try to automatically convert a d
 
 In order to make this work, you need to install these programs on your computer:
 
-* Greenfoot 3
+* Greenfoot 3.1
 * ImageMagick: including the legacy command-line module (you select this when you are installing ImageMagick.)
 * python 3.x
 * The files from this repository: Scratch.java, ScratchWorld.java, s2g.py, and the various .png files.  You can get these files by downloading the Zip file from here and unzipping them.
