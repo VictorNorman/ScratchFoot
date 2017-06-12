@@ -134,7 +134,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private double mosaic;
         private double brightness;
         private int rotation;
-        private int size;
+        private double size;
         private boolean flipped;
         private int pixelWidth, pixelHeight;
         public ScratchImage(GreenfootImage img) {
@@ -234,11 +234,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
             brightness = val;
             updateImage();
         }
-        public void setSize(int percent) {
-            size = percent;
+        public void setSize(Number percent) {
+            size = percent.doubleValue();
             updateImage();
         }
-        public void setAll(int rot, int ghost, double pix, double whirl, double fish, double mos, double color, double bright, int size) {
+        public void setAll(int rot, int ghost, double pix, double whirl, double fish, double mos, double color, double bright, double size) {
             rotation = rot;
             this.ghost = ghost;
             pixelate = pix;
@@ -445,7 +445,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
         }
         private GreenfootImage updateSize(GreenfootImage trans) {
-            float perc = size / 100.0F;
+            double perc = size / 100.0d;
             // Now scale it, store it and display it.
             trans.scale((int) (trans.getWidth() * perc), (int) (trans.getHeight() * perc));
             return trans;
@@ -531,7 +531,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // the image, so if you scale one image and then change to another image
     // the scaling is not applied.  So, here we have to store the current
     // scaling factor to be applied to all costumes/images.
-    private int costumeSize = 100;   // percentage of original size
+    private double costumeSize = 100;   // percentage of original size
 
     // The direction the sprite is set to move in.  Due to the 
     // rotationStyle that is set, the image may not be pointing in that
@@ -1621,7 +1621,9 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
         // Set the parent reference to the original Scratch object.
         parent = other;
-
+        
+        // Ensure all graphic effects are applied before it displays
+        displayCostume();
         /*
         // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
         System.out.println("Copy constructor finished for object " + System.identityHashCode(this));
@@ -1987,7 +1989,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
         getWorld().addObject((Scratch)clone, translateToGreenfootX(actor.getX()), translateToGreenfootY(actor.getY()));
 
         getWorld().registerActivateClone(clone);
-
         // System.out.println("Clone added");        
     }
 
@@ -3032,7 +3033,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * return the size (in percent) of the sprite.  (100% is the 
      * original size.)
      */
-    public int size() 
+    public double size() 
     {
         return costumeSize;
     }
@@ -3477,7 +3478,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     /**
      * return the size (in percentage of the original) of the given sprite
      */
-    public int sizeOf(Scratch other)
+    public double sizeOf(Scratch other)
     {
         return other.size();
     }
@@ -3485,7 +3486,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     /**
      * return the size (in percentage of the original) of the given sprite
      */
-    public int sizeOf(String spriteName)
+    public double sizeOf(String spriteName)
     {
         Scratch other = getWorld().getActorByName(spriteName);
         return other.size();
