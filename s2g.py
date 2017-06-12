@@ -28,19 +28,23 @@ from pprint import pprint
 import shutil
 from subprocess import call, getstatusoutput
 import sys
+from tkinter import *
+from tkinter import filedialog
 
 # Global Variables that can be set via command-line arguments.
 debug = False
 inference = False
 name_resolution = False
+useGui= False;
 
 # Indentation level in outputted Java code.
 NUM_SPACES_PER_LEVEL = 4
 
-
 # This variable tracks how many cloud variables have been generated, and
 # serves as each cloud var's id
 cloudVars = 0
+
+worldClassName = ""
 
 
 # Set up arguments
@@ -48,9 +52,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
 parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
-parser.add_argument("scratch", help="Location of scratch sb2 file")
-parser.add_argument("greenfoot", help="Location of greenfoot project directory")
+parser.add_argument("-g", "--gui", action="store_true", help="Use GUI converter (Experimental)")
+parser.add_argument("--scratch_file", help="Location of scratch sb2 file", default = os.getcwd(), required=False)
+parser.add_argument("--greenfoot_dir", help="Location of greenfoot project directory", default = os.getcwd(), required=False)
 args = parser.parse_args()
+
 # Apply arguments
 if args.verbose:
     debug = True
@@ -58,14 +64,14 @@ if args.dotypeinference:
     inference = True
 if args.resolvevariablenames:
     name_resolution = True
-SCRATCH_FILE = args.scratch.strip()
-# Take off spaces and a possible trailing "/"
-PROJECT_DIR = args.greenfoot.strip().rstrip("/")
+if args.gui:
+    useGui = True
 
+SCRATCH_FILE = args.scratch_file.strip()
+# Take off spaces and a possible trailing "/"
+PROJECT_DIR = args.greenfoot_dir.strip().rstrip("/")
 SCRATCH_PROJ_DIR = "scratch_code"
 
-imagesDir = os.path.join(PROJECT_DIR, "images")
-soundsDir = os.path.join(PROJECT_DIR, "sounds")
 
 JAVA_KEYWORDS = ('abstract', 'continue', 'for', 'new', 'switch', 'assert', 'default', 'goto',\
                  'package', 'synchronized', 'boolean', 'do', 'if', 'private', 'this', 'break',\
@@ -225,7 +231,7 @@ class SpriteOrStage:
 
         print("\n----------- Sprite: %s ----------------" % self._name)
     
-    def copySounds(self):
+    def copySounds(self, soundsDir):
         # Move all of this sprites sounds to project/sounds/[spritename]
         if 'sounds' in self._sprData:
             if not os.path.exists(os.path.join(soundsDir, self.getName())):
@@ -343,7 +349,7 @@ class SpriteOrStage:
                     type = input("\tInt: A number that won't have decimals\n\tDouble:" + \
                                  " A number that can have decimals\n\tString: Text or letters\n" + \
                                  "This variable looks like: " + typechosen +\
-                                 "\nPress enter without typing anything to use suggested type\n>").capitalize()
+                                 "\nPress enter without typing anything to use suggested type\n> ").capitalize()
                     # Try to convert the value to the chosen type, only the first character needs to be entered
                     if type[0] == 'I':
                         return int(val), 'Int'
@@ -362,7 +368,7 @@ class SpriteOrStage:
                     # If val is not able to be converted to type, it will be set to default, or the user may choose
                     # a different type.
                     if input("Could not convert " + str(val) + " to " + type +\
-                             " Set to default value? (y/n)\n>") == "y":
+                             " Set to default value? (y/n)\n> ") == "y":
                         if type[0] == 'I':
                             return 0, 'Int'
                         elif type[0] == 'F':
@@ -1963,7 +1969,7 @@ class SpriteOrStage:
             try:
                 print("\"" + name + "\" is not a valid java variable name.")
                 n = input("Java variables must start with a letter and contain only letters and numbers.\n" +\
-                      "Enter a new name, or type nothing to use \"" + convertToJavaId(name, True, False) + "\"\n>")
+                      "Enter a new name, or type nothing to use \"" + convertToJavaId(name, True, False) + "\"\n> ")
                 if n == "":
                     return convertToJavaId(name, True, False)
                 name = n
@@ -2219,297 +2225,379 @@ def genWorldCtorHeader(classname):
 # ---------------------------------------------------------------------------
 #                ----------------- main -------------------
 # ---------------------------------------------------------------------------
-
-if not os.path.exists(SCRATCH_FILE):
-    print("Scratch download file " + SCRATCH_FILE + " not found.")
-    sys.exit(1)
-if not os.path.exists(PROJECT_DIR):
-    if (input("Project directory not found, generate it? (y/n)\n>") == "y"):
-        print("Generating new project directory...")
-        os.makedirs(PROJECT_DIR)
-    else:
-        print("Project directory could not be found")
+def convert():
+    global SCRATCH_FILE
+    global PROJECT_DIR
+    global SCRATCH_PROJ_DIR
+    
+    global imagesDir 
+    global soundsDir 
+    global worldClassName
+    print ("---------" + SCRATCH_FILE)
+    
+    if not os.path.exists(SCRATCH_FILE):
+        print("Scratch download file " + SCRATCH_FILE + " not found.")
         sys.exit(1)
-if not os.path.isdir(PROJECT_DIR):
-    print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
-    sys.exit(1)
-
-# Make a directory into which to unzip the scratch zip file.
-scratch_dir = os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR)
-try:
-    os.mkdir(scratch_dir)
-except FileExistsError as e:
-    pass    # If the directory exists already, no problem.
-
-# Unzip the .sb2 file into the project/scratch_code directory.
-print("Unpacking Scratch download file.")
-shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
-
-# Make directories if they don't exist yet
-if not os.path.exists(imagesDir):
-    os.makedirs(imagesDir)
-if not os.path.exists(soundsDir):
-    os.makedirs(soundsDir)
-
-print("Copying image files to " + imagesDir)
-
-files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
-for f in files2Copy:
-    # Copy png files over to the images dir, but if they are large
-    # (which probably means they are background images) convert
-    # them to 480x360.
-    res = getstatusoutput("identify " + f)
-    if res[0] != 0:
-        print(res[1])
+    if not os.path.exists(PROJECT_DIR):
+        if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
+            print("Generating new project directory...")
+            os.makedirs(PROJECT_DIR)
+        else:
+            print("Project directory could not be found")
+            sys.exit(1)
+    if not os.path.isdir(PROJECT_DIR):
+        print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
         sys.exit(1)
-    # Output from identify is like this:
-    # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
-    size = res[1].split()[2]     # got the geometry.
-    width, height = size.split("x")	 # got the width and height, as strings
-    width = int(width)
-    height = int(height)
-    if width >= 480:
-        # For now, just make 480x360.  This may not be correct in all cases.
-        dest = os.path.join(imagesDir, os.path.basename(f))
-        execOrDie("convert -resize 480x360 " + f + " " + dest,
-              "copy and resize png file")
-    else:
-        dest = os.path.join(imagesDir, os.path.basename(f))
-        execOrDie("convert -resize 50% " + f + " " + dest,
-              "copy and resize png file")
-
-# Convert svg images files to png files in the images dir.
-files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
-for f in files2Copy:
-    # fname is just the file name -- all directories removed.
-    fname = os.path.basename(f)
-    dest = os.path.join(imagesDir, fname)
-    dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
-    # background -None keeps the transparent part of the image transparent.
-    # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
-    # same size as you see on the screen with Scratch in the web browser.
-    execOrDie("convert -background None " + f + " " + dest,
-              "convert svg file to png")
-# Copy Scratch.java and ScratchWorld.java to GF project directory
-# They must be in the same directory as s2g.py
-try: 
-    # If the file already exists, skip copying it
-    if not os.path.isfile(os.path.join(PROJECT_DIR, "Scratch.java")):
-        shutil.copyfile("Scratch.java", os.path.join(PROJECT_DIR, "Scratch.java"))
-        print("Scratch.java copied successfully")
-    else:
-        print("Scratch.java was already in the project directory")
-    if not os.path.isfile(os.path.join(PROJECT_DIR, "ScratchWorld.java")):
-        shutil.copyfile("ScratchWorld.java", os.path.join(PROJECT_DIR, "ScratchWorld.java"))
-        print("ScratchWorld.java copied successfully")
-    else:
-        print("ScratchWorld.java was already in the project directory")
-except:
-    print("\n\tScratch.java and ScratchWorld.java were NOT copied!")
     
-try: 
-    # If the file already exists, skip copying it
+    # Make a directory into which to unzip the scratch zip file.
+    scratch_dir = os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR)
+    try:
+        os.mkdir(scratch_dir)
+    except FileExistsError as e:
+        pass    # If the directory exists already, no problem.
     
-    shutil.copyfile("say.png", os.path.join(imagesDir, "say.png"))
-    print("say.png copied successfully")
-    shutil.copyfile("say2.png", os.path.join(imagesDir, "say2.png"))
-    print("say2.png copied successfully")
-    shutil.copyfile("say3.png", os.path.join(imagesDir, "say3.png"))
-    print("say3.png copied successfully")
-    shutil.copyfile("think.png", os.path.join(imagesDir, "think.png"))
-    print("think.png copied successfully")
-except:
-    print("\n\tImages for say/think were NOT all copied!")
-
-
-# End of preparing directories, copying files, etc,
-# ---------------------------------------------------------------------------
-
-
-# Now, (finally!), open the project.json file and start processing it.
-with open(os.path.join(scratch_dir, "project.json")) as data_file:
-    data = json.load(data_file)
-
-spritesData = data['children']
-
-# We'll need to write configuration "code" to the greenfoot.project file.  Store
-# the lines to write out in this variable.
-projectFileCode = []
-
-# Determine the name of the ScratchWorld subclass.  This variable below
-# is used in some code above to generate casts.  I know this is a very bad
-# idea, but hey, what are you going to do...
-# Take the last component of the PROJECT_DIR, convert it to a legal
-# Java identifier, then add World to end.
-
-worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""), True, True) + "World"
-
-# If there are global variables, they are defined in the outermost part
-# of the json data, and more info about each is defined in objects labeled
-# with "target": "Stage" in 'childen'.
-# These need to be processed before we process any Sprite-specific code
-# which may reference these global variables.
-
-# stage information is in the top-most area of the json.
-stage = Stage(data)
-
-if 'variables' in data and 'lists' in data:
-    stage.genVariablesDefnCode(data['variables'], data['lists'], data['children'], cloudVars)
-elif 'variables' in data:
-    stage.genVariablesDefnCode(data['variables'], (), data['children'], cloudVars)
-elif 'lists' in data:
-    stage.genVariablesDefnCode((), data['lists'], data['children'], cloudVars)
-
-# Code to be written into the World.java file.
-worldCtorCode = ""
-worldDefnCode = ""
-initCode = ""
-
-
-# ---------------------------------------------------------------------------
-# Start processing each sprite's info: scripts, costumes, variables, etc.
-# ---------------------------------------------------------------------------
-for sprData in spritesData:
-    if 'objName' in sprData:
-
-        sprite = Sprite(sprData)
+    # Unzip the .sb2 file into the project/scratch_code directory.
+    print("Unpacking Scratch download file.")
+    shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
+    
+    # Make directories if they don't exist yet
+    if not os.path.exists(imagesDir):
+        os.makedirs(imagesDir)
+    if not os.path.exists(soundsDir):
+        os.makedirs(soundsDir)
+    
+    print("Copying image files to " + imagesDir)
+    
+    files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
+    for f in files2Copy:
+        # Copy png files over to the images dir, but if they are large
+        # (which probably means they are background images) convert
+        # them to 480x360.
+        res = getstatusoutput("identify " + f)
+        if res[0] != 0:
+            print(res[1])
+            sys.exit(1)
+        # Output from identify is like this:
+        # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
+        size = res[1].split()[2]     # got the geometry.
+        width, height = size.split("x")	 # got the width and height, as strings
+        width = int(width)
+        height = int(height)
+        if width >= 480:
+            # For now, just make 480x360.  This may not be correct in all cases.
+            dest = os.path.join(imagesDir, os.path.basename(f))
+            execOrDie("convert -resize 480x360 " + f + " " + dest,
+                  "copy and resize png file")
+        else:
+            dest = os.path.join(imagesDir, os.path.basename(f))
+            execOrDie("convert -resize 50% " + f + " " + dest,
+                  "copy and resize png file")
+    
+    # Convert svg images files to png files in the images dir.
+    files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
+    for f in files2Copy:
+        # fname is just the file name -- all directories removed.
+        fname = os.path.basename(f)
+        dest = os.path.join(imagesDir, fname)
+        dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
+        # background -None keeps the transparent part of the image transparent.
+        # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
+        # same size as you see on the screen with Scratch in the web browser.
+        execOrDie("convert -background None " + f + " " + dest,
+                  "convert svg file to png")
+    # Copy Scratch.java and ScratchWorld.java to GF project directory
+    # They must be in the same directory as s2g.py
+    try: 
+        # If the file already exists, skip copying it
+        if not os.path.isfile(os.path.join(PROJECT_DIR, "Scratch.java")):
+            shutil.copyfile("Scratch.java", os.path.join(PROJECT_DIR, "Scratch.java"))
+            print("Scratch.java copied successfully")
+        else:
+            print("Scratch.java was already in the project directory")
+        if not os.path.isfile(os.path.join(PROJECT_DIR, "ScratchWorld.java")):
+            shutil.copyfile("ScratchWorld.java", os.path.join(PROJECT_DIR, "ScratchWorld.java"))
+            print("ScratchWorld.java copied successfully")
+        else:
+            print("ScratchWorld.java was already in the project directory")
+    except:
+        print("\n\tScratch.java and ScratchWorld.java were NOT copied!")
         
-        # Copy the sounds associated with this sprite to the appropriate directory
-        sprite.copySounds()
+    try: 
+        # If the file already exists, skip copying it
         
-        # Generate world construct code that adds the sprite to the world.
-        sprite.genAddSpriteCall()
-        sprite.genLoadCostumesCode(sprData['costumes'])
-        # Like location, direction, shown or hidden, etc.
-        sprite.genInitSettingsCode()
-
-        # Handle variables defined for this sprite.  This has to be done
-        # before handling the scripts, as the scripts may refer will the
-        # variables.
-        # Variable initializations have to be done in a method called
-        # addedToWorld(), which is not necessary if no variable defns exist.
-        if 'variables' in sprData and 'lists' in sprData:
-            sprite.genVariablesDefnCode(sprData['variables'], sprData['lists'], data['children'], cloudVars)
-        elif 'variables' in sprData:
-            sprite.genVariablesDefnCode(sprData['variables'], (), data['children'], cloudVars)
-        elif 'lists' in sprData:
-            sprite.genVariablesDefnCode((), sprData['lists'], data['children'], cloudVars)
-
-        sprite.genCodeForScripts()
-        sprite.writeCodeToFile()
-        worldCtorCode += sprite.getWorldCtorCode()
-
-        # Write out a line to the project.greenfoot file to indicate that this
-        # sprite is a subclass of the Scratch class.
-        projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
-        # Generate a line to the project.greenfoot file to set the image
-        # file, like this: 
-        #     class.Sprite1.image=1.png
-        projectFileCode.append("class." + sprite.getName() + ".image=" + \
-                           str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
-
-
-    else:
-        if debug:
-            print("\n----------- Not a sprite --------------");
-            print(spr)
-
-
-# --------- handle the Stage stuff --------------
-
-# Because the stage can have script in it much like any sprite,
-# we have to process it similarly.  So, lots of repeated code here
-# from above -- although small parts are different enough.
-
-stage.copySounds()
-
-# Write out a line to the project.greenfoot file to indicate that this
-# sprite is a subclass of the Scratch class.
-projectFileCode.append("class." + stage.getName() + ".superclass=Scratch\n")
-
-# Create the special Stage sprite.
-worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
-
-stage.genInitSettingsCode()
-stage.genLoadCostumesCode(data['costumes'])
-stage.genBackgroundHandlingCode()
-stage.genCodeForScripts()
-stage.writeCodeToFile()
-
-# ----------------------- Create subclass of World ------------------------------
-
-
-#
-# Now, to make the *World file -- a subclass of ScratchWorld.
-#
-filename = os.path.join(PROJECT_DIR, worldClassName + ".java")
-outFile = open(filename, "w")
-print("Writing code to " + filename + ".")
-
-worldCode = genWorldHeaderCode(worldClassName)
-worldCode += genWorldCtorHeader(worldClassName)
-
-worldCode += stage.getWorldCtorCode()
-
-# Adding the backdrops will be done in the World constructor, not
-# the stage constructor because backdrops (backgrounds) are a property
-# of the World in Greenfoot.
-addBackdropsCode = stage.getCostumesCode()
-if debug:
-    print("CostumeCode is ", addBackdropsCode)
-
-addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + \
-                    str(data['currentCostumeIndex']) + ');\n'
-
-worldCode += worldCtorCode
-worldCode += addBackdropsCode
-worldCode += genIndent(1) + "}\n"
-worldCode += "}\n"
-
-outFile.write(worldCode)
-outFile.close()
-
-projectFileCode.append("class." + worldClassName + ".superclass=ScratchWorld\n")
-projectFileCode.append("world.lastInstantiated=" + worldClassName + "\n")
-
-
-# ---------------------------------------------------------------------------
-# Now, update the project.greenfoot file with this new
-# configuration information.  If we have run this script before, then
-# the config info will be in there already.  So, for each line in
-# projectFileCode, we'll check if the line is in the file first before
-# updating/adding it.
-projectFileCode.append("class.Scratch.superclass=greenfoot.Actor\n")
-projectFileCode.append("class.ScratchWorld.superclass=greenfoot.World\n")
-
-# If there's no project.greenfoot in the project directory, create one with
-# default values.
-if not os.path.isfile(os.path.join(PROJECT_DIR, "project.greenfoot")):
-    with open(os.path.join(PROJECT_DIR, "project.greenfoot"), "w") as projF:
-        projF.write("mainWindow.height=550\n")
-        projF.write("mainWindow.width=800\n")
-        projF.write("mainWindow.x=40\n")
-        projF.write("mainWindow.y=40\n")
-        projF.write("package.numDependencies=0\n")
-        projF.write("package.numTargets=0\n")
-        projF.write("project.charset=UTF-8\n")
-        projF.write("version=3.1.0\n")
+        shutil.copyfile("say.png", os.path.join(imagesDir, "say.png"))
+        print("say.png copied successfully")
+        shutil.copyfile("say2.png", os.path.join(imagesDir, "say2.png"))
+        print("say2.png copied successfully")
+        shutil.copyfile("say3.png", os.path.join(imagesDir, "say3.png"))
+        print("say3.png copied successfully")
+        shutil.copyfile("think.png", os.path.join(imagesDir, "think.png"))
+        print("think.png copied successfully")
+    except:
+        print("\n\tImages for say/think were NOT all copied!")
     
-# Read all lines into variable lines.
-lines = []
-with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "r") as projF:
-    lines = projF.readlines()
-# Now, open in "w" mode which resets the file back to being empty.
-with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "w") as projF:
-    for line in lines:
-        if line in projectFileCode:
-            # Remove the line in pfcLines that matches.
+    worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""), True, True) + "World"
+    
+    # End of preparing directories, copying files, etc,
+    # ---------------------------------------------------------------------------
+    
+    
+    # Now, (finally!), open the project.json file and start processing it.
+    with open(os.path.join(scratch_dir, "project.json")) as data_file:
+        data = json.load(data_file)
+    
+    spritesData = data['children']
+    
+    # We'll need to write configuration "code" to the greenfoot.project file.  Store
+    # the lines to write out in this variable.
+    projectFileCode = []
+    
+    # Determine the name of the ScratchWorld subclass.  This variable below
+    # is used in some code above to generate casts.  I know this is a very bad
+    # idea, but hey, what are you going to do...
+    # Take the last component of the PROJECT_DIR, convert it to a legal
+    # Java identifier, then add World to end.
+    
+    
+    
+    # If there are global variables, they are defined in the outermost part
+    # of the json data, and more info about each is defined in objects labeled
+    # with "target": "Stage" in 'childen'.
+    # These need to be processed before we process any Sprite-specific code
+    # which may reference these global variables.
+    
+    # stage information is in the top-most area of the json.
+    stage = Stage(data)
+    
+    if 'variables' in data and 'lists' in data:
+        stage.genVariablesDefnCode(data['variables'], data['lists'], data['children'], cloudVars)
+    elif 'variables' in data:
+        stage.genVariablesDefnCode(data['variables'], (), data['children'], cloudVars)
+    elif 'lists' in data:
+        stage.genVariablesDefnCode((), data['lists'], data['children'], cloudVars)
+    
+    # Code to be written into the World.java file.
+    worldCtorCode = ""
+    worldDefnCode = ""
+    initCode = ""
+    
+    
+    # ---------------------------------------------------------------------------
+    # Start processing each sprite's info: scripts, costumes, variables, etc.
+    # ---------------------------------------------------------------------------
+    for sprData in spritesData:
+        if 'objName' in sprData:
+    
+            sprite = Sprite(sprData)
+            
+            # Copy the sounds associated with this sprite to the appropriate directory
+            sprite.copySounds(soundsDir)
+            
+            # Generate world construct code that adds the sprite to the world.
+            sprite.genAddSpriteCall()
+            sprite.genLoadCostumesCode(sprData['costumes'])
+            # Like location, direction, shown or hidden, etc.
+            sprite.genInitSettingsCode()
+    
+            # Handle variables defined for this sprite.  This has to be done
+            # before handling the scripts, as the scripts may refer will the
+            # variables.
+            # Variable initializations have to be done in a method called
+            # addedToWorld(), which is not necessary if no variable defns exist.
+            if 'variables' in sprData and 'lists' in sprData:
+                sprite.genVariablesDefnCode(sprData['variables'], sprData['lists'], data['children'], cloudVars)
+            elif 'variables' in sprData:
+                sprite.genVariablesDefnCode(sprData['variables'], (), data['children'], cloudVars)
+            elif 'lists' in sprData:
+                sprite.genVariablesDefnCode((), sprData['lists'], data['children'], cloudVars)
+    
+            sprite.genCodeForScripts()
+            sprite.writeCodeToFile()
+            worldCtorCode += sprite.getWorldCtorCode()
+    
+            # Write out a line to the project.greenfoot file to indicate that this
+            # sprite is a subclass of the Scratch class.
+            projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
+            # Generate a line to the project.greenfoot file to set the image
+            # file, like this: 
+            #     class.Sprite1.image=1.png
+            projectFileCode.append("class." + sprite.getName() + ".image=" + \
+                               str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
+    
+    
+        else:
             if debug:
-                print("DEBUG: removing " + line + " from projFileCode because already in file.")
-            projectFileCode.remove(line)
-        projF.write(line)
-    # Now write the remaining lines out from projectFileCode
-    for p in projectFileCode:
-        if debug:
-            print("DEBUG: writing this line to project.greenfoot file:", p)
-        projF.write(p)
+                print("\n----------- Not a sprite --------------");
+                print(spr)
+    
+    
+    # --------- handle the Stage stuff --------------
+    
+    # Because the stage can have script in it much like any sprite,
+    # we have to process it similarly.  So, lots of repeated code here
+    # from above -- although small parts are different enough.
+    
+    # Write out a line to the project.greenfoot file to indicate that this
+    # sprite is a subclass of the Scratch class.
+    projectFileCode.append("class." + stage.getName() + ".superclass=Scratch\n")
+    
+    # Create the special Stage sprite.
+    worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
+    
+    stage.genInitSettingsCode()
+    stage.genLoadCostumesCode(data['costumes'])
+    stage.genBackgroundHandlingCode()
+    stage.genCodeForScripts()
+    stage.writeCodeToFile()
+    
+    # ----------------------- Create subclass of World ------------------------------
+    
+    
+    #
+    # Now, to make the *World file -- a subclass of ScratchWorld.
+    #
+    filename = os.path.join(PROJECT_DIR, worldClassName + ".java")
+    outFile = open(filename, "w")
+    print("Writing code to " + filename + ".")
+    
+    worldCode = genWorldHeaderCode(worldClassName)
+    worldCode += genWorldCtorHeader(worldClassName)
+    
+    worldCode += stage.getWorldCtorCode()
+    
+    # Adding the backdrops will be done in the World constructor, not
+    # the stage constructor because backdrops (backgrounds) are a property
+    # of the World in Greenfoot.
+    addBackdropsCode = stage.getCostumesCode()
+    if debug:
+        print("CostumeCode is ", addBackdropsCode)
+    
+    addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + \
+                        str(data['currentCostumeIndex']) + ');\n'
+    
+    worldCode += worldCtorCode
+    worldCode += addBackdropsCode
+    worldCode += genIndent(1) + "}\n"
+    worldCode += "}\n"
+    
+    outFile.write(worldCode)
+    outFile.close()
+    
+    projectFileCode.append("class." + worldClassName + ".superclass=ScratchWorld\n")
+    projectFileCode.append("world.lastInstantiated=" + worldClassName + "\n")
+    
+    
+    # ---------------------------------------------------------------------------
+    # Now, update the project.greenfoot file with this new
+    # configuration information.  If we have run this script before, then
+    # the config info will be in there already.  So, for each line in
+    # projectFileCode, we'll check if the line is in the file first before
+    # updating/adding it.
+    projectFileCode.append("class.Scratch.superclass=greenfoot.Actor\n")
+    projectFileCode.append("class.ScratchWorld.superclass=greenfoot.World\n")
+    
+    # If there's no project.greenfoot in the project directory, create one with
+    # default values.
+    if not os.path.isfile(os.path.join(PROJECT_DIR, "project.greenfoot")):
+        with open(os.path.join(PROJECT_DIR, "project.greenfoot"), "w") as projF:
+            projF.write("mainWindow.height=550\n")
+            projF.write("mainWindow.width=800\n")
+            projF.write("mainWindow.x=40\n")
+            projF.write("mainWindow.y=40\n")
+            projF.write("package.numDependencies=0\n")
+            projF.write("package.numTargets=0\n")
+            projF.write("project.charset=UTF-8\n")
+            projF.write("version=3.1.0\n")
+        
+    # Read all lines into variable lines.
+    lines = []
+    with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "r") as projF:
+        lines = projF.readlines()
+    # Now, open in "w" mode which resets the file back to being empty.
+    with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "w") as projF:
+        for line in lines:
+            if line in projectFileCode:
+                # Remove the line in pfcLines that matches.
+                if debug:
+                    print("DEBUG: removing " + line + " from projFileCode because already in file.")
+                projectFileCode.remove(line)
+            projF.write(line)
+        # Now write the remaining lines out from projectFileCode
+        for p in projectFileCode:
+            if debug:
+                print("DEBUG: writing this line to project.greenfoot file:", p)
+            projF.write(p)
+
+
+
+
+if not useGui:  # Everything provided on command line.
+    imagesDir = os.path.join(PROJECT_DIR, "images")
+    soundsDir = os.path.join(PROJECT_DIR, "sounds")
+    convert()
+else:
+    def findScratchFile():
+        global scrEntryVar, SCRATCH_FILE
+        SCRATCH_FILE=filedialog.askopenfilename(initialdir=SCRATCH_FILE,
+                                                filetypes = [('Scratch files', '.sb2'), ('All files', '.*')])
+        scrEntryVar.set(SCRATCH_FILE)
+            
+    def findGfDir():
+        global gfEntryVar, PROJECT_DIR
+        PROJECT_DIR = filedialog.askdirectory(initialdir=PROJECT_DIR)
+        gfEntryVar.set(PROJECT_DIR)
+
+    root = Tk()
+    root.title("Convert Scratch to Greenfoot")
+    
+    entryFrame = Frame(root)
+    entryFrame.pack(side = TOP)
+    scratchFrame = Frame(entryFrame)
+    scratchFrame.pack(side = LEFT)
+    scratchLabel = Label(scratchFrame, text="Scratch File")
+    scratchLabel.pack(side = TOP)
+    scrEntryVar = StringVar()
+    scrEntryVar.set(SCRATCH_FILE)
+    scratchEntry = Entry(scratchFrame, textvariable=scrEntryVar, width=len(SCRATCH_FILE))
+    scratchEntry.pack(side = TOP)
+    Button(scratchFrame, text="Find file", command=findScratchFile).pack(side=TOP)
+    
+    
+    gfFrame = Frame(entryFrame)
+    gfFrame.pack(side = RIGHT)
+    gfLabel = Label(gfFrame, text = "Greenfoot Project Directory")
+    gfLabel.pack(side = TOP)
+    gfEntryVar = StringVar()
+    gfEntryVar.set(PROJECT_DIR)
+    gfEntry = Entry(gfFrame, textvariable=gfEntryVar, width=len(PROJECT_DIR))
+    gfEntry.pack(side = TOP)
+    Button(gfFrame, text="Find directory", command=findGfDir).pack(side=TOP)
+
+    def convertButtonCb():
+        global SCRATCH_FILE
+        global PROJECT_DIR
+        global SCRATCH_PROJ_DIR
+        
+        global imagesDir 
+        global soundsDir 
+        
+        # Take off spaces and a possible trailing "/"
+        PROJECT_DIR = gfEntryVar.get().strip().rstrip("/")
+        
+        print("--------" + SCRATCH_FILE)
+        SCRATCH_PROJ_DIR = "scratch_code"
+    
+        imagesDir = os.path.join(PROJECT_DIR, "images")
+        soundsDir = os.path.join(PROJECT_DIR, "sounds")
+        convert()
+        
+    convertButton = Button(root, text = "Convert", command = convertButtonCb)
+    convertButton.pack(side = BOTTOM)
+    root.mainloop()
+    
+    
+    
+    
+    
+    
+    
