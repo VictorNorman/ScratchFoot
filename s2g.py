@@ -2343,7 +2343,7 @@ def convert():
     
     
     # Now, (finally!), open the project.json file and start processing it.
-    with open(os.path.join(scratch_dir, "project.json")) as data_file:
+    with open(os.path.join(scratch_dir, "project.json"), encoding = "utf_8") as data_file:
         data = json.load(data_file)
     
     spritesData = data['children']
