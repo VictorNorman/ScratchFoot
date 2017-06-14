@@ -24,12 +24,14 @@ import json
 import os, os.path
 import platform
 import argparse
+import re
 from pprint import pprint
 import shutil
 from subprocess import call, getstatusoutput
 import sys
 from tkinter import *
 from tkinter import filedialog
+from tkinter import messagebox
 
 # Global Variables that can be set via command-line arguments.
 debug = False
@@ -72,6 +74,8 @@ SCRATCH_FILE = args.scratch_file.strip()
 PROJECT_DIR = args.greenfoot_dir.strip().rstrip("/")
 SCRATCH_PROJ_DIR = "scratch_code"
 
+# Initialize stage globally
+stage = None
 
 JAVA_KEYWORDS = ('abstract', 'continue', 'for', 'new', 'switch', 'assert', 'default', 'goto',\
                  'package', 'synchronized', 'boolean', 'do', 'if', 'private', 'this', 'break',\
@@ -340,6 +344,248 @@ class SpriteOrStage:
         #   o generate code to possibly hide() the variable.
         #   o NOTE: api does not support putting the variable at a x,y
         #     location.   TODO
+        def genVariablesDefnCodeGui(listOfVars, listOfLists, allChildren, cloudVars):
+            """Generate code to define instance variables for this sprite.
+            Uses a tkinter GUI to simplify the process
+            """
+            nameList = []
+            typeList = []
+            valueList = []
+            self.ready = False
+            # Whenever the user presses a key, check validity of all fields
+            def keypress(ev):
+                # Turns the text green if it's a valid name, red otherwise
+                self.ready = True
+                for e in nameList:
+                    if re.match(r"[A-Za-z][A-Za-z0-9_]*$", e.get()):
+                        e['fg'] = 'green'
+                    else:
+                        e['fg'] = 'red'
+                        self.ready = False
+                    if e.get() in JAVA_KEYWORDS:
+                        e['fg'] = 'red'
+                        self.ready = False
+                for e in typeList:
+                    if e.get().lower() in ('int', 'string', 'double'):
+                        e['fg'] = 'green'
+                    else:
+                        e['fg'] = 'red'
+                        self.ready = False
+                for i in range(0, len(valueList)):
+                    if typeList[i].get().lower() == 'string':
+                        try:
+                            str(valueList[i].get())
+                            valueList[i]['fg'] = 'green'
+                        except:
+                            valueList[i]['fg'] = 'red'
+                            self.ready = False
+                    elif typeList[i].get().lower() == 'int':
+                        try:
+                            int(valueList[i].get())
+                            valueList[i]['fg'] = 'green'
+                        except:
+                            valueList[i]['fg'] = 'red'
+                            self.ready = False
+                    elif typeList[i].get().lower() == 'double':
+                        try:
+                            float(valueList[i].get())
+                            valueList[i]['fg'] = 'green'
+                        except:
+                            valueList[i]['fg'] = 'red'
+                            self.ready = False
+                    else:
+                        valueList[i]['fg'] = 'blue'
+                        self.ready = False
+            # Automatically convert names and determine types for all variables
+            def autoCB():
+                for e in nameList:
+                    s = e.get()
+                    e.delete(0, END)
+                    e.insert(END, convertToJavaId(s, True, False))
+                for i in range(0, len(typeList)):
+                    typeList[i].delete(0, END)
+                    try:
+                        typeList[i].insert(END, deriveType("", valueList[i].get())[1])
+                    except ValueError:
+                        typeList[i].insert(END, "String")
+                keypress("")
+            # Display a help message informing the user how to use the namer
+            def helpCB():
+                messagebox.showinfo("Help", "If a name is red, that means it is not valid in Java. Java variable names must " + \
+                                    "start with a letter, and contain only letters, numbers and _. (No spaces!) There are also " + \
+                                    "some words that can't be variable names because they mean something special in java: \n" + \
+                                    str(JAVA_KEYWORDS) + ". \n\nIf a type " + \
+                                    "is red, that means it is not a valid Java type. The types that work with this " + \
+                                    "converter are:\n\tInt: a number that will never be a decimal\n\tDouble: a number " + \
+                                    "that can be a decimal\n\tString: symbols, letters, and text\n\nIf a value is red, " + \
+                                    "that means that the variable cannot store that value. For example, an Int " + \
+                                    "cannot store the value 1.5, since it has to store whole numbers.")
+            # Write out the results to the file
+            def confirmCB():
+                if not self.ready:
+                    messagebox.showerror("Error", "Some boxes are still not valid. Click help for more " + \
+                                         "info on how to fix them.")
+                    gui.focus_set()
+                    return
+                for i in range(len(listOfVars)):  # var is a dictionary.
+                    var = listOfVars[i]
+                    name = var['name']  # unsanitized Scratch name
+                    value = var['value']
+                    cloud = var['isPersistent']
+                    print("Proceesing var: " + name)
+                    # return the varType and the value converted to a java equivalent
+                    # for that type. (e.g., False --> false)
+                    # varType is one of 'Boolean', 'Double', 'Int', 'String'
+                    varType = typeList[i].get().title()
+                    if cloud:
+                        value = cloudVars
+                        cloudVars += 1
+                        varType = 'Cloud'
+                        # The first character is a weird Unicode cloud glyph and the
+                        # second is a space.  Get rid of them.
+                        name = name[2:]
+        
+                    # Sanitize the name: make it a legal Java identifier.
+                    sanname = nameList[i].get()
+        
+                    # We need this so we can generate code that calls the correct
+                    # functions to generate the correct type of results.
+                    # E.g., if a variable is boolean, we'll call boolExpr()
+                    # from setVariables(), not mathExpr().
+                    # Record a mapping from unsanitized name --> (sanitized name, type)
+                    self.varInfo[name] = (sanname, varType)
+                    if True:
+                        print("Adding varInfo entry for", self._name, ":", name,
+                              "--> (" + sanname + ", " + varType + ")")
+                    
+                    for aDict in allChildren:
+                        if aDict.get('cmd') == 'getVar:' and \
+                           aDict.get('param') == name and \
+                           aDict.get('target') == self._name:
+                            varInfo = aDict
+                            # If variable definition dictionary found, use it
+                            label = varInfo['label']
+                            x = varInfo['x']    # Not used at this time.
+                            y = varInfo['y']    # Not used at this time.
+                            visible = varInfo['visible']
+                            break
+                    else:
+                        if cloud:
+                            # Cloud variables do not have a definition dictionary, so use default
+                            # values.
+                            label = name;
+                            x = 0
+                            y = 0
+                            visible = True
+                        else:
+                            # If no variable dict could be found, this variable is never shown
+                            # so these values don't matter
+                            label = "unknown: " + name
+                            x = 0
+                            y = 0
+                            visible = False
+                            print("No variable definition dictionary found in script json:", name)
+        
+        
+                    # TODO: FIX THIS: move code into subclass!!!
+                    # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
+                    if self.getNameTypeAndLocalGlobal(name)[2]:
+                        self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, sanname)
+                    else:
+                        self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
+                        
+                    # Something like "score = createIntVariable((MyWorld) world, "score", 0);
+                    self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
+                        (genIndent(2), sanname, varType, worldClassName, label, str(value))
+                    if not visible:
+                        self._addedToWorldCode += genIndent(2) + sanname + ".hide();\n"
+                # Add blank line after variable definitions.
+                self._varDefnCode += "\n"
+                self._addedToWorldCode += genIndent(2) + "// List initializations.\n"
+                for l in listOfLists:
+                    name = l['listName']
+                    contents = l['contents']
+                    visible = l['visible']
+                    try:
+                        sanname = convertToJavaId(name, True, False)
+                    except:
+                        print("Error converting list to java id")
+                        sys.exit(0)
+                    
+                    self.listInfo[name]  = sanname
+                    
+                    # I know this is bad style, but at the moment it's necessary
+                    # Later down the line we can move all this code to subclasses instead
+                    if type(self) == Stage:
+                        self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % (sanname)
+                    else:
+                        self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % (sanname)
+                    
+                    self._addedToWorldCode += '%s%s = createList(world, "%s"' % (genIndent(2), sanname, name)
+                    for obj in contents:
+                        disp = deriveType(name, obj)
+                        self._addedToWorldCode += ', %s' % (str(disp[0]))
+                    self._addedToWorldCode += ');\n'
+                    if not visible:
+                        self._addedToWorldCode += '%s%s.hide();\n' % (genIndent(2), sanname)
+        
+                # Close the addedToWorld() method definition.
+                self._addedToWorldCode += genIndent(1) + "}\n"
+                root.focus_set()
+                gui.quit()
+                gui.destroy()
+            # Main method code
+            # Construct the GUI
+            gui = Toplevel(root)
+            gui.bind("<Any-KeyPress>", keypress)
+            gui.title("Variable Namer")
+            gui.grab_set()
+            vars = Frame(gui)
+            vars.pack(side = TOP)
+            sVars = Frame(vars)
+            sVars.pack(side = LEFT)
+            gVars = Frame(vars)
+            gVars.pack(side = LEFT)
+            types = Frame(vars)
+            types.pack(side = LEFT)
+            values = Frame(vars)
+            values.pack(side = LEFT)
+            buttons = Frame(gui)
+            buttons.pack(side = BOTTOM)
+            auto = Button(buttons, text = "Autocomplete", command = autoCB)
+            auto.pack(side = LEFT)
+            confirm = Button(buttons, text = "Confirm", command = confirmCB)
+            confirm.pack(side = LEFT)
+            help = Button(buttons, text = "Help", command = helpCB)
+            help.pack(side = LEFT)
+            Label(sVars, text = "  Scratch Name  ").pack(side = TOP)
+            Label(gVars, text = "Java Name").pack(side = TOP)
+            Label(types, text = "Java Type").pack(side = TOP)
+            Label(values, text = "Starting Value").pack(side = TOP)
+            # Populate lists
+            for var in listOfVars:
+                name = var['name']  # unsanitized Scratch name
+                value = var['value']
+                cloud = var['isPersistent']
+                lbl = Entry(sVars)
+                lbl.insert(END, name)
+                lbl.configure(state = "readonly")
+                lbl.pack(side = TOP)
+                ent = Entry(gVars)
+                ent.insert(END, name)
+                ent.pack(side = TOP)
+                nameList.append(ent)
+                ent2 = Entry(types)
+                ent2.insert(END, "")
+                ent2.pack(side = TOP)
+                typeList.append(ent2)
+                ent3 = Entry(values)
+                ent3.insert(END, value)
+                ent3.pack(side = TOP)
+                valueList.append(ent3)
+            # Update the text color
+            keypress("")
+            gui.mainloop()
 
         def chooseType(name, val):
             i, typechosen = deriveType(name, val)
@@ -418,6 +664,10 @@ class SpriteOrStage:
         self._addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ") w;\n"
         self._addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n";
         self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
+        # If running in gui mode, call the gui method instead
+        if useGui:
+            genVariablesDefnCodeGui(listOfVars, listOfLists, allChildren, cloudVars)
+            return
 
         for var in listOfVars:  # var is a dictionary.
             name = var['name']  # unsanitized Scratch name
@@ -532,6 +782,7 @@ class SpriteOrStage:
         # Close the addedToWorld() method definition.
         self._addedToWorldCode += genIndent(1) + "}\n"
             
+    
 
     def getVarDefnCode(self):
         return self._varDefnCode
@@ -2233,6 +2484,7 @@ def convert():
     global imagesDir 
     global soundsDir 
     global worldClassName
+    global stage
     print ("---------" + SCRATCH_FILE)
     
     if not os.path.exists(SCRATCH_FILE):
