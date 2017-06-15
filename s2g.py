@@ -356,22 +356,39 @@ class SpriteOrStage:
             def keypress(ev):
                 # Turns the text green if it's a valid name, red otherwise
                 self.ready = True
+                # track what names are in use
+                names = {}
                 for e in nameList:
+                    # if this name is already in use turn both red
+                    if e.get() in names.keys():
+                        names[e.get()]['fg'] = 'red'
+                        e['fg'] = 'red'
+                        self.ready = False
+                        # update the reference, this loses the old reference,
+                        names[e.get()] = e
+                        continue
+                    # otherwise store the current name-entry pair
+                    else:
+                        names[e.get()] = e
+                    # Check if the name is a valid java id
                     if re.match(r"[A-Za-z][A-Za-z0-9_]*$", e.get()):
                         e['fg'] = 'green'
                     else:
                         e['fg'] = 'red'
                         self.ready = False
+                    # Check if the name is a java keyword
                     if e.get() in JAVA_KEYWORDS:
                         e['fg'] = 'red'
                         self.ready = False
                 for e in typeList:
+                    # Ensure the type is valid
                     if e.get().lower() in ('int', 'string', 'double'):
                         e['fg'] = 'green'
                     else:
                         e['fg'] = 'red'
                         self.ready = False
                 for i in range(0, len(valueList)):
+                    # Check if the current value is valid for the type specified
                     if typeList[i].get().lower() == 'string':
                         try:
                             str(valueList[i].get())
@@ -415,7 +432,7 @@ class SpriteOrStage:
                                     "start with a letter, and contain only letters, numbers and _. (No spaces!) There are also " + \
                                     "some words that can't be variable names because they mean something special in java: \n" + \
                                     str(JAVA_KEYWORDS) + ". \n\nIf a type " + \
-                                    "is red, that means it is not a valid Java type. The types that work with this " + \
+                                    "is red, that means it is not a valid type. The types that work with this " + \
                                     "converter are:\n\tInt: a number that will never be a decimal\n\tDouble: a number " + \
                                     "that can be a decimal\n\tString: symbols, letters, and text\n\nIf a value is red, " + \
                                     "that means that the variable cannot store that value. For example, an Int " + \
@@ -423,8 +440,8 @@ class SpriteOrStage:
             # Write out the results to the file
             def confirmCB():
                 if not self.ready:
-                    messagebox.showerror("Error", "Some boxes are still not valid. Click help for more " + \
-                                         "info on how to fix them.")
+                    messagebox.showerror("Error", "Some of the inputs are still invalid. Click help for more " + \
+                                         "details on how to fix them.")
                     gui.focus_set()
                     return
                 for i in range(len(listOfVars)):  # var is a dictionary.
@@ -493,6 +510,11 @@ class SpriteOrStage:
                         self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, sanname)
                     else:
                         self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
+                    # Escape any quotes in the label
+                    label = re.sub('"', '\\"', label)
+                    if (varType.lower() == "string"):
+                        # Escape any quotes, and add make it a string literal
+                        value = '"' + re.sub('"', '\\"', value) + '"'
                         
                     # Something like "score = createIntVariable((MyWorld) world, "score", 0);
                     self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
@@ -531,6 +553,7 @@ class SpriteOrStage:
         
                 # Close the addedToWorld() method definition.
                 self._addedToWorldCode += genIndent(1) + "}\n"
+                # Return focus and execution back to the main window
                 root.focus_set()
                 gui.quit()
                 gui.destroy()
