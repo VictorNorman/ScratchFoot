@@ -2645,6 +2645,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
         sayActor = new Sayer(str);
         sayActor.think = false;
+        sayActor.update();
         getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
         if (!isShowing) {
             sayActor.hide();
@@ -3051,11 +3052,11 @@ public class Scratch extends Actor implements Comparable<Scratch>
     private void displayCostume()
     {
         // Prevent the stage from updating its image
-        if (this instanceof Stage) {
+        if (this instanceof Stage || this instanceof nonInteractive) {
             return;
         }
         Costume cost = costumes.get(currCostume);
-        cost.image.setAll(0, ghostEffect, pixelateEffect, whirlEffect, fisheyeEffect, 
+        cost.image.setAll(currDirection, ghostEffect, pixelateEffect, whirlEffect, fisheyeEffect, 
                           mosaicEffect, colorEffect, brightnessEffect, costumeSize);              
         if (isShowing) {
             setImage(cost.image.getDisplay());
