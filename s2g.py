@@ -439,6 +439,7 @@ class SpriteOrStage:
                                     "cannot store the value 1.5, since it has to store whole numbers.")
             # Write out the results to the file
             def confirmCB():
+                global cloudVars
                 if not self.ready:
                     messagebox.showerror("Error", "Some of the inputs are still invalid. Click help for more " + \
                                          "details on how to fix them.")
@@ -449,7 +450,7 @@ class SpriteOrStage:
                     name = var['name']  # unsanitized Scratch name
                     value = var['value']
                     cloud = var['isPersistent']
-                    print("Proceesing var: " + name)
+                    print(("Proceesing var: " + name).encode('utf-8'))
                     # return the varType and the value converted to a java equivalent
                     # for that type. (e.g., False --> false)
                     # varType is one of 'Boolean', 'Double', 'Int', 'String'
@@ -575,7 +576,7 @@ class SpriteOrStage:
             values.pack(side = LEFT)
             buttons = Frame(gui)
             buttons.pack(side = BOTTOM)
-            auto = Button(buttons, text = "Autocomplete", command = autoCB)
+            auto = Button(buttons, text = "Auto-Convert", command = autoCB)
             auto.pack(side = LEFT)
             confirm = Button(buttons, text = "Confirm", command = confirmCB)
             confirm.pack(side = LEFT)
@@ -1560,7 +1561,7 @@ class SpriteOrStage:
         assert cmd == "lookLike:"
         try:
             return genIndent(level) + "switchToCostume(" + self.mathExpr(arg1) + ");\n"
-        except ValueError:
+        except (ValueError, AssertionError):
             # if mathExpr is unable to resolve arg1, use strExpr instead
             return genIndent(level) + "switchToCostume(" + self.strExpr(arg1) + ");\n"
 
@@ -2828,9 +2829,12 @@ else:
         global gfEntryVar, PROJECT_DIR
         PROJECT_DIR = filedialog.askdirectory(initialdir=PROJECT_DIR)
         gfEntryVar.set(PROJECT_DIR)
-
+    
+    def exitTk():
+        sys.exit(0)
     root = Tk()
     root.title("Convert Scratch to Greenfoot")
+    root.protocol('WM_DELETE_WINDOW', exitTk)
     
     entryFrame = Frame(root)
     entryFrame.pack(side = TOP)
