@@ -2514,12 +2514,19 @@ def convert():
         print("Scratch download file " + SCRATCH_FILE + " not found.")
         sys.exit(1)
     if not os.path.exists(PROJECT_DIR):
-        if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
-            print("Generating new project directory...")
-            os.makedirs(PROJECT_DIR)
+        if useGui:
+            if (messagebox.askokcancel("Make New Directory", "Greenfoot directory not found, generate it?")):
+                print("Generating new project directory...")
+                os.makedirs(PROJECT_DIR)
+            else:
+                system.exit(1)
         else:
-            print("Project directory could not be found")
-            sys.exit(1)
+            if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
+                print("Generating new project directory...")
+                os.makedirs(PROJECT_DIR)
+            else:
+                print("Project directory could not be found")
+                sys.exit(1)
     if not os.path.isdir(PROJECT_DIR):
         print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
         sys.exit(1)
