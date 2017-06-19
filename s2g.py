@@ -353,7 +353,7 @@ class SpriteOrStage:
             valueList = []
             self.ready = False
             # Whenever the user presses a key, check validity of all fields
-            def keypress(ev):
+            def keypress():
                 # Turns the text green if it's a valid name, red otherwise
                 self.ready = True
                 # track what names are in use
@@ -382,10 +382,8 @@ class SpriteOrStage:
                         self.ready = False
                 for e in typeList:
                     # Ensure the type is valid
-                    if e.get().lower() in ('int', 'string', 'double'):
-                        e['fg'] = 'green'
-                    else:
-                        e['fg'] = 'red'
+                    if not e.get().lower() in ('int', 'string', 'double'):
+                        
                         self.ready = False
                 for i in range(0, len(valueList)):
                     # Check if the current value is valid for the type specified
@@ -413,6 +411,8 @@ class SpriteOrStage:
                     else:
                         valueList[i]['fg'] = 'blue'
                         self.ready = False
+                gui.after(25, keypress)
+                print("Scheduling Run")
             # Automatically convert names and determine types for all variables
             def autoCB():
                 for e in nameList:
@@ -420,12 +420,11 @@ class SpriteOrStage:
                     e.delete(0, END)
                     e.insert(END, convertToJavaId(s, True, False))
                 for i in range(0, len(typeList)):
-                    typeList[i].delete(0, END)
                     try:
-                        typeList[i].insert(END, deriveType("", valueList[i].get())[1])
+                        typeList[i].set(deriveType("", valueList[i].get())[1])
                     except ValueError:
-                        typeList[i].insert(END, "String")
-                keypress("")
+                        typeList[i].set("String")
+                keypress()
             # Display a help message informing the user how to use the namer
             def helpCB():
                 messagebox.showinfo("Help", "If a name is red, that means it is not valid in Java. Java variable names must " + \
@@ -561,7 +560,8 @@ class SpriteOrStage:
             # Main method code
             # Construct the GUI
             gui = Toplevel(root)
-            gui.bind("<Any-KeyPress>", keypress)
+            #gui.bind("<Any-KeyPress>", keypress)
+            
             gui.title("Variable Namer")
             gui.grab_set()
             vars = Frame(gui)
@@ -594,21 +594,22 @@ class SpriteOrStage:
                 lbl = Entry(sVars)
                 lbl.insert(END, name)
                 lbl.configure(state = "readonly")
-                lbl.pack(side = TOP)
+                lbl.pack(side = TOP, pady = 6)
                 ent = Entry(gVars)
                 ent.insert(END, name)
-                ent.pack(side = TOP)
+                ent.pack(side = TOP, pady = 6)
                 nameList.append(ent)
-                ent2 = Entry(types)
-                ent2.insert(END, "")
+                svar = StringVar(gui)
+                ent2 = OptionMenu(types, svar, "Int", "Double", "String")
                 ent2.pack(side = TOP)
-                typeList.append(ent2)
+                #ent2.bind("<Button-1>", keypress)
+                typeList.append(svar)
                 ent3 = Entry(values)
                 ent3.insert(END, value)
-                ent3.pack(side = TOP)
+                ent3.pack(side = TOP, pady = 6)
                 valueList.append(ent3)
             # Update the text color
-            keypress("")
+            keypress()
             gui.mainloop()
 
         def chooseType(name, val):
