@@ -564,16 +564,10 @@ class SpriteOrStage:
             
             gui.title("Variable Namer")
             gui.grab_set()
-            vars = Frame(gui)
-            vars.pack(side = TOP)
-            sVars = Frame(vars)
-            sVars.pack(side = LEFT)
-            gVars = Frame(vars)
-            gVars.pack(side = LEFT)
-            types = Frame(vars)
-            types.pack(side = LEFT)
-            values = Frame(vars)
-            values.pack(side = LEFT)
+
+
+            table = Frame(gui)
+            table.pack()
             buttons = Frame(gui)
             buttons.pack(side = BOTTOM)
             auto = Button(buttons, text = "Auto-Convert", command = autoCB)
@@ -582,32 +576,39 @@ class SpriteOrStage:
             confirm.pack(side = LEFT)
             help = Button(buttons, text = "Help", command = helpCB)
             help.pack(side = LEFT)
-            Label(sVars, text = "  Scratch Name  ").pack(side = TOP)
-            Label(gVars, text = "Java Name").pack(side = TOP)
-            Label(types, text = "Java Type").pack(side = TOP)
-            Label(values, text = "Starting Value").pack(side = TOP)
+            Label(table, text = "  Scratch Name  ").grid(row=0, column=0)
+            Label(table, text = "Java Name").grid(row=0, column=1)
+            Label(table, text = "Java Type").grid(row=0, column=2)
+            Label(table, text = "Starting Value").grid(row=0, column=3)
+
             # Populate lists
+            row = 1
             for var in listOfVars:
                 name = var['name']  # unsanitized Scratch name
                 value = var['value']
                 cloud = var['isPersistent']
-                lbl = Entry(sVars)
+                lbl = Entry(table)
                 lbl.insert(END, name)
                 lbl.configure(state = "readonly")
-                lbl.pack(side = TOP, pady = 6)
-                ent = Entry(gVars)
+                lbl.grid(row=row, column=0, sticky=W+E)
+
+                ent = Entry(table)
                 ent.insert(END, name)
-                ent.pack(side = TOP, pady = 6)
+                ent.grid(row=row, column=1, sticky=W+E)
+
                 nameList.append(ent)
                 svar = StringVar(gui)
-                ent2 = OptionMenu(types, svar, "Int", "Double", "String")
-                ent2.pack(side = TOP)
+                ent2 = OptionMenu(table, svar, "Int", "Double", "String")
+                ent2.grid(row=row, column=2, sticky=W+E)
                 #ent2.bind("<Button-1>", keypress)
+
                 typeList.append(svar)
-                ent3 = Entry(values)
+                ent3 = Entry(table)
                 ent3.insert(END, value)
-                ent3.pack(side = TOP, pady = 6)
+                ent3.grid(row=row, column=3, sticky=W+E)
                 valueList.append(ent3)
+                row += 1
+
             # Update the text color
             keypress()
             gui.mainloop()
