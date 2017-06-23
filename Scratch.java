@@ -24,6 +24,7 @@ import greenfoot.*;  // (getWorld(), Actor, GreenfootImage, Greenfoot and MouseI
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -136,7 +137,9 @@ public class Scratch extends Actor implements Comparable<Scratch>
         private int rotation;
         private double size;
         private boolean flipped;
+        public boolean genQuadTree = false;
         private int pixelWidth, pixelHeight;
+        public Node root;
         public ScratchImage(GreenfootImage img) {
             // In order to rotate the image properly, we must make it big enough to rotate fully
             // without resizing
@@ -150,6 +153,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             int minx = 0, miny = 0;
             int maxx = bi.getWidth();
             int maxy = bi.getHeight();
+            root = new Node();
             // First we have to crop and center the image
             for (int x = 0; x < bi.getWidth(); x++) {
                 for (int y = 0; y < bi.getHeight(); y++) {
@@ -175,7 +179,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             // Move image pixels from bi to baseImage to the upper-left corner.
             ato.filter(bi, baseImage.getAwtImage());
             // Now slide the image from the upper left corner to the center
-            AffineTransformOp ato2 = new AffineTransformOp(AffineTransform.getTranslateInstance(((newDim - img.getWidth()) / 4) ,
+            AffineTransformOp ato2 = new AffineTransformOp(AffineTransform.getTranslateInstance(((newDim - img.getWidth()) / 4),
                 ((newDim - img.getHeight()) / 4)), AffineTransformOp.TYPE_BILINEAR);
             bi = baseImage.getAwtImage();
             baseImage = new GreenfootImage(newDim, newDim);
@@ -263,6 +267,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
             trans = updateMosaic(trans);
             trans = updateHSV(trans);
             image = trans;
+            
+            root = null;
         }
         private GreenfootImage updateGhost(GreenfootImage trans) {
             trans.setTransparency((int)((-1 * ghost + 100) * 2.55));
@@ -478,6 +484,133 @@ public class Scratch extends Actor implements Comparable<Scratch>
          */
         public int pixelHeight() {
             return pixelHeight;
+        }
+        public void generateQuadTree() {
+            GreenfootImage trans = getDisplay();
+            root = new Node();
+            root.w = trans.getWidth();
+            root.h = trans.getHeight();
+            // An array of the alpha values. Getting it is relatively expensive, so we do it outside of the recursion
+            
+            int[] data = ((java.awt.image.DataBufferInt) trans.getAwtImage().getAlphaRaster().getDataBuffer()).getData();
+            buildQuadTree(root, data, trans.getWidth(), trans.getHeight());
+        }
+        private void buildQuadTree(Node parent, int[] data, int w, int h) {
+            boolean trans = false, opaque = false;
+            // if either w or h is out of bounds, move it back in bounds
+            if (parent.x + parent.w > w) {
+                parent.w--;
+            }
+            if (parent.y + parent.h > h) {
+                parent.h--;
+            }
+            //int[] quadrant = bim.getRGB(parent.x, parent.y, parent.w, parent.h, null, 0, parent.w);
+            for (int x = parent.x; x < parent.x + parent.w; x++) {
+                for (int y = parent.y; y < parent.y + parent.h; y++) {
+                    //double[] pixel = r.getPixel(x, y, (double[])null);
+                    if (data[y * h + x] >= 0) {
+                        // If the sector contains a transparent pixel, record it
+                        trans = true;
+                    } else {
+                        // If the sector has any opaque pixels, record it
+                        opaque = true;
+                    }
+                    // If we've already found one of each, exit the loop
+                    if (trans && opaque) {
+                        break;
+                    }
+                }
+                // If we've already found one of each, exit the loop
+                if (trans && opaque) {
+                    break;
+                }
+            }
+            // Now check whether it's all opaque, all transparent, or both
+            parent.fill = 0; // A value of 0 means it's partial
+            if (trans) {
+                parent.fill--; // A value of -1 means it's fully transparent
+            }
+            if (opaque) {
+                parent.fill++; // A value of 1 means it's fully opaque
+            }
+            // Recursively build the rest of the tree
+            if (parent.fill == 0 && parent.w > 1 && parent.h > 1) {
+                parent.nw = new Node(parent, 0);
+                buildQuadTree(parent.nw, data, w, h);
+                parent.ne = new Node(parent, 1);
+                buildQuadTree(parent.ne, data, w, h);
+                parent.sw = new Node(parent, 2);
+                buildQuadTree(parent.sw, data, w, h);
+                parent.se = new Node(parent, 3);
+                buildQuadTree(parent.se, data, w, h);
+            }
+            
+        }
+        /**
+         * Draws a visual representation of the quad tree of a given sprite
+         * This has little practical use, but it is neat!
+         */
+        public void drawQuadTree(Node parent) {
+            if (parent.nw == null || parent.ne == null || parent.sw == null || parent.se == null) {
+                BufferedImage bim = getDisplay().getAwtImage();
+                int[] quadrant = bim.getRGB(parent.x, parent.y, parent.w, parent.h, null, 0, parent.w);
+                java.util.Arrays.fill(quadrant, 0xFF0000FF);
+                bim.setRGB(parent.x, parent.y, parent.w, parent.h, quadrant, 0, parent.w);
+                if (parent.fill == 0) 
+                    java.util.Arrays.fill(quadrant, 0xFF00FF00);
+                if (parent.fill == 1) 
+                    java.util.Arrays.fill(quadrant, 0xFFFF0000);
+                if (parent.fill == -1) 
+                    java.util.Arrays.fill(quadrant, 0x00000000);
+                
+                bim.setRGB(parent.x + 1, parent.y + 1, parent.w - 1, parent.h - 1, quadrant, 0, parent.w);
+            }
+            if (parent.nw != null)
+                drawQuadTree(parent.nw);
+            if (parent.ne != null)
+                drawQuadTree(parent.ne);
+            if (parent.sw != null)
+                drawQuadTree(parent.sw);
+            if (parent.se != null)
+                drawQuadTree(parent.se);
+        }
+        private class Node {
+            Node nw, ne, sw, se;
+            byte fill;
+            int x, y, w, h;
+            public Node() {
+                x = 0;
+                y = 0;
+                fill = 0;
+            }
+            public Node(Node parent, int dir) {
+                w = (parent.w / 2);
+                h = (parent.h / 2);
+                // If w or h are odd, round up. This is more time efficeint
+                // than Math.ceil().
+                if (parent.w % 2 == 1)
+                    w++;
+                if (parent.h % 2 == 1)
+                    h++;
+                switch(dir) { // Northwest Corner
+                    case 0:
+                        x = parent.x;
+                        y = parent.y;
+                        break;
+                    case 1: // Northeast Corner
+                        x = parent.x + w;
+                        y = parent.y;
+                        break;
+                    case 2: // Southwest Corner
+                        x = parent.x;
+                        y = parent.y + h;
+                        break;
+                    case 3: // Southeast Corner
+                        x = parent.x + w;
+                        y = parent.y + h;
+                        break;
+                }
+            }
         }
     }
         
@@ -2577,6 +2710,24 @@ public class Scratch extends Actor implements Comparable<Scratch>
         // System.out.println("y in GF is " + super.getY() + " but in scratch is " + translateGFtoScratchY(super.getY()));
         return translateGFtoScratchY(super.getY());
     }
+    
+    /**
+     * return x coordinate of this sprite in the Greenfoot system.
+     */
+    public int getGFX() 
+    {
+        // System.out.println("x in GF is " + super.getX(); + " but in scratch is " + translateGFtoScratchX(super.getX()));
+        return super.getX();
+    }
+
+    /**
+     * return the y coordinate of this sprite in the Greenfoot system.
+     */
+    public int getGFY() 
+    {
+        // System.out.println("y in GF is " + super.getY() + " but in scratch is " + translateGFtoScratchY(super.getY()));
+        return super.getY();
+    }
 
     // private helper function
     private void goToGF(int x, int y)
@@ -2613,6 +2764,14 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public GreenfootImage getCurrImage()
     {
         return costumes.get(currCostume).image.getDisplay();
+    }
+
+    /**
+     * Will get the image as it is displayed
+     */
+    public ScratchImage getScratchImage()
+    {
+        return costumes.get(currCostume).image;
     }
 
     /**
@@ -2718,11 +2877,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // called from act() above to update the location of the say/think actor.
     private void sayActorUpdateLocation()
     {
-        GreenfootImage mySprite = getCurrImage();
-
-        int width = mySprite.getWidth();
-        int height = mySprite.getHeight();
-        sayActor.updateLocation(super.getX() + width + 4, super.getY() - height + 4);
+        ScratchImage mySprite = getScratchImage();
+        int width = (int)(((float)mySprite.pixelWidth / 2f) * costumeSize / 100f);
+        int height = (int)(((float)mySprite.pixelHeight / 2f) * costumeSize / 100f);
+        sayActor.updateLocation(getX() + width + 4, getY() + height + 4);
     }
 
     /**
@@ -3056,7 +3214,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             return;
         }
         Costume cost = costumes.get(currCostume);
-        cost.image.setAll(currDirection, ghostEffect, pixelateEffect, whirlEffect, fisheyeEffect, 
+        cost.image.setAll(currDirection - 90, ghostEffect, pixelateEffect, whirlEffect, fisheyeEffect, 
                           mosaicEffect, colorEffect, brightnessEffect, costumeSize);              
         if (isShowing) {
             setImage(cost.image.getDisplay());
@@ -3114,6 +3272,90 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public ScratchWorld getWorld()
     {
         return (ScratchWorld)super.getWorld();
+    }
+    
+    /**
+     * Returns true if this object's tree overlaps another in the
+     * list of actors given.
+     */
+    public boolean treeOverlap(List<Scratch> others, Color rgb) {
+        ScratchImage.Node n = costumes.get(currCostume).image.root;
+        if (n == null) {
+            costumes.get(currCostume).image.generateQuadTree();
+            n = costumes.get(currCostume).image.root;
+        }
+        GreenfootImage im = getCurrImage();
+        // Get the upper left corner of the sprite's image
+        int cx = getGFX() - (n.w / 2);
+        int cy = getGFY() - (n.h / 2);
+        // Queues for the BFS
+        LinkedList<ScratchImage.Node> q = new LinkedList();
+        LinkedList<ScratchImage.Node> q2 = new LinkedList();
+        for (Scratch other : others) {
+            if (!other.isShowing()) {
+                // If the other isn't displaying, we can't collide with it.
+                continue;
+            }
+            ScratchImage.Node root2 = other.costumes.get(other.currCostume).image.root;
+            if (root2 == null) {
+                other.costumes.get(currCostume).image.generateQuadTree();
+                root2 = other.costumes.get(currCostume).image.root;
+            }
+            // Get the queue ready for a new BFS
+            q.clear();
+            q.add(n);
+            // Get the coordinates of the upper left corner of the other's sprite
+            int ocx = other.getGFX() - (root2.w / 2);
+            int ocy = other.getGFY() - (root2.h / 2);
+            // Do a breadth first search of the object's tree
+            while (!q.isEmpty()) {
+                ScratchImage.Node self = q.poll();
+                if (self == null)
+                    continue;
+                if (self.fill == 1) {
+                    // If this is opaque, if it overlaps an opaque square from the other sprite
+                    // Find the absolute coordinates of the corner of this node
+                    int absx = cx + self.x;
+                    int absy = cy + self.y;
+                    // Get the second queue ready for another BFS
+                    q2.clear();
+                    q2.add(root2);
+                    while (!q2.isEmpty()) {
+                        ScratchImage.Node oth = q2.poll();
+                        // Find the absolute coordinates of the corner of this node
+                        int absx2 = ocx + oth.x;
+                        int absy2 = ocy + oth.y;
+                        if (absx + self.w < absx2 || absx2 + oth.w < absx || absy + self.h < absy2 || absy2 + oth.h < absy) {
+                            // If it does not overlap, skip it, and don't add any of its children to the queue
+                            continue;
+                        }
+                        if (oth.fill == 1) {
+                            // If it's filled, that means two opaque squares are overlapping
+                            return true;
+                        } else if (oth.fill == -1) {
+                            // If it's transparent, there can't be a collision in this square, so skip
+                            continue;
+                        } else {
+                            // If it's partial, recurse to find its components
+                            q2.add(oth.nw);
+                            q2.add(oth.ne);
+                            q2.add(oth.sw);
+                            q2.add(oth.se);
+                        }
+                    }
+                } else if (self.fill == -1) {
+                    // If this is transparent, it cannot collide, so this branch is finished
+                    continue;
+                } else {
+                    // If this is partially filled, recurse
+                    q.add(self.nw);
+                    q.add(self.ne);
+                    q.add(self.sw);
+                    q.add(self.se);
+                }
+            }
+        }
+        return false;
     }
     
     /**
@@ -3217,7 +3459,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         /* Scratch's definition of "intersecting" (or "touching") is that the images'
            non-transparent pixels overlap.  So, we need to go through each neighbor
            and find the first with this criterion. */
-        if (pixelOverlap(nbrs, null)) {
+        if (treeOverlap(nbrs, null)) {
             return true;
         }
         return false;
@@ -4264,7 +4506,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
          */
         public void updateLocation(int x, int y)
         {
-            setLocation(x, y);
+            goTo(x, y);
         }
 
     }
