@@ -2643,31 +2643,33 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public void ifOnEdgeBounce()
     {
         ScratchImage img = costumes.get(currCostume).image;
-        if (super.getX() + img.pixelWidth() / 2 >= getWorld().getWidth() - 1) {
+        int w = (int)((double)(img.pixelWidth() / 2) * (costumeSize / 100d));
+        int h = (int)((double)(img.pixelHeight() / 2) * (costumeSize / 100d));
+        if (super.getX() + w >= getWorld().getWidth() - 1) {
             // hitting right edge
             currDirection = (360 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeXBy(-((super.getX() + img.pixelWidth() / 2) - (getWorld().getWidth() - 1)) - 1); 
-        } else if (super.getX() - img.pixelWidth() / 2 <= 0) {
+            changeXBy(-((super.getX() + w) - (getWorld().getWidth() - 1)) - 1); 
+        } else if (super.getX() - w <= 0) {
             // hitting left edge
             currDirection = (360 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeXBy(-(super.getX() - img.pixelWidth() / 2) + 1);
+            changeXBy(-(super.getX() - w) + 1);
         }
-        if (super.getY() + img.pixelHeight() / 2 >= getWorld().getHeight() - 1) {
+        if (super.getY() + h >= getWorld().getHeight() - 1) {
             // hitting top
             currDirection = (180 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeYBy(((super.getY() + img.pixelHeight() / 2) - (getWorld().getHeight() - 1)) + 1);
-        } else if (super.getY() - img.pixelHeight() / 2 <= 0) {
+            changeYBy(((super.getY() + h) - (getWorld().getHeight() - 1)) + 1);
+        } else if (super.getY() - h <= 0) {
             // hitting bottom
             currDirection = (180 - currDirection) % 360;
             setRotation(currDirection);
             // prevent actor from getting stuck on the edge by pushing it out
-            changeYBy((super.getY() - img.pixelHeight() / 2) - 1);
+            changeYBy((super.getY() - h) - 1);
         }
     }
 
