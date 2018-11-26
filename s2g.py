@@ -37,7 +37,7 @@ from tkinter import messagebox
 debug = False
 inference = False
 name_resolution = False
-useGui= False;
+useGui= False
 
 # Indentation level in outputted Java code.
 NUM_SPACES_PER_LEVEL = 4
@@ -125,7 +125,6 @@ def genIndent(level):
     return (" " * (level * NUM_SPACES_PER_LEVEL))
 
 
-
 def convertKeyPressName(keyname):
     # Single letter/number keynames in Scratch and Greenfoot are identical.
     # Keyname "space" is the same in each.
@@ -185,8 +184,6 @@ def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
     if res in JAVA_KEYWORDS:
         res += '_'
     return res
-
-
 
 
 class SpriteOrStage:
@@ -412,7 +409,7 @@ class SpriteOrStage:
                         valueList[i]['fg'] = 'blue'
                         self.ready = False
                 gui.after(25, keypress)
-                print("Scheduling Run")
+
             # Automatically convert names and determine types for all variables
             def autoCB():
                 for e in nameList:
@@ -425,6 +422,7 @@ class SpriteOrStage:
                     except ValueError:
                         typeList[i].set("String")
                 keypress()
+
             # Display a help message informing the user how to use the namer
             def helpCB():
                 messagebox.showinfo("Help", "If a name is red, that means it is not valid in Java. Java variable names must " + \
@@ -618,36 +616,37 @@ class SpriteOrStage:
             while not inference:
                 try:
                     print("\n\nWhat type of variable should \"" + name + "\": " + str(val) + " be?")
-                    type = input("\tInt: A number that won't have decimals\n\tDouble:" + \
+                    theType = input("\tInt: A number that won't have decimals\n\tDouble:" + \
                                  " A number that can have decimals\n\tString: Text or letters\n" + \
                                  "This variable looks like: " + typechosen +\
                                  "\nPress enter without typing anything to use suggested type\n> ").capitalize()
                     # Try to convert the value to the chosen type, only the first character needs to be entered
-                    if type[0] == 'I':
+                    if theType[0] == 'I':
                         return int(val), 'Int'
-                    elif type[0] == 'D':
+                    elif theType[0] == 'D':
                         return float(val), 'Double'
-                    elif type[0] == 'S':
+                    elif theType[0] == 'S':
                         return '"' + str(val) + '"', "String"
                     # If ? is chosen, continue with automatic derivation
-                    elif type == "?":
+                    elif theType == "?":
                         break
-                    print(type, "not recognized, please choose one of these (Int,Double,String)")
+                    print(theType, "not recognized, please choose one of these (Int,Double,String)")
                 except IndexError:
                     # Nothing was entered
                     break
                 except:
                     # If val is not able to be converted to type, it will be set to default, or the user may choose
                     # a different type.
-                    if input("Could not convert " + str(val) + " to " + type +\
+                    if input("Could not convert " + str(val) + " to " + theType +\
                              " Set to default value? (y/n)\n> ") == "y":
-                        if type[0] == 'I':
-                            return 0, 'Int'
-                        elif type[0] == 'F':
+                        if theType[0] == 'I':
+                            return (0, 'Int')
+                        elif theType[0] == 'F':
                             return 0.0, 'Double'
-                        elif type[0] == 'S':
+                        elif theType[0] == 'S':
                             return '""', "String"
             return deriveType(name, val)
+
         def deriveType(name, val):  
             if isinstance(val, str):
                 #
@@ -2604,8 +2603,8 @@ def convert():
             print("ScratchWorld.java copied successfully")
         else:
             print("ScratchWorld.java was already in the project directory")
-    except:
-        print("\n\tScratch.java and ScratchWorld.java were NOT copied!")
+    except Exception as e:
+        print("\n\tScratch.java and ScratchWorld.java were NOT copied!", e)
         
     try: 
         # If the file already exists, skip copying it
@@ -2618,8 +2617,8 @@ def convert():
         print("say3.png copied successfully")
         shutil.copyfile("think.png", os.path.join(imagesDir, "think.png"))
         print("think.png copied successfully")
-    except:
-        print("\n\tImages for say/think were NOT all copied!")
+    except Exception as e:
+        print("\n\tImages for say/think were NOT all copied!", e)
     
     worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""), True, True) + "World"
     
@@ -2630,8 +2629,9 @@ def convert():
     # Now, (finally!), open the project.json file and start processing it.
     with open(os.path.join(scratch_dir, "project.json"), encoding = "utf_8") as data_file:
         data = json.load(data_file)
-    
+
     spritesData = data['children']
+    # spritesData = data['targets']
     
     # We'll need to write configuration "code" to the greenfoot.project file.  Store
     # the lines to write out in this variable.
@@ -2882,10 +2882,3 @@ else:
     convertButton = Button(root, text = "Convert", command = convertButtonCb)
     convertButton.pack(side = BOTTOM)
     root.mainloop()
-    
-    
-    
-    
-    
-    
-    
