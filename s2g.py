@@ -1,6 +1,6 @@
 #!/bin/env python3
 
-# Copyright (C) 2016  Victor T. Norman, Calvin College, Grand Rapids, MI, USA
+# Copyright (C) 2016 - 2019  Victor T. Norman, Calvin College, Grand Rapids, MI, USA
 #
 # ScratchFoot: a Scratch emulation layer for Greenfoot, along with a program
 # to convert a Scratch project to a Greenfoot scenario.
@@ -55,7 +55,7 @@ parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose
 parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
 parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
 parser.add_argument("-g", "--gui", action="store_true", help="Use GUI converter (Experimental)")
-parser.add_argument("--scratch_file", help="Location of scratch sb2 file", default = os.getcwd(), required=False)
+parser.add_argument("--scratch_file", help="Location of scratch sb2/sb3 file", default = os.getcwd(), required=False)
 parser.add_argument("--greenfoot_dir", help="Location of greenfoot project directory", default = os.getcwd(), required=False)
 args = parser.parse_args()
 
@@ -73,6 +73,15 @@ SCRATCH_FILE = args.scratch_file.strip()
 # Take off spaces and a possible trailing "/"
 PROJECT_DIR = args.greenfoot_dir.strip().rstrip("/")
 SCRATCH_PROJ_DIR = "scratch_code"
+if SCRATCH_FILE.endswith('.sb2'):
+    SCRATCH_VERSION=2
+elif SCRATCH_FILE.endswith('.sb3'):
+    SCRATCH_VERSION=3
+else:
+    print('Scratch download filename must end with .sb2 or .sb3')
+    exit(-1)
+
+print("Scratch version is " + str(SCRATCH_VERSION) + ".")
 
 # Initialize stage globally
 stage = None
@@ -2383,15 +2392,18 @@ class Stage(SpriteOrStage):
         """Generate code to load backdrops from files for the Stage.
         Note that this code is actually included in the World constructor.
         """
-        # print("genLoadCC: costumes ->" + str(costumes) + "<-")
         resStr = ""
-        imagesDir = os.path.join(PROJECT_DIR, "images")
-        for cos in costumes:
+        for costume in costumes:
             # costume's filename is the baseLayerID (which is a small integer
             # (1, 2, 3, etc.)) plus ".png"
-            fname = str(cos['baseLayerID']) + ".png"
-            resStr += genIndent(2) + 'addBackdrop("' + fname + \
-                      '", "' + cos['costumeName'] + '");\n'
+            if SCRATCH_VERSION == 2:
+                fname = str(costume['baseLayerID']) + ".png"
+                resStr += genIndent(2) + 'addBackdrop("' + fname + \
+                          '", "' + costume['costumeName'] + '");\n'
+            else:
+                fname = costume['assetId'] + ".png"
+                resStr += genIndent(2) + 'addBackdrop("' + fname + \
+                          '", "' + costume['name'] + '");\n'
         self._costumeCode += resStr
 
     def whenClicked(self, codeObj, tokens):
@@ -2505,6 +2517,7 @@ def convert():
     global SCRATCH_FILE
     global PROJECT_DIR
     global SCRATCH_PROJ_DIR
+    global SCRATCH_VERSION
     
     global imagesDir 
     global soundsDir 
@@ -2608,7 +2621,6 @@ def convert():
         
     try: 
         # If the file already exists, skip copying it
-        
         shutil.copyfile("say.png", os.path.join(imagesDir, "say.png"))
         print("say.png copied successfully")
         shutil.copyfile("say2.png", os.path.join(imagesDir, "say2.png"))
@@ -2630,8 +2642,7 @@ def convert():
     with open(os.path.join(scratch_dir, "project.json"), encoding = "utf_8") as data_file:
         data = json.load(data_file)
 
-    spritesData = data['children']
-    # spritesData = data['targets']
+    spritesData = data['children'] if SCRATCH_VERSION == 2 else data['targets']
     
     # We'll need to write configuration "code" to the greenfoot.project file.  Store
     # the lines to write out in this variable.
@@ -2713,7 +2724,7 @@ def convert():
         else:
             if debug:
                 print("\n----------- Not a sprite --------------");
-                print(spr)
+                print(sprData)
     
     
     # --------- handle the Stage stuff --------------
@@ -2721,7 +2732,19 @@ def convert():
     # Because the stage can have script in it much like any sprite,
     # we have to process it similarly.  So, lots of repeated code here
     # from above -- although small parts are different enough.
-    
+
+    if SCRATCH_VERSION == 2:
+        costumes = data['costumes']
+    else:
+        for target in data['targets']:
+            if target['isStage']:
+                break
+        else:
+            print("\nNo stage information found")
+            exit(-2)
+        stageTarget = target
+        costumes = target['costumes']
+        
     # Write out a line to the project.greenfoot file to indicate that this
     # sprite is a subclass of the Scratch class.
     projectFileCode.append("class." + stage.getName() + ".superclass=Scratch\n")
@@ -2730,7 +2753,7 @@ def convert():
     worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
     
     stage.genInitSettingsCode()
-    stage.genLoadCostumesCode(data['costumes'])
+    stage.genLoadCostumesCode(costumes)
     stage.genBackgroundHandlingCode()
     stage.genCodeForScripts()
     stage.writeCodeToFile()
@@ -2757,8 +2780,9 @@ def convert():
     if debug:
         print("CostumeCode is ", addBackdropsCode)
     
+    costumeIndex = costumes['currentCostumeIndex'] if SCRATCH_VERSION == 2 else stageTarget['currentCostume']
     addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + \
-                        str(data['currentCostumeIndex']) + ');\n'
+                        str(costumeIndex) + ');\n'
     
     worldCode += worldCtorCode
     worldCode += addBackdropsCode
