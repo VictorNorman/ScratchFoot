@@ -267,6 +267,9 @@ class SpriteOrStage:
         Otherwise, returns a tuple: (clean name, varType)'''
         return self.listInfo.get(name)
 
+    def whenClicked(self, codeObj, tokens):
+        raise NotImplementedError('Implemented in subclass')
+
     def genAddSpriteCall(self):
         self._worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
                               (genIndent(2), self._name, self._sprData['scratchX'],
@@ -497,7 +500,7 @@ class SpriteOrStage:
                         if cloud:
                             # Cloud variables do not have a definition dictionary, so use default
                             # values.
-                            label = name;
+                            label = name
                             x = 0
                             y = 0
                             visible = True
@@ -696,7 +699,7 @@ class SpriteOrStage:
         self._addedToWorldCode += "\n" + genIndent(1) + "public void addedToWorld(World w)\n"
         self._addedToWorldCode += genIndent(1) + "{\n"
         self._addedToWorldCode += genIndent(2) + "world = (" + worldClassName + ") w;\n"
-        self._addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n";
+        self._addedToWorldCode += genIndent(2) + "super.addedToWorld(w);\n"
         self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
         # If running in gui mode, call the gui method instead
         if useGui:
@@ -757,7 +760,7 @@ class SpriteOrStage:
                 if cloud:
                     # Cloud variables do not have a definition dictionary, so use default
                     # values.
-                    label = name;
+                    label = name
                     x = 0
                     y = 0
                     visible = True
@@ -845,7 +848,7 @@ class SpriteOrStage:
 
     def writeCodeToFile(self):
 
-	# Open file with correct name and generate code into there.
+	    # Open file with correct name and generate code into there.
         filename = os.path.join(PROJECT_DIR, convertSpriteToFileName(self._name))
         print("Writing code to " + filename + ".")
         outFile = open(filename, "w")
@@ -1506,7 +1509,7 @@ class SpriteOrStage:
     def pointTowards(self, level, tokens, deferYield = False):
         """Generate code to turn the sprite to point to something.
         """
-        cmd, arg1 = tokens
+        _, arg1 = tokens
         if arg1 == '_mouse_':
             return genIndent(level) + "pointTowardMouse();\n"
         else:   # pointing toward a sprite
@@ -1518,7 +1521,7 @@ class SpriteOrStage:
         in a certain amount of time.
         Format of the cmd is: ["glideSecs:toX:y:elapsed:from:", time, x, y]
         """
-        cmd, time, x, y = tokens
+        _, time, x, y = tokens
         return genIndent(level) + "glideTo(s, %s, %s, %s);\n" % \
                (self.mathExpr(time), self.mathExpr(x), self.mathExpr(y))
 
@@ -1764,7 +1767,7 @@ class SpriteOrStage:
         both dictionaries to figure it out.
         """
 
-        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(varname)
+        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(varname)
         if isGlobal:
             # Something like: world.counter.get();
             return "Stage.%s.get()" % varName
@@ -1775,7 +1778,7 @@ class SpriteOrStage:
     def hideVariable(self, level, tokens, deferYield = False):
         """Generate code to hide a variable.
         """
-        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
+        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.hide();
             return genIndent(level) + "Stage.%s.hide();\n" % varName
@@ -1786,7 +1789,7 @@ class SpriteOrStage:
     def showVariable(self, level, tokens, deferYield = False):
         """Generate code to hide a variable.
         """
-        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
+        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like: world.counter.show();
             return genIndent(level) + "Stage.%s.show();\n" % varName
@@ -1799,7 +1802,7 @@ class SpriteOrStage:
         Code will be like this:
         aVar.set(aVar.get() + 3);
         """
-        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
+        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
         if isGlobal:
             # Something like:
             # world.counter.set(world.counter.get() + 1);
@@ -1872,7 +1875,7 @@ class SpriteOrStage:
             return '%s%s.add(%s);\n' % (genIndent(level), disp, obj)
         
     def listRemove(self, level, tokens, deferYield = False):
-        cmd, index, name = tokens;
+        cmd, index, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'deleteLine:ofList:'        
         # If the argument is a int or double literal, use that, otherwise mathExpr
@@ -2214,37 +2217,37 @@ class SpriteOrStage:
         """ Play the given note
         """
         assert len(tokens) == 3 and tokens[0] == "noteOn:duration:elapsed:from:"
-        return genIndent(level) + "playNote(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n";
+        return genIndent(level) + "playNote(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n"
     
     def instrument(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "instrument:"
-        return genIndent(level) + "changeInstrument(" + self.mathExpr(tokens[1]) + ");\n";
+        return genIndent(level) + "changeInstrument(" + self.mathExpr(tokens[1]) + ");\n"
     
     def playDrum(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 3 and tokens[0] == "playDrum"
-        return genIndent(level) + "playDrum(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n";
+        return genIndent(level) + "playDrum(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n"
     
     def rest(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "rest:elapsed:from:"
-        return genIndent(level) + "rest(" + self.mathExpr(tokens[1]) + ", s);\n";
+        return genIndent(level) + "rest(" + self.mathExpr(tokens[1]) + ", s);\n"
     
     def changeTempoBy(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "changeTempoBy:"
-        return genIndent(level) + "changeTempoBy(" + self.mathExpr(tokens[1]) + ");\n";
+        return genIndent(level) + "changeTempoBy(" + self.mathExpr(tokens[1]) + ");\n"
     
     def setTempoTo(self, level, tokens, deferYield = False):
         """ Play the given note
         """
         assert len(tokens) == 2 and tokens[0] == "setTempoTo:"
-        return genIndent(level) + "setTempo(" + self.mathExpr(tokens[1]) + ");\n";
+        return genIndent(level) + "setTempo(" + self.mathExpr(tokens[1]) + ");\n"
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a
@@ -2259,7 +2262,7 @@ class SpriteOrStage:
                     return convertToJavaId(name, True, False)
                 name = n
                 if convertToJavaId(n, True, False) == n:
-                    return n;
+                    return n
             except IndexError:
                 # The variable name has no valid characters
                 print("\"" + name + "\" must have some alphanumeric character in order to suggest a name")
@@ -2343,8 +2346,8 @@ class Sprite(SpriteOrStage):
         if self._sprData['scale'] != 1:
             resStr += genIndent(2) + 'setSizeTo(' + str(self._sprData['scale'] * 100) + ');\n'
         if not self._sprData['visible']:
-            resStr += genIndent(2) + 'hide();\n';
-        resStr += genIndent(2) + 'pointInDirection(' + str(self._sprData['direction']) + ');\n';
+            resStr += genIndent(2) + 'hide();\n'
+        resStr += genIndent(2) + 'pointInDirection(' + str(self._sprData['direction']) + ');\n'
         # TODO: need to test this!
         resStr += self.motion1Arg(2, ['setRotationStyle', self._sprData['rotationStyle']])
         self._initSettingsCode += resStr
@@ -2371,7 +2374,6 @@ class Stage(SpriteOrStage):
         super().__init__("Stage", sprData)
 
         self._bgCode = ""
-
     
     def genConstructorCode(self):
         """Generate code for the constructor.
@@ -2534,7 +2536,7 @@ def convert():
                 print("Generating new project directory...")
                 os.makedirs(PROJECT_DIR)
             else:
-                system.exit(1)
+                sys.exit(1)
         else:
             if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
                 print("Generating new project directory...")
@@ -2674,8 +2676,6 @@ def convert():
     
     # Code to be written into the World.java file.
     worldCtorCode = ""
-    worldDefnCode = ""
-    initCode = ""
     
     
     # ---------------------------------------------------------------------------
@@ -2723,7 +2723,7 @@ def convert():
     
         else:
             if debug:
-                print("\n----------- Not a sprite --------------");
+                print("\n----------- Not a sprite --------------")
                 print(sprData)
     
     
@@ -2781,8 +2781,7 @@ def convert():
         print("CostumeCode is ", addBackdropsCode)
     
     costumeIndex = costumes['currentCostumeIndex'] if SCRATCH_VERSION == 2 else stageTarget['currentCostume']
-    addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + \
-                        str(costumeIndex) + ');\n'
+    addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + str(costumeIndex) + ');\n'
     
     worldCode += worldCtorCode
     worldCode += addBackdropsCode
@@ -2826,7 +2825,7 @@ def convert():
     with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "w") as projF:
         for line in lines:
             if line in projectFileCode:
-                # Remove the line in pfcLines that matches.
+                # Remove the line in projectFileCode that matches.
                 if debug:
                     print("DEBUG: removing " + line + " from projFileCode because already in file.")
                 projectFileCode.remove(line)
@@ -2847,8 +2846,10 @@ if not useGui:  # Everything provided on command line.
 else:
     def findScratchFile():
         global scrEntryVar, SCRATCH_FILE
-        SCRATCH_FILE=filedialog.askopenfilename(initialdir=SCRATCH_FILE,
-                                                filetypes = [('Scratch files', '.sb2'), ('All files', '.*')])
+        SCRATCH_FILE = filedialog.askopenfilename(initialdir = SCRATCH_FILE,
+                                                  filetypes = [('Scratch2 files', '.sb2'), 
+                                                               ('Scratch3 files', '.sb3'), 
+                                                               ('All files', '.*')])
         scrEntryVar.set(SCRATCH_FILE)
             
     def findGfDir():
