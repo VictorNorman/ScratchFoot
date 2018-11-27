@@ -74,14 +74,8 @@ SCRATCH_FILE = args.scratch_file.strip()
 PROJECT_DIR = args.greenfoot_dir.strip().rstrip("/")
 SCRATCH_PROJ_DIR = "scratch_code"
 if SCRATCH_FILE.endswith('.sb2'):
-    SCRATCH_VERSION=2
-elif SCRATCH_FILE.endswith('.sb3'):
-    SCRATCH_VERSION=3
-else:
-    print('Scratch download filename must end with .sb2 or .sb3')
-    exit(-1)
-
-print("Scratch version is " + str(SCRATCH_VERSION) + ".")
+    print('Scratch conversion only works with Scratch 3.0')
+    sys.exit(-1)
 
 # Initialize stage globally
 stage = None
@@ -247,8 +241,8 @@ class SpriteOrStage:
             if not os.path.exists(os.path.join(soundsDir, self.getName())):
                 os.makedirs(os.path.join(soundsDir, self.getName()))
             for sound in self._sprData['sounds']:
-                soundName = sound['soundName']
-                id = sound['soundID']
+                soundName = sound['name']
+                id = sound['assetId']
                 if sound['format'] == 'adpcm':
                     print("Warning: Sound is in adpcm format and will not work:", soundName)
                 shutil.copyfile(os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR, str(id) + '.wav'),
@@ -272,8 +266,7 @@ class SpriteOrStage:
 
     def genAddSpriteCall(self):
         self._worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
-                              (genIndent(2), self._name, self._sprData['scratchX'],
-                               self._sprData['scratchY'])
+                              (genIndent(2), self._name, self._sprData['x'], self._sprData['y'])
 
     def getWorldCtorCode(self):
         return self._worldCtorCode
@@ -2316,7 +2309,7 @@ class Sprite(SpriteOrStage):
 
         # Handle sprites with names that are illegal Java identifiers.
         # E.g., the sprite could be called "1", but we cannot create a "class 1".
-        name = convertToJavaId(sprData['objName'], True, True)
+        name = convertToJavaId(sprData['name'], True, True)
 
         super().__init__(name, sprData)
 
@@ -2325,13 +2318,11 @@ class Sprite(SpriteOrStage):
         """
         # print("genLoadCC: costumes ->" + str(costumes) + "<-")
         resStr = ""
-        imagesDir = os.path.join(PROJECT_DIR, "images")
+        # imagesDir = os.path.join(PROJECT_DIR, "images")
         for cos in costumes:
-            # costume's filename is the baseLayerID (which is a small integer
-            # (1, 2, 3, etc.)) plus ".png"
-            fname = str(cos['baseLayerID']) + ".png"
+            fname = cos['assetId'] + ".png"
             resStr += genIndent(2) + 'addCostume("' + fname + \
-                      '", "' + cos['costumeName'] + '");\n'
+                      '", "' + cos['name'] + '");\n'
         self._costumeCode += resStr
 
     def genInitSettingsCode(self):
@@ -2342,13 +2333,15 @@ class Sprite(SpriteOrStage):
         resStr = ""
 
         # Set the initial costume (NOTE: could use the name of the costume instead of index...)
-        resStr = genIndent(2) + 'switchToCostume(' + str(self._sprData['currentCostumeIndex'] + 1) + ');\n'
-        if self._sprData['scale'] != 1:
-            resStr += genIndent(2) + 'setSizeTo(' + str(self._sprData['scale'] * 100) + ');\n'
+        resStr = genIndent(2) + 'switchToCostume(' + str(self._sprData['currentCostume'] + 1) + ');\n'
+
+        # TODO: using size instead of scale.  Removed multiplying by 100 here!  Test!
+        if self._sprData['size'] != 100:
+            resStr += genIndent(2) + 'setSizeTo(' + str(self._sprData['size']) + ');\n'
         if not self._sprData['visible']:
             resStr += genIndent(2) + 'hide();\n'
         resStr += genIndent(2) + 'pointInDirection(' + str(self._sprData['direction']) + ');\n'
-        # TODO: need to test this!
+        # TODO: need to test this!  Especially now with Scratch 3!
         resStr += self.motion1Arg(2, ['setRotationStyle', self._sprData['rotationStyle']])
         self._initSettingsCode += resStr
 
@@ -2396,16 +2389,9 @@ class Stage(SpriteOrStage):
         """
         resStr = ""
         for costume in costumes:
-            # costume's filename is the baseLayerID (which is a small integer
-            # (1, 2, 3, etc.)) plus ".png"
-            if SCRATCH_VERSION == 2:
-                fname = str(costume['baseLayerID']) + ".png"
-                resStr += genIndent(2) + 'addBackdrop("' + fname + \
-                          '", "' + costume['costumeName'] + '");\n'
-            else:
-                fname = costume['assetId'] + ".png"
-                resStr += genIndent(2) + 'addBackdrop("' + fname + \
-                          '", "' + costume['name'] + '");\n'
+            fname = costume['assetId'] + ".png"
+            resStr += genIndent(2) + 'addBackdrop("' + fname + \
+                      '", "' + costume['name'] + '");\n'
         self._costumeCode += resStr
 
     def whenClicked(self, codeObj, tokens):
@@ -2519,7 +2505,6 @@ def convert():
     global SCRATCH_FILE
     global PROJECT_DIR
     global SCRATCH_PROJ_DIR
-    global SCRATCH_VERSION
     
     global imagesDir 
     global soundsDir 
@@ -2644,7 +2629,7 @@ def convert():
     with open(os.path.join(scratch_dir, "project.json"), encoding = "utf_8") as data_file:
         data = json.load(data_file)
 
-    spritesData = data['children'] if SCRATCH_VERSION == 2 else data['targets']
+    spritesData = data['targets']
     
     # We'll need to write configuration "code" to the greenfoot.project file.  Store
     # the lines to write out in this variable.
@@ -2682,49 +2667,40 @@ def convert():
     # Start processing each sprite's info: scripts, costumes, variables, etc.
     # ---------------------------------------------------------------------------
     for sprData in spritesData:
-        if 'objName' in sprData:
+        if sprData['isStage']:
+            continue                # skip the stage for now.
+
     
-            sprite = Sprite(sprData)
-            
-            # Copy the sounds associated with this sprite to the appropriate directory
-            sprite.copySounds(soundsDir)
-            
-            # Generate world construct code that adds the sprite to the world.
-            sprite.genAddSpriteCall()
-            sprite.genLoadCostumesCode(sprData['costumes'])
-            # Like location, direction, shown or hidden, etc.
-            sprite.genInitSettingsCode()
-    
-            # Handle variables defined for this sprite.  This has to be done
-            # before handling the scripts, as the scripts may refer will the
-            # variables.
-            # Variable initializations have to be done in a method called
-            # addedToWorld(), which is not necessary if no variable defns exist.
-            if 'variables' in sprData and 'lists' in sprData:
-                sprite.genVariablesDefnCode(sprData['variables'], sprData['lists'], data['children'], cloudVars)
-            elif 'variables' in sprData:
-                sprite.genVariablesDefnCode(sprData['variables'], (), data['children'], cloudVars)
-            elif 'lists' in sprData:
-                sprite.genVariablesDefnCode((), sprData['lists'], data['children'], cloudVars)
-    
-            sprite.genCodeForScripts()
-            sprite.writeCodeToFile()
-            worldCtorCode += sprite.getWorldCtorCode()
-    
-            # Write out a line to the project.greenfoot file to indicate that this
-            # sprite is a subclass of the Scratch class.
-            projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
-            # Generate a line to the project.greenfoot file to set the image
-            # file, like this: 
-            #     class.Sprite1.image=1.png
-            projectFileCode.append("class." + sprite.getName() + ".image=" + \
-                               str(sprData['costumes'][0]['baseLayerID']) + ".png\n")
-    
-    
-        else:
-            if debug:
-                print("\n----------- Not a sprite --------------")
-                print(sprData)
+        sprite = Sprite(sprData)
+        
+        # Copy the sounds associated with this sprite to the appropriate directory
+        sprite.copySounds(soundsDir)
+        
+        # Generate world construct code that adds the sprite to the world.
+        sprite.genAddSpriteCall()
+        sprite.genLoadCostumesCode(sprData['costumes'])
+        # Like location, direction, shown or hidden, etc.
+        sprite.genInitSettingsCode()
+
+        # Handle variables defined for this sprite.  This has to be done
+        # before handling the scripts, as the scripts may refer will the
+        # variables.
+        # Variable initializations have to be done in a method called
+        # addedToWorld(), which is not necessary if no variable defns exist.
+        sprite.genVariablesDefnCode(sprData['variables'], sprData['lists'], data['targets'], cloudVars)
+
+        sprite.genCodeForScripts()
+        sprite.writeCodeToFile()
+        worldCtorCode += sprite.getWorldCtorCode()
+
+        # Write out a line to the project.greenfoot file to indicate that this
+        # sprite is a subclass of the Scratch class.
+        projectFileCode.append("class." + sprite.getName() + ".superclass=Scratch\n")
+        # Generate a line to the project.greenfoot file to set the image
+        # file, like this: 
+        #     class.Sprite1.image=1.png
+        projectFileCode.append("class." + sprite.getName() + ".image=" + \
+                            str(sprData['costumes'][0]['assetId']) + ".png\n")
     
     
     # --------- handle the Stage stuff --------------
@@ -2733,17 +2709,14 @@ def convert():
     # we have to process it similarly.  So, lots of repeated code here
     # from above -- although small parts are different enough.
 
-    if SCRATCH_VERSION == 2:
-        costumes = data['costumes']
+    for target in data['targets']:
+        if target['isStage']:
+            break
     else:
-        for target in data['targets']:
-            if target['isStage']:
-                break
-        else:
-            print("\nNo stage information found")
-            exit(-2)
-        stageTarget = target
-        costumes = target['costumes']
+        print("\nNo stage information found")
+        sys.exit(-2)
+    stageTarget = target
+    costumes = target['costumes']
         
     # Write out a line to the project.greenfoot file to indicate that this
     # sprite is a subclass of the Scratch class.
@@ -2780,7 +2753,7 @@ def convert():
     if debug:
         print("CostumeCode is ", addBackdropsCode)
     
-    costumeIndex = costumes['currentCostumeIndex'] if SCRATCH_VERSION == 2 else stageTarget['currentCostume']
+    costumeIndex = stageTarget['currentCostume']
     addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + str(costumeIndex) + ');\n'
     
     worldCode += worldCtorCode
