@@ -976,10 +976,10 @@ class SpriteOrStage:
                 parent = allBlocks[childVals['parent']]
                 parentVals = blocksJson[parent.getId()]
                 if parentVals['next'] != block.getId():
-                    if 'inputs' in parentVals and 'SUBSTACK' in parentVals['inputs']:
-                        assert parentVals['inputs']['SUBSTACK'][1] == block.getId()
-                    elif 'inputs' in parentVals and 'TO' in parentVals['inputs']:
-                        assert parentVals['inputs']['TO'][1] == block.getId()
+                    # if 'inputs' in parentVals and 'SUBSTACK' in parentVals['inputs']:
+                    #     assert parentVals['inputs']['SUBSTACK'][1] == block.getId()
+                    # elif 'inputs' in parentVals and 'TO' in parentVals['inputs']:
+                    #     assert parentVals['inputs']['TO'][1] == block.getId()
                     parent.setChild(block)
                     print("setting child of %s to be %s" % (str(parent), str(block)))
                 else:
@@ -1059,18 +1059,18 @@ class SpriteOrStage:
             'ypos:': self.motion1Arg,
             'bounceOffEdge': self.motion0Arg,
             'setRotationStyle': self.motion1Arg,
-            'pointTowards:': self.pointTowards,
+            'motion_pointtowards': self.pointTowards,
             'glideSecs:toX:y:elapsed:from:': self.glideTo,
 
             # Looks commands
-            'say:duration:elapsed:from:': self.sayForSecs,
+            'looks_sayforsecs': self.sayForSecs,
             'say:': self.say,
             'think:duration:elapsed:from:':self.thinkForSecs,
             'think:': self.think,
             'show': self.show,
             'hide': self.hide,
-            'lookLike:': self.switchCostumeTo,
-            'nextCostume': self.nextCostume,
+            'looks_switchcostumeto': self.switchCostumeTo,
+            'looks_nextcostume': self.nextCostume,
             'startScene': self.switchBackdropTo,
             'changeSizeBy:': self.changeSizeBy,
             'setSizeTo:': self.setSizeTo,
@@ -1607,14 +1607,8 @@ class SpriteOrStage:
         cmd = block.getOpcode()
         if cmd == "motion_movesteps":
             #     "inputs": {
-            #     "STEPS": [
-            #       1,
-            #       [
-            #         4,
-            #         "10"
-            #       ]
-            #     ]
-            #   },
+            #       "STEPS": [  1,  [ 4, "10" ] ]
+            #     },
             arg = block.getInputs()['STEPS'][1][1]
             return genIndent(level) + "move(" + self.mathExpr(arg) + ");\n"
         elif cmd == "motion_turnright":
@@ -1627,17 +1621,7 @@ class SpriteOrStage:
         elif cmd == "heading:":
             return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
         elif cmd == "motion_goto":
-            arg = block.getChild()
-            assert arg.getOpcode() == 'motion_goto_menu'
-            assert arg.getId() == block.getChild().getId()
-            assert arg.getFields() and 'TO' in arg.getFields()
-            argVal = arg.getFields()['TO'][0]
-            if argVal == "_mouse_":
-                return genIndent(level) + "goToMouse();\n"
-            elif argVal == "_random_":
-                return genIndent(level) + "goToRandomPosition();\n"
-            else:           # TODO: implement go to sprite
-                raise ValueError('bad value for goto mouse or random position', argVal)
+            return self.genGoto(level, block)
         elif cmd == "changeXposBy:":
             return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "xpos:":
@@ -1651,6 +1635,19 @@ class SpriteOrStage:
             return self.genRotationStyle(level, arg)
         else:
             raise ValueError(cmd)
+
+    def genGoto(self, level, block):
+        arg = block.getChild()
+        assert arg.getOpcode() == 'motion_goto_menu'
+        assert arg.getId() == block.getChild().getId()
+        assert arg.getFields() and 'TO' in arg.getFields()
+        argVal = arg.getFields()['TO'][0]
+        if argVal == "_mouse_":
+            return genIndent(level) + "goToMouse();\n"
+        elif argVal == "_random_":
+            return genIndent(level) + "goToRandomPosition();\n"
+        else:           # TODO: implement go to sprite
+            raise ValueError('bad value for goto mouse or random position', argVal)
 
     def genRotationStyle(self, level, arg):
         resStr = genIndent(level) + "setRotationStyle("
@@ -1683,14 +1680,18 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def pointTowards(self, level, tokens, deferYield = False):
+    def pointTowards(self, level, block, deferYield = False):
         """Generate code to turn the sprite to point to something.
         """
-        _, arg1 = tokens
-        if arg1 == '_mouse_':
+        arg = block.getChild()
+        assert arg.getOpcode() == 'motion_pointtowards_menu'
+        assert arg.getId() == block.getChild().getId()
+        assert arg.getFields() and 'TOWARDS' in arg.getFields()
+        argVal = arg.getFields()['TOWARDS'][0]
+        if argVal == '_mouse_':
             return genIndent(level) + "pointTowardMouse();\n"
         else:   # pointing toward a sprite
-            return genIndent(level) + 'pointToward("' + arg1 + '");\n'
+            return genIndent(level) + 'pointToward("' + argVal + '");\n'
 
 
     def glideTo(self, level, tokens, deferYield = False):
@@ -1702,11 +1703,18 @@ class SpriteOrStage:
         return genIndent(level) + "glideTo(s, %s, %s, %s);\n" % \
                (self.mathExpr(time), self.mathExpr(x), self.mathExpr(y))
 
-    def sayForSecs(self, level, tokens, deferYield = False):
+    def sayForSecs(self, level, block, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.
         """
-        cmd, arg1, arg2 = tokens
-        assert cmd == 'say:duration:elapsed:from:'
+        # inputs contains (for the basic case):
+        # "MESSAGE": [ 1,
+        #   [ 10, "Hello!" ]
+        # ],
+        # "SECS": [ 1,
+        #   [ 4, "2" ]
+        # ]
+        arg1 = block.getInputs()['MESSAGE'][1][1]
+        arg2 = block.getInputs()['SECS'][1][1]
         return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
                self.mathExpr(arg2) + ");\n"
 
@@ -1744,21 +1752,22 @@ class SpriteOrStage:
         assert tokens[0] == "hide"
         return genIndent(level) + "hide();\n"
 
-    def switchCostumeTo(self, level, tokens, deferYield = False):
+    def switchCostumeTo(self, level, block, deferYield = False):
         """Generate code for the switch costume block.
         """
-        cmd, arg1 = tokens
-        assert cmd == "lookLike:"
+        # the child of block is a looks_costume block, with COSTUME in 'fields',
+        # and the value in 'fields' being the costume name.
+        arg = block.getChild().getFields()['COSTUME'][0]
         try:
-            return genIndent(level) + "switchToCostume(" + self.mathExpr(arg1) + ");\n"
+            return genIndent(level) + "switchToCostume(" + self.mathExpr(arg) + ");\n"
         except (ValueError, AssertionError):
-            # if mathExpr is unable to resolve arg1, use strExpr instead
-            return genIndent(level) + "switchToCostume(" + self.strExpr(arg1) + ");\n"
+            # if mathExpr is unable to resolve arg, use strExpr instead
+            return genIndent(level) + "switchToCostume(" + self.strExpr(arg) + ");\n"
 
-    def nextCostume(self, level, tokens, deferYield = False):
+    def nextCostume(self, level, block, deferYield = False):
         """Generate code for the next costume block.
         """
-        assert tokens[0] == "nextCostume"
+        assert block.getOpcode() == "looks_nextcostume"
         return genIndent(level) + "nextCostume();\n"
 
     def switchBackdropTo(self, level, tokens, deferYield = False):
@@ -2523,7 +2532,7 @@ class Sprite(SpriteOrStage):
         resStr = ""
 
         # Set the initial costume (NOTE: could use the name of the costume instead of index...)
-        resStr = genIndent(2) + 'switchToCostume(' + str(self._sprData['currentCostume'] + 1) + ');\n'
+        resStr = genIndent(2) + 'switchToCostume(' + str(self._sprData['currentCostume']) + ');\n'
 
         # TODO: using size instead of scale.  Removed multiplying by 100 here!  Test!
         if self._sprData['size'] != 100:
