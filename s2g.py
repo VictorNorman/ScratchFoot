@@ -1070,8 +1070,8 @@ class SpriteOrStage:
             'looks_switchcostumeto': self.switchCostumeTo,
             'looks_nextcostume': self.nextCostume,
             'startScene': self.switchBackdropTo,
-            'changeSizeBy:': self.changeSizeBy,
-            'setSizeTo:': self.setSizeTo,
+            'looks_changesizeby': self.changeSizeBy,
+            'looks_setsizeto': self.setSizeTo,
             'comeToFront': self.goToFront,
             'goBackByLayers:': self.goBackNLayers,
             'nextScene': self.nextBackdrop,
@@ -1796,19 +1796,17 @@ class SpriteOrStage:
         """
         return genIndent(level) + "nextBackdrop();\n"
 
-    def changeSizeBy(self, level, tokens, deferYield = False):
+    def changeSizeBy(self, level, block, deferYield = False):
         """Generate code to change the size of the sprite
         """
-        cmd, arg1 = tokens
-        assert cmd == "changeSizeBy:"
-        return genIndent(level) + "changeSizeBy(" + self.mathExpr(arg1) + ");\n"
+        arg = block.getInputs()['CHANGE'][1][1]
+        return genIndent(level) + "changeSizeBy(" + self.mathExpr(arg) + ");\n"
 
-    def setSizeTo(self, level, tokens, deferYield = False):
+    def setSizeTo(self, level, block, deferYield = False):
         """Generate code to change the size of the sprite to a certain percentage
         """
-        cmd, arg1 = tokens
-        assert cmd == "setSizeTo:"
-        return genIndent(level) + "setSizeTo(" + self.mathExpr(arg1) + ");\n"
+        arg = block.getInputs()['SIZE'][1][1]
+        return genIndent(level) + "setSizeTo(" + self.mathExpr(arg) + ");\n"
 
     def goToFront(self, level, tokens, deferYield = False):
         """Generate code to move the sprite to the front
