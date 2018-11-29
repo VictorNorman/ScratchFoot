@@ -107,7 +107,6 @@ class CodeAndCb:
     def addToCode(self, code):
         self.code += code
 
-
 def execOrDie(cmd, descr):
     try:
         print("Executing shell command: " + cmd)
@@ -188,6 +187,72 @@ def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
         res += '_'
     return res
 
+
+class Block:
+    '''
+    This represents a Scratch Block, with its opcode, parent,
+    children, inputs, etc.
+    '''
+    def __init__(self, id, opcode):
+        self._id = id
+        self._opcode = opcode
+        self._inputs = {}
+        self._fields = {}
+        self._topLevel = False
+        self._next = None
+        self._child = None
+    
+    def setInputs(self, inputs):
+        '''inputs are a json object (for now)'''
+        self._inputs = inputs
+
+    def setFields(self, fields):
+        '''fields are a json object (for now)'''
+        self._fields = fields
+
+    def setTopLevel(self, val):
+        self._topLevel = val
+
+    def setNext(self, blockObj):
+        self._next = blockObj
+
+    def setChild(self, childBlock):
+        self._child = childBlock
+
+    def isTopLevel(self):
+        return self._topLevel
+
+    def hasChild(self):
+        return self._child != None
+
+    def getId(self):
+        return self._id
+
+    def getOpcode(self):
+        return self._opcode
+
+    def getNext(self):
+        return self._next
+
+    def getInputs(self):
+        return self._inputs
+
+    def getFields(self):
+        return self._fields
+
+    def getChild(self):
+        return self._child
+
+    def strWithIndent(self, indentLevel = 0):
+        res = ("  " * indentLevel) + str(self)
+        n = self._next
+        while n:
+            res += "\n" + str(n)
+            n = n._next
+        return res
+
+    def __str__(self):
+        return "--> " + self._opcode
 
 class SpriteOrStage:
     '''This is an abstract class that represents either a Stage class or
@@ -820,24 +885,105 @@ class SpriteOrStage:
         return self._addedToWorldCode
 
     def genCodeForScripts(self):
-        # The value of the 'scripts' key is the list of the scripts.  It may be a
+        # The value of the 'blocks' key is the list of the scripts.  It may be a
         # list of 1 or of many.
-        if 'scripts' not in self._sprData:
+        if 'blocks' not in self._sprData:
             print("No scripts found in", self._name)
             if debug:
                 print("sprData is -->" + str(self._sprData) + "<--")
             return
 
-        for scr in self._sprData['scripts']:
-            # items 0 and 1 in the sublist are the location on the
-            # screen of the script. 
-            # We don't care about that, obviously.  Item 2 is the actual code.
-            script = scr[2]
-            codeObj = self.genScriptCode(script)
+        blocksJson = self._sprData['blocks']
+        blocks = self.genBlocksList(blocksJson)
+        for b in blocks:
+            print(b.strWithIndent())
+            print()
+        
+        for topBlock in blocks:
+            codeObj = self.genScriptCode(topBlock)
             self._regCallbacksCode += codeObj.code
             if codeObj.cbCode != "":
                 # The script generate callback code.
                 self._cbCode.append(codeObj.cbCode)
+
+    def genBlocksList(self, blocksJson):
+        """
+        Given a json object that contains blocks definitions, generate
+        a list of Block objects, where Blocks in a script are in a list,
+        and Blocks that contain other Blocks have sub-lists, etc.
+        Return the list of topLevel blocks, with other blocks "hanging off".
+        """
+        # script is an object containing objects indexed by a unique identifier for 
+        # each block, and each block object contains links to parent (previous) and next
+        # identifier.  E.g.:
+        # 
+        # {
+        #   "h2blUU?#$l!dd*n}-Q1Y": {
+        #     "opcode": "event_whenflagclicked",
+        #     "next": "%?R0lmqrvySH00}u~j,l",
+        #     "parent": null,
+        #     "inputs": {},
+        #     "fields": {},
+        #     "topLevel": true,
+        #     "shadow": false,
+        #     "x": 53,
+        #     "y": 56
+        #   },
+        #   "%?R0lmqrvySH00}u~j,l": {
+        #     "opcode": "motion_movesteps",
+        #     "next": "T:Al*H@POT=8dOCzpm0(",
+        #     "parent": "h2blUU?#$l!dd*n}-Q1Y",
+        #     "inputs": {
+        #         "STEPS": [
+        #         1,
+        #         [
+        #             4,
+        #             "10"
+        #         ]
+        #         ]
+        #     },
+        #     ... etc ...
+
+        allBlocks = {}   # Map of blockId to Block object.
+        for blockId in blocksJson:
+            vals = blocksJson[blockId]
+            block = Block(blockId, vals['opcode'])
+            allBlocks[blockId] = block
+            # print('adding block with id to collection', blockId, vals['opcode'])
+            if vals['inputs']: 
+                block.setInputs(vals['inputs'])
+            if vals['fields']: 
+                block.setFields(vals['fields'])
+            if vals['topLevel']:
+                block.setTopLevel(vals['topLevel'])
+
+        for blockId in blocksJson:
+            childVals = blocksJson[blockId]
+            block = allBlocks[blockId]
+            if childVals['parent']:
+                # must have a parent object, so make the link from parent to child
+                # if the parent is a containing block, this is indicated by
+                # 1) the parent's next id is not this child, and 
+                # 2) the parent has an inputs called SUBSTACK, containing this 
+                #    child id.  E.g.:
+                # "inputs": {
+                #     "SUBSTACK": [
+                #       2,
+                #       "%?R0lmqrvySH00}u~j,l"
+                #     ]
+                #   },
+                parent = allBlocks[childVals['parent']]
+                parentVals = blocksJson[parent.getId()]
+                if parentVals['next'] != block.getId():
+                    assert parentVals['inputs']['SUBSTACK'][1] == block.getId()
+                    parent.setChild(block)
+                else:
+                    parent.setNext(block)
+
+                print("setting next of %s to be %s" % (str(parent), str(block)))
+        
+        listOfTopLevelBlocks = [block for block in allBlocks.values() if block.isTopLevel()]
+        return listOfTopLevelBlocks
 
     def writeCodeToFile(self):
 
@@ -862,31 +1008,34 @@ class SpriteOrStage:
         outFile.close()
 
 
-    def block(self, level, stmtList, deferYield = False):
-        """Handle block: a list of statements wrapped in { }."""
+    def block(self, level, topBlock, deferYield = False):
+        """Handle a block containing a list of statements wrapped in { }."""
 
         if debug:
-            print("block: stmtList = ")
-            pprint(stmtList)
-        return genIndent(level) + "{\n" + self.stmts(level, stmtList, deferYield) + \
+            print("block: topBlock = ")
+            print(topBlock.strWithIndent(level))
+
+        return genIndent(level) + "{\n" + self.stmts(level, topBlock.getNext(), deferYield) + \
                genIndent(level) + "}\n"
 
 
-    def stmts(self, level, stmtList, deferYield = False):
-        """Generate code for the list of statements, by repeatedly calling stmt()"""
-        if stmtList is None:
+    def stmts(self, level, firstBlock, deferYield = False):
+        """Generate code for the list of statements, by repeatedly calling stmt(), 
+        following the chain of next pointers frmo the firstBlock."""
+        if firstBlock is None:
             return ""
         retStr = ""
-        for aStmt in stmtList:
+        aBlock = firstBlock
+        while aBlock:
             # Call stmt to generate the statement, appending the result to the
             # overall resulting string.
-            retStr += self.stmt(level + 1, aStmt, deferYield)
+            retStr += self.stmt(level + 1, aBlock, deferYield)
+            aBlock = aBlock.getNext()
         return retStr
 
 
-    def stmt(self, level, tokenList, deferYield = False):
-        """Handle a statement, which is a <cmd> followed by expressions.
-        The stmt might be something like [doForever [<stmts>]].
+    def stmt(self, level, block, deferYield = False):
+        """Handle a statement, which is a block object
         """
 
         scratchStmt2genCode = {
@@ -894,9 +1043,9 @@ class SpriteOrStage:
             'doIfElse': self.doIfElse,
 
             # Motion commands
-            'forward:': self.motion1Arg,
-            'turnLeft:': self.motion1Arg,
-            'turnRight:': self.motion1Arg,
+            'motion_movesteps': self.motion1Arg,
+            'motion_turnleft': self.motion1Arg,
+            'motion_turnright': self.motion1Arg,
             'heading:': self.motion1Arg,
             'gotoX:y:': self.motion2Arg,
             'gotoSpriteOrMouse:': self.motion1Arg,
@@ -956,7 +1105,7 @@ class SpriteOrStage:
             'doBroadcastAndWait': self.broadcastAndWait,
 
             # Control commands
-            'doForever': self.doForever,
+            'control_forever': self.doForever,
             'wait:elapsed:from:': self.doWait,
             'doRepeat': self.doRepeat,
             'doWaitUntil': self.doWaitUntil,
@@ -986,16 +1135,14 @@ class SpriteOrStage:
 
             }
         if debug:
-            print("stmt: tokenList = ")
-            pprint(tokenList)
+            print("stmt: block = ")
+            print(block.strWithIndent(level))
 
-        cmd = tokenList[0]
+        cmd = block.getOpcode()
 
         if cmd in scratchStmt2genCode:
             genCodeFunc = scratchStmt2genCode[cmd]
-            # Call the function to generate the code, passing in the rest of
-            # the tokens. 
-            return genCodeFunc(level, tokenList, deferYield)
+            return genCodeFunc(level, block, deferYield)
         else:
             return genIndent(level) + 'System.out.println("Unimplemented stmt: ' + cmd + '");\n'
 
@@ -1267,7 +1414,7 @@ class SpriteOrStage:
             # of the variable, we must use the unsanitized name. TODO fix this 
             return '((' + tok2 + ')world.getActorByName("' + tok2 + '")).' + tok1 + '.get()'
 
-    def whenFlagClicked(self, codeObj, tokens):
+    def whenFlagClicked(self, codeObj, block):
         """Generate code to handle the whenFlagClicked block.
         All code in tokens goes into a callback.
         """
@@ -1284,7 +1431,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                         "(Sequence s)\n"
-        cbStr += self.block(level, tokens) + "\n"  # add blank line after defn.
+        cbStr += self.block(level, block) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
 
@@ -1391,14 +1538,16 @@ class SpriteOrStage:
         codeObj.addToCbCode(cbStr)
 
 
-    def doForever(self, level, tokens, deferYield = False):
-        """Generate doForever code.  tokens is a list of comments.
+    def doForever(self, level, block, deferYield = False):
+        """Generate doForever code.  block is the topblock with 
+        children hanging off of it.
         forever loop is turned into a while (true) loop, with the last
         operation being a yield(s) call.
         """
         retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, tokens[1])
+        assert block.hasChild()
+        retStr += self.stmts(level, block.getChild())
         if (deferYield):
             retStr += genIndent(level + 1) + \
                         "deferredYield(s);   // allow other sequences to run occasionally\n"
@@ -1448,16 +1597,28 @@ class SpriteOrStage:
         else:
             raise ValueError(cmd)
 
-    def motion1Arg(self, level, tokens, deferYield = False):
+    def motion1Arg(self, level, block, deferYield = False):
         """Generate code to handle Motion blocks with 1 argument:
-        forward:, turnLeft:, turnRight:, etc."""
-        assert len(tokens) == 2
-        cmd, arg = tokens
-        if cmd == "forward:":
+        movesteps, turnleft, turnright, etc."""   # TODO: fix this.
+        cmd = block.getOpcode()
+        if cmd == "motion_movesteps":
+            #     "inputs": {
+            #     "STEPS": [
+            #       1,
+            #       [
+            #         4,
+            #         "10"
+            #       ]
+            #     ]
+            #   },
+            arg = block.getInputs()['STEPS'][1][1]
             return genIndent(level) + "move(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "turnRight:":
+        elif cmd == "motion_turnright":
+            # inputs is similar to movesteps, but with DEGREES
+            arg = block.getInputs()['DEGREES'][1][1]
             return genIndent(level) + "turnRightDegrees(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "turnLeft:":
+        elif cmd == "motion_turnleft":
+            arg = block.getInputs()['DEGREES'][1][1]
             return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(arg) + ");\n"
         elif cmd == "heading:":
             return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
@@ -1477,17 +1638,20 @@ class SpriteOrStage:
         elif cmd == "ypos:":
             return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setRotationStyle":
-            resStr = genIndent(level) + "setRotationStyle("
-            if arg in ("left-right", "leftRight"):
-                return resStr + "RotationStyle.LEFT_RIGHT);\n"
-            elif arg in ("don't rotate", "none"):
-                return resStr + "RotationStyle.DONT_ROTATE);\n"
-            elif arg in ("all around", "normal"):
-                return resStr + "RotationStyle.ALL_AROUND);\n"
-            else:
-                raise ValueError(cmd)
+            resStr += self.genRotationStyle(level, arg)
         else:
             raise ValueError(cmd)
+
+    def genRotationStyle(self, level, arg):
+        resStr = genIndent(level) + "setRotationStyle("
+        if arg in ("left-right", "leftRight"):
+            return resStr + "RotationStyle.LEFT_RIGHT);\n"
+        elif arg in ("don't rotate", "none"):
+            return resStr + "RotationStyle.DONT_ROTATE);\n"
+        elif arg in ("all around", "normal"):
+            return resStr + "RotationStyle.ALL_AROUND);\n"
+        else:
+            raise ValueError('setRotationStyle')
 
     def motion2Arg(self, level, tokens, deferYield = False):
         """Generate code to handle Motion blocks with 2 arguments:
@@ -2263,31 +2427,29 @@ class SpriteOrStage:
             
 
               
-    def genScriptCode(self, script):
-        """Generate code (and callback code) for the given script, which may be
-        associated with a sprite or the main stage.
+    def genScriptCode(self, topBlock):
+        """Generate code (and callback code) for the given topBlock, which may be
+        associated with either a sprite or the main stage.
         """
 
         codeObj = CodeAndCb()	# Holds all the code that is generated.
 
-        # script is a list of these: [[cmd] [arg] [arg]...]
-        # The script starts with whenGreenFlag, whenSpriteClicked, etc. --
-        # the "hat" blocks.
-        if script[0] == ['whenGreenFlag']:
-            self.whenFlagClicked(codeObj, script[1:])
-        elif script[0] == ['whenCloned']:
-            self.whenSpriteCloned(codeObj, script[1:])
-        elif script[0] == ['whenClicked']:
-            self.whenClicked(codeObj, script[1:])
-        elif isinstance(script[0], list) and script[0][0] == 'whenKeyPressed':
-            self.whenKeyPressed(codeObj, script[0][1], script[1:])
-        elif isinstance(script[0], list) and script[0][0] == 'whenIReceive':
-            self.whenIReceive(codeObj, script[0][1], script[1:])
-        elif isinstance(script[0], list) and script[0][0] == 'whenSceneStarts':
-            self.whenSwitchToBackdrop(codeObj, script[0][1], script[1:])
-        elif isinstance(script[0], list) and script[0][0] == 'procDef':
+        if topBlock.getOpcode() == 'event_whenflagclicked':
+            self.whenFlagClicked(codeObj, topBlock)
+        # TODO: stuff below here not tested or altered yet.
+        elif topBlock == 'event_whencloned':   # TODO: guess!
+            self.whenSpriteCloned(codeObj, blocks[1:])
+        elif topBlock == 'event_whenclicked':   # TODO: guess!
+            self.whenClicked(codeObj, blocks[1:])
+        elif isinstance(topBlock, list) and topBlock[0] == 'whenKeyPressed':
+            self.whenKeyPressed(codeObj, topBlock[1], blocks[1:])
+        elif isinstance(topBlock, list) and topBlock[0] == 'whenIReceive':
+            self.whenIReceive(codeObj, topBlock[1], blocks[1:])
+        elif isinstance(topBlock, list) and topBlock[0] == 'whenSceneStarts':
+            self.whenSwitchToBackdrop(codeObj, topBlock[1], blocks[1:])
+        elif isinstance(topBlock, list) and topBlock[0] == 'procDef':
             # Defining a procedure in Scratch.
-            self.genProcDefCode(codeObj, script)
+            self.genProcDefCode(codeObj, blocks)
 
         # If not in one of the above "hat blocks", then it is an
         # orphaned bit of code that will not be run in either Scratch
@@ -2341,8 +2503,7 @@ class Sprite(SpriteOrStage):
         if not self._sprData['visible']:
             resStr += genIndent(2) + 'hide();\n'
         resStr += genIndent(2) + 'pointInDirection(' + str(self._sprData['direction']) + ');\n'
-        # TODO: need to test this!  Especially now with Scratch 3!
-        resStr += self.motion1Arg(2, ['setRotationStyle', self._sprData['rotationStyle']])
+        resStr += self.genRotationStyle(2, self._sprData['rotationStyle'])
         self._initSettingsCode += resStr
 
     def whenClicked(self, codeObj, tokens):
@@ -2820,8 +2981,7 @@ else:
     def findScratchFile():
         global scrEntryVar, SCRATCH_FILE
         SCRATCH_FILE = filedialog.askopenfilename(initialdir = SCRATCH_FILE,
-                                                  filetypes = [('Scratch2 files', '.sb2'), 
-                                                               ('Scratch3 files', '.sb3'), 
+                                                  filetypes = [('Scratch3 files', '.sb3'), 
                                                                ('All files', '.*')])
         scrEntryVar.set(SCRATCH_FILE)
             
