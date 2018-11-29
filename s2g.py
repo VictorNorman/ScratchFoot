@@ -252,7 +252,7 @@ class Block:
         return res
 
     def __str__(self):
-        return "--> " + self._opcode
+        return "BLOCK: " + self._opcode
 
 class SpriteOrStage:
     '''This is an abstract class that represents either a Stage class or
@@ -1700,20 +1700,19 @@ class SpriteOrStage:
         The block contains the time, and a child block that specifies if
         it is gliding to a random position, the mouse, or another sprite
         """
-        arg = block.getChild()
-        assert arg.getOpcode() == 'motion_glideto_menu'
-        assert arg.getId() == block.getChild().getId()
-        assert arg.getFields() and 'TO' in arg.getFields()
-        argVal = arg.getFields()['TO'][0]
+        child = block.getChild()
+        assert child.getOpcode() == 'motion_glideto_menu'
+        assert child.getId() == block.getChild().getId()
+        assert child.getFields() and 'TO' in child.getFields()
+        argVal = child.getFields()['TO'][0]
         duration = block.getInputs()['SECS'][1][1]
         if argVal == "_mouse_":
             return genIndent(level) + "glideToMouse(s, " + self.mathExpr(duration) + ");\n"
         elif argVal == "_random_":
             return genIndent(level) + "glideToRandomPosition(s, " + self.mathExpr(duration) + ");\n"
-        # TODO: handle sprite!
-        # else:
-        #    return genIndent(level) + "glideToSprite(s, %s, %d);\n" % \
-        #       (argVal, , self.mathExpr(y))
+        else:       # gliding to another sprite
+            return genIndent(level) + 'glideToSprite(s, "%s", %s);\n' % \
+                        (argVal, self.mathExpr(duration))
 
     def sayForSecs(self, level, block, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.

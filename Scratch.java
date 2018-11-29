@@ -2455,7 +2455,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     }
 
     /**
-     * glide the sprite to a random position onscreen over the given time period.
+     * glide the sprite to where the mouse is.
      */
     public void glideToMouse(Sequence s, Number duration)
     {
@@ -2466,6 +2466,15 @@ public class Scratch extends Actor implements Comparable<Scratch>
         Number x = mi.getX();
         Number y = mi.getY();
         glideTo(s, duration, translateGFtoScratchX(x.intValue()), translateGFtoScratchY(y.intValue()));
+    }
+
+    /**
+     * glide the sprite to the location of another sprite
+     */
+    public void glideToSprite(Sequence s, String name, Number duration)
+    {
+        Scratch other = getWorld().getActorByName(name);
+        glideTo(s, duration, other.getX(), other.getY());
     }
 
     /**
