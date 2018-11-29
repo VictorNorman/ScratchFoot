@@ -1051,8 +1051,8 @@ class SpriteOrStage:
             'motion_turnleft': self.motion1Arg,
             'motion_turnright': self.motion1Arg,
             'heading:': self.motion1Arg,
-            'gotoX:y:': self.motion2Arg,
-            'motion_goto': self.motion1Arg,         # was gotoSpriteOrMouse:
+            'motion_gotoxy': self.motion2Arg,
+            'motion_goto': self.motion1Arg,    # for random position or mouse or sprite
             'changeXposBy:': self.motion1Arg,
             'xpos:': self.motion1Arg,
             'changeYposBy:': self.motion1Arg,
@@ -1636,8 +1636,8 @@ class SpriteOrStage:
                 return genIndent(level) + "goToMouse();\n"
             elif argVal == "_random_":
                 return genIndent(level) + "goToRandomPosition();\n"
-            else:
-                return genIndent(level) + "goTo(\"" + arg + "\");\n"            // TODO
+            else:           # TODO: implement go to sprite
+                raise ValueError('bad value for goto mouse or random position', argVal)
         elif cmd == "changeXposBy:":
             return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "xpos:":
@@ -1647,7 +1647,8 @@ class SpriteOrStage:
         elif cmd == "ypos:":
             return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setRotationStyle":
-            resStr += self.genRotationStyle(level, arg)
+            # TODO!
+            return self.genRotationStyle(level, arg)
         else:
             raise ValueError(cmd)
 
@@ -1662,12 +1663,22 @@ class SpriteOrStage:
         else:
             raise ValueError('setRotationStyle')
 
-    def motion2Arg(self, level, tokens, deferYield = False):
+    def motion2Arg(self, level, block, deferYield = False):
         """Generate code to handle Motion blocks with 2 arguments:
-        gotoX:y:, etc."""
-        cmd, arg1, arg2 = tokens
-        if cmd == "gotoX:y:":
-            return genIndent(level) + "goTo( " + self.mathExpr(arg1) + \
+        gotoxy, etc."""
+        cmd = block.getOpcode()
+        if cmd == "motion_gotoxy":
+            #     "inputs": {
+            #     "X": [ 1,
+            #       [ 4, "0" ]
+            #     ],
+            #     "Y": [ 1,
+            #       [ 4, "0" ]
+            #     ]
+            #   },
+            arg1 = block.getInputs()['X'][1][1]
+            arg2 = block.getInputs()['Y'][1][1]
+            return genIndent(level) + "goTo(" + self.mathExpr(arg1) + \
                    ", " + self.mathExpr(arg2) + ");\n"
         else:
             raise ValueError(cmd)
