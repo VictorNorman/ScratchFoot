@@ -1048,13 +1048,13 @@ class SpriteOrStage:
             'motion_movesteps': self.motion1Arg,
             'motion_turnleft': self.motion1Arg,
             'motion_turnright': self.motion1Arg,
-            'heading:': self.motion1Arg,
+            'motion_pointindirection': self.motion1Arg,
             'motion_gotoxy': self.motion2Arg,
             'motion_goto': self.motion1Arg,    # for random position or mouse or sprite
-            'changeXposBy:': self.motion1Arg,
-            'xpos:': self.motion1Arg,
-            'changeYposBy:': self.motion1Arg,
-            'ypos:': self.motion1Arg,
+            'motion_changexby': self.motion1Arg,
+            'motion_setx': self.motion1Arg,
+            'motion_changeyby': self.motion1Arg,
+            'motion_sety': self.motion1Arg,
             'bounceOffEdge': self.motion0Arg,
             'setRotationStyle': self.motion1Arg,
             'motion_pointtowards': self.pointTowards,
@@ -1616,17 +1616,22 @@ class SpriteOrStage:
         elif cmd == "motion_turnleft":
             arg = block.getInputs()['DEGREES'][1][1]
             return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "heading:":
+        elif cmd == "motion_pointindirection":
+            arg = block.getInputs()['DIRECTION'][1][1]
             return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
         elif cmd == "motion_goto":
             return self.genGoto(level, block)
-        elif cmd == "changeXposBy:":
+        elif cmd == "motion_changexby":
+            arg = block.getInputs()['DX'][1][1]
             return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "xpos:":
+        elif cmd == "motion_setx":
+            arg = block.getInputs()['X'][1][1]
             return genIndent(level) + "setXTo(" + self.mathExpr(arg) + ");\n" 
-        elif cmd == "changeYposBy:":
+        elif cmd == "motion_changeyby":
+            arg = block.getInputs()['DY'][1][1]
             return genIndent(level) + "changeYBy(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "ypos:":
+        elif cmd == "motion_sety":
+            arg = block.getInputs()['Y'][1][1]
             return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setRotationStyle":
             # TODO!
