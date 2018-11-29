@@ -29,9 +29,7 @@ from pprint import pprint
 import shutil
 from subprocess import call, getstatusoutput
 import sys
-from tkinter import *
-from tkinter import filedialog
-from tkinter import messagebox
+import tkinter
 
 # Global Variables that can be set via command-line arguments.
 debug = False
@@ -484,8 +482,8 @@ class SpriteOrStage:
             def autoCB():
                 for e in nameList:
                     s = e.get()
-                    e.delete(0, END)
-                    e.insert(END, convertToJavaId(s, True, False))
+                    e.delete(0, tkinter.END)
+                    e.insert(tkinter.END, convertToJavaId(s, True, False))
                 for i in range(0, len(typeList)):
                     try:
                         typeList[i].set(deriveType("", valueList[i].get())[1])
@@ -495,7 +493,7 @@ class SpriteOrStage:
 
             # Display a help message informing the user how to use the namer
             def helpCB():
-                messagebox.showinfo("Help", "If a name is red, that means it is not valid in Java. Java variable names must " + \
+                tkinter.messagebox.showinfo("Help", "If a name is red, that means it is not valid in Java. Java variable names must " + \
                                     "start with a letter, and contain only letters, numbers and _. (No spaces!) There are also " + \
                                     "some words that can't be variable names because they mean something special in java: \n" + \
                                     str(JAVA_KEYWORDS) + ". \n\nIf a type " + \
@@ -508,7 +506,7 @@ class SpriteOrStage:
             def confirmCB():
                 global cloudVars
                 if not self.ready:
-                    messagebox.showerror("Error", "Some of the inputs are still invalid. Click help for more " + \
+                    tkinter.messagebox.showerror("Error", "Some of the inputs are still invalid. Click help for more " + \
                                          "details on how to fix them.")
                     gui.focus_set()
                     return
@@ -627,27 +625,27 @@ class SpriteOrStage:
                 gui.destroy()
             # Main method code
             # Construct the GUI
-            gui = Toplevel(root)
+            gui = tkinter.Toplevel(root)
             #gui.bind("<Any-KeyPress>", keypress)
             
             gui.title("Variable Namer")
             gui.grab_set()
 
 
-            table = Frame(gui)
+            table = tkinter.Frame(gui)
             table.pack()
-            buttons = Frame(gui)
-            buttons.pack(side = BOTTOM)
-            auto = Button(buttons, text = "Auto-Convert", command = autoCB)
-            auto.pack(side = LEFT)
-            confirm = Button(buttons, text = "Confirm", command = confirmCB)
-            confirm.pack(side = LEFT)
-            help = Button(buttons, text = "Help", command = helpCB)
-            help.pack(side = LEFT)
-            Label(table, text = "  Scratch Name  ").grid(row=0, column=0)
-            Label(table, text = "Java Name").grid(row=0, column=1)
-            Label(table, text = "Java Type").grid(row=0, column=2)
-            Label(table, text = "Starting Value").grid(row=0, column=3)
+            buttons = tkinter.Frame(gui)
+            buttons.pack(side = tkinter.BOTTOM)
+            auto = tkinter.Button(buttons, text = "Auto-Convert", command = autoCB)
+            auto.pack(side = tkinter.LEFT)
+            confirm = tkinter.Button(buttons, text = "Confirm", command = confirmCB)
+            confirm.pack(side = tkinter.LEFT)
+            help = tkinter.Button(buttons, text = "Help", command = helpCB)
+            help.pack(side = tkinter.LEFT)
+            tkinter.Label(table, text = "  Scratch Name  ").grid(row=0, column=0)
+            tkinter.Label(table, text = "Java Name").grid(row=0, column=1)
+            tkinter.Label(table, text = "Java Type").grid(row=0, column=2)
+            tkinter.Label(table, text = "Starting Value").grid(row=0, column=3)
 
             # Populate lists
             row = 1
@@ -655,25 +653,25 @@ class SpriteOrStage:
                 name = var['name']  # unsanitized Scratch name
                 value = var['value']
                 cloud = var['isPersistent']
-                lbl = Entry(table)
-                lbl.insert(END, name)
+                lbl = tkinter.Entry(table)
+                lbl.insert(tkinter.END, name)
                 lbl.configure(state = "readonly")
-                lbl.grid(row=row, column=0, sticky=W+E)
+                lbl.grid(row=row, column=0, sticky=tkinter.W + tkinter.E)
 
-                ent = Entry(table)
-                ent.insert(END, name)
-                ent.grid(row=row, column=1, sticky=W+E)
+                ent = tkinter.Entry(table)
+                ent.insert(tkinter.END, name)
+                ent.grid(row=row, column=1, sticky=tkinter.W + tkinter.E)
 
                 nameList.append(ent)
-                svar = StringVar(gui)
-                ent2 = OptionMenu(table, svar, "Int", "Double", "String")
-                ent2.grid(row=row, column=2, sticky=W+E)
+                svar = tkinter.StringVar(gui)
+                ent2 = tkinter.OptionMenu(table, svar, "Int", "Double", "String")
+                ent2.grid(row=row, column=2, sticky=tkinter.W + tkinter.E)
                 #ent2.bind("<Button-1>", keypress)
 
                 typeList.append(svar)
-                ent3 = Entry(table)
-                ent3.insert(END, value)
-                ent3.grid(row=row, column=3, sticky=W+E)
+                ent3 = tkinter.Entry(table)
+                ent3.insert(tkinter.END, value)
+                ent3.grid(row=row, column=3, sticky=tkinter.W + tkinter.E)
                 valueList.append(ent3)
                 row += 1
 
@@ -1064,7 +1062,7 @@ class SpriteOrStage:
 
             # Looks commands
             'looks_sayforsecs': self.sayForSecs,
-            'say:': self.say,
+            'looks_say': self.say,
             'think:duration:elapsed:from:':self.thinkForSecs,
             'think:': self.think,
             'show': self.show,
@@ -1729,12 +1727,12 @@ class SpriteOrStage:
         return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
                self.mathExpr(arg2) + ");\n"
 
-    def say(self, level, tokens, deferYield = False):
+    def say(self, level, block, deferYield = False):
         """Generate code to handle say <str>.
         """
-        cmd, arg1 = tokens
-        assert cmd == "say:"
-        return genIndent(level) + "say(" + self.strExpr(arg1) + ");\n"
+        arg = block.getInputs()['MESSAGE'][1][1]
+        assert block.getOpcode() == "looks_say"
+        return genIndent(level) + "say(" + self.strExpr(arg) + ");\n"
     
     def thinkForSecs(self, level, tokens, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.
@@ -2726,7 +2724,7 @@ def convert():
         sys.exit(1)
     if not os.path.exists(PROJECT_DIR):
         if useGui:
-            if (messagebox.askokcancel("Make New Directory", "Greenfoot directory not found, generate it?")):
+            if (tkinter.messagebox.askokcancel("Make New Directory", "Greenfoot directory not found, generate it?")):
                 print("Generating new project directory...")
                 os.makedirs(PROJECT_DIR)
             else:
@@ -3028,44 +3026,44 @@ if not useGui:  # Everything provided on command line.
 else:
     def findScratchFile():
         global scrEntryVar, SCRATCH_FILE
-        SCRATCH_FILE = filedialog.askopenfilename(initialdir = SCRATCH_FILE,
+        SCRATCH_FILE = tkinter.filedialog.askopenfilename(initialdir = SCRATCH_FILE,
                                                   filetypes = [('Scratch3 files', '.sb3'), 
                                                                ('All files', '.*')])
         scrEntryVar.set(SCRATCH_FILE)
             
     def findGfDir():
         global gfEntryVar, PROJECT_DIR
-        PROJECT_DIR = filedialog.askdirectory(initialdir=PROJECT_DIR)
+        PROJECT_DIR = tkinter.filedialog.askdirectory(initialdir=PROJECT_DIR)
         gfEntryVar.set(PROJECT_DIR)
     
     def exitTk():
         sys.exit(0)
-    root = Tk()
+    root = tkinter.Tk()
     root.title("Convert Scratch to Greenfoot")
     root.protocol('WM_DELETE_WINDOW', exitTk)
     
-    entryFrame = Frame(root)
-    entryFrame.pack(side = TOP)
-    scratchFrame = Frame(entryFrame)
-    scratchFrame.pack(side = LEFT)
-    scratchLabel = Label(scratchFrame, text="Scratch File")
-    scratchLabel.pack(side = TOP)
-    scrEntryVar = StringVar()
+    entryFrame = tkinter.Frame(root)
+    entryFrame.pack(side = tkinter.TOP)
+    scratchFrame = tkinter.Frame(entryFrame)
+    scratchFrame.pack(side = tkinter.LEFT)
+    scratchLabel = tkinter.Label(scratchFrame, text="Scratch File")
+    scratchLabel.pack(side = tkinter.TOP)
+    scrEntryVar = tkinter.StringVar()
     scrEntryVar.set(SCRATCH_FILE)
-    scratchEntry = Entry(scratchFrame, textvariable=scrEntryVar, width=len(SCRATCH_FILE))
-    scratchEntry.pack(side = TOP)
-    Button(scratchFrame, text="Find file", command=findScratchFile).pack(side=TOP)
+    scratchEntry = tkinter.Entry(scratchFrame, textvariable=scrEntryVar, width=len(SCRATCH_FILE))
+    scratchEntry.pack(side = tkinter.TOP)
+    tkinter.Button(scratchFrame, text="Find file", command=findScratchFile).pack(side=tkinter.TOP)
     
     
-    gfFrame = Frame(entryFrame)
-    gfFrame.pack(side = RIGHT)
-    gfLabel = Label(gfFrame, text = "Greenfoot Project Directory")
-    gfLabel.pack(side = TOP)
-    gfEntryVar = StringVar()
+    gfFrame = tkinter.Frame(entryFrame)
+    gfFrame.pack(side = tkinter.RIGHT)
+    gfLabel = tkinter.Label(gfFrame, text = "Greenfoot Project Directory")
+    gfLabel.pack(side = tkinter.TOP)
+    gfEntryVar = tkinter.StringVar()
     gfEntryVar.set(PROJECT_DIR)
-    gfEntry = Entry(gfFrame, textvariable=gfEntryVar, width=len(PROJECT_DIR))
-    gfEntry.pack(side = TOP)
-    Button(gfFrame, text="Find directory", command=findGfDir).pack(side=TOP)
+    gfEntry = tkinter.Entry(gfFrame, textvariable=gfEntryVar, width=len(PROJECT_DIR))
+    gfEntry.pack(side = tkinter.TOP)
+    tkinter.Button(gfFrame, text="Find directory", command=findGfDir).pack(side=tkinter.TOP)
 
     def convertButtonCb():
         global SCRATCH_FILE
@@ -3085,6 +3083,6 @@ else:
         soundsDir = os.path.join(PROJECT_DIR, "sounds")
         convert()
         
-    convertButton = Button(root, text = "Convert", command = convertButtonCb)
-    convertButton.pack(side = BOTTOM)
+    convertButton = tkinter.Button(root, text = "Convert", command = convertButtonCb)
+    convertButton.pack(side = tkinter.BOTTOM)
     root.mainloop()
