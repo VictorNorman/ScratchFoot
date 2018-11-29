@@ -889,8 +889,8 @@ class SpriteOrStage:
         # list of 1 or of many.
         if 'blocks' not in self._sprData:
             print("No scripts found in", self._name)
-            if debug:
-                print("sprData is -->" + str(self._sprData) + "<--")
+            # if debug:
+            #     print("sprData is -->" + str(self._sprData) + "<--")
             return
 
         blocksJson = self._sprData['blocks']
@@ -1060,7 +1060,7 @@ class SpriteOrStage:
             'bounceOffEdge': self.motion0Arg,
             'setRotationStyle': self.motion1Arg,
             'motion_pointtowards': self.pointTowards,
-            'glideSecs:toX:y:elapsed:from:': self.glideTo,
+            'motion_glideto': self.glideTo,
 
             # Looks commands
             'looks_sayforsecs': self.sayForSecs,
@@ -1694,14 +1694,26 @@ class SpriteOrStage:
             return genIndent(level) + 'pointToward("' + argVal + '");\n'
 
 
-    def glideTo(self, level, tokens, deferYield = False):
+    def glideTo(self, level, block, deferYield = False):
         """Generate code to make the sprite glide to a certain x,y position
         in a certain amount of time.
-        Format of the cmd is: ["glideSecs:toX:y:elapsed:from:", time, x, y]
+        The block contains the time, and a child block that specifies if
+        it is gliding to a random position, the mouse, or another sprite
         """
-        _, time, x, y = tokens
-        return genIndent(level) + "glideTo(s, %s, %s, %s);\n" % \
-               (self.mathExpr(time), self.mathExpr(x), self.mathExpr(y))
+        arg = block.getChild()
+        assert arg.getOpcode() == 'motion_glideto_menu'
+        assert arg.getId() == block.getChild().getId()
+        assert arg.getFields() and 'TO' in arg.getFields()
+        argVal = arg.getFields()['TO'][0]
+        duration = block.getInputs()['SECS'][1][1]
+        if argVal == "_mouse_":
+            return genIndent(level) + "glideToMouse(s, " + self.mathExpr(duration) + ");\n"
+        elif argVal == "_random_":
+            return genIndent(level) + "glideToRandomPosition(s, " + self.mathExpr(duration) + ");\n"
+        # TODO: handle sprite!
+        # else:
+        #    return genIndent(level) + "glideToSprite(s, %s, %d);\n" % \
+        #       (argVal, , self.mathExpr(y))
 
     def sayForSecs(self, level, block, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.

@@ -2436,10 +2436,36 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
             // Compute how far along we are in the duration time.
             double diff = (currTime - begTime) / duration.doubleValue();
-            int newX = begX + (int) ((endX - begX) * diff);
-            int newY = begY + (int) ((endY - begY) * diff);
-            goToGF(newX, newY);
+            int gfX = begX + (int) ((endX - begX) * diff);
+            int gfY = begY + (int) ((endY - begY) * diff);
+            goToGF(gfX, gfY);
         }
+    }
+
+    /**
+     * glide the sprite to a random position onscreen over the given time period.
+     */
+    public void glideToRandomPosition(Sequence s, Number duration)
+    {
+        int w = getWorld().getWidth();
+        int h = getWorld().getHeight();
+        Number x = pickRandom(-w / 2, w / 2);
+        Number y = pickRandom(-h / 2, h / 2);
+        glideTo(s, duration, x, y);
+    }
+
+    /**
+     * glide the sprite to a random position onscreen over the given time period.
+     */
+    public void glideToMouse(Sequence s, Number duration)
+    {
+        MouseInfo mi = Greenfoot.getMouseInfo();
+        if (mi == null) {
+            return;
+        }
+        Number x = mi.getX();
+        Number y = mi.getY();
+        glideTo(s, duration, translateGFtoScratchX(x.intValue()), translateGFtoScratchY(y.intValue()));
     }
 
     /**
@@ -2451,7 +2477,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
         int newX = translateToGreenfootX(x.intValue());
         int newY = translateToGreenfootY(y.intValue());
         // Call goToGF() which assumes greenfoot coordinates.
-        // System.out.println("goTo: got x, y = " + x + ", " + y + " which are " + newX + ", " + newY);
         goToGF(newX, newY);
         subX = x.doubleValue() % 1;
         subY = y.doubleValue() % 1;
