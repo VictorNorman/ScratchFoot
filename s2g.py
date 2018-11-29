@@ -1106,7 +1106,7 @@ class SpriteOrStage:
 
             # Control commands
             'control_forever': self.doForever,
-            'wait:elapsed:from:': self.doWait,
+            'control_wait': self.doWait,
             'doRepeat': self.doRepeat,
             'doWaitUntil': self.doWaitUntil,
             'doUntil': self.repeatUntil,
@@ -2154,10 +2154,18 @@ class SpriteOrStage:
                self.strExpr(quest) + ");\t\t// may want to replace answer with a better name\n"
 
 
-    def doWait(self, level, tokens, deferYield = False):
+    def doWait(self, level, block, deferYield = False):
         """Generate a wait call."""
-        assert len(tokens) == 2 and tokens[0] == "wait:elapsed:from:"
-        return genIndent(level) + "wait(s, " + self.mathExpr(tokens[1]) + ");\n"
+        assert block.getOpcode() == "control_wait"
+        # inputs: "DURATION": [
+        #       1,
+        #       [
+        #         5,
+        #         "1"
+        #       ]
+        #     ]
+        arg = block.getInputs()['DURATION'][1][1]
+        return genIndent(level) + "wait(s, " + self.mathExpr(arg) + ");\n"
 
 
     def doRepeat(self, level, tokens, deferYield = False):
