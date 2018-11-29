@@ -960,6 +960,7 @@ class SpriteOrStage:
         for blockId in blocksJson:
             childVals = blocksJson[blockId]
             block = allBlocks[blockId]
+            print("making links for child ", str(block))
             if childVals['parent']:
                 # must have a parent object, so make the link from parent to child
                 # if the parent is a containing block, this is indicated by
@@ -975,12 +976,15 @@ class SpriteOrStage:
                 parent = allBlocks[childVals['parent']]
                 parentVals = blocksJson[parent.getId()]
                 if parentVals['next'] != block.getId():
-                    assert parentVals['inputs']['SUBSTACK'][1] == block.getId()
+                    if 'inputs' in parentVals and 'SUBSTACK' in parentVals['inputs']:
+                        assert parentVals['inputs']['SUBSTACK'][1] == block.getId()
+                    elif 'inputs' in parentVals and 'TO' in parentVals['inputs']:
+                        assert parentVals['inputs']['TO'][1] == block.getId()
                     parent.setChild(block)
+                    print("setting child of %s to be %s" % (str(parent), str(block)))
                 else:
                     parent.setNext(block)
-
-                print("setting next of %s to be %s" % (str(parent), str(block)))
+                    print("setting next of %s to be %s" % (str(parent), str(block)))
         
         listOfTopLevelBlocks = [block for block in allBlocks.values() if block.isTopLevel()]
         return listOfTopLevelBlocks
@@ -1048,7 +1052,7 @@ class SpriteOrStage:
             'motion_turnright': self.motion1Arg,
             'heading:': self.motion1Arg,
             'gotoX:y:': self.motion2Arg,
-            'gotoSpriteOrMouse:': self.motion1Arg,
+            'motion_goto': self.motion1Arg,         # was gotoSpriteOrMouse:
             'changeXposBy:': self.motion1Arg,
             'xpos:': self.motion1Arg,
             'changeYposBy:': self.motion1Arg,
@@ -1622,13 +1626,18 @@ class SpriteOrStage:
             return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(arg) + ");\n"
         elif cmd == "heading:":
             return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "gotoSpriteOrMouse:":
-            if arg == "_mouse_":
+        elif cmd == "motion_goto":
+            arg = block.getChild()
+            assert arg.getOpcode() == 'motion_goto_menu'
+            assert arg.getId() == block.getChild().getId()
+            assert arg.getFields() and 'TO' in arg.getFields()
+            argVal = arg.getFields()['TO'][0]
+            if argVal == "_mouse_":
                 return genIndent(level) + "goToMouse();\n"
-            elif arg == "_random_":
+            elif argVal == "_random_":
                 return genIndent(level) + "goToRandomPosition();\n"
             else:
-                return genIndent(level) + "goTo(\"" + arg + "\");\n"
+                return genIndent(level) + "goTo(\"" + arg + "\");\n"            // TODO
         elif cmd == "changeXposBy:":
             return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "xpos:":
