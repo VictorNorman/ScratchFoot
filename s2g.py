@@ -1063,8 +1063,8 @@ class SpriteOrStage:
             # Looks commands
             'looks_sayforsecs': self.sayForSecs,
             'looks_say': self.say,
-            'think:duration:elapsed:from:':self.thinkForSecs,
-            'think:': self.think,
+            'looks_thinkforsecs':self.thinkForSecs,
+            'looks_think': self.think,
             'looks_show': self.show,
             'looks_hide': self.hide,
             'looks_switchcostumeto': self.switchCostumeTo,
@@ -1734,19 +1734,19 @@ class SpriteOrStage:
         assert block.getOpcode() == "looks_say"
         return genIndent(level) + "say(" + self.strExpr(arg) + ");\n"
     
-    def thinkForSecs(self, level, tokens, deferYield = False):
-        """Generate code to handle say <str> for <n> seconds.
+    def thinkForSecs(self, level, block, deferYield = False):
+        """Generate code to handle think <str> for <n> seconds.
         """
-        cmd, arg1, arg2 = tokens
-        assert cmd == 'think:duration:elapsed:from:'
+        arg1 = block.getInputs()['MESSAGE'][1][1]
+        arg2 = block.getInputs()['SECS'][1][1]
         return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(arg1) + ", " + \
                self.mathExpr(arg2) + ");\n"
     
-    def think(self, level, tokens, deferYield = False):
-        """Generate code to handle say <str>.
+    def think(self, level, block, deferYield = False):
+        """Generate code to handle think <str>.
         """
-        cmd, arg1 = tokens
-        assert cmd == "think:"
+        arg1 = block.getInputs()['MESSAGE'][1][1]
+        assert block.getOpcode() == "looks_think"
         return genIndent(level) + "think(" + self.strExpr(arg1) + ");\n"
 
     def show(self, level, block, deferYield = False):
