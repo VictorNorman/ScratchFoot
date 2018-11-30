@@ -324,7 +324,7 @@ class SpriteOrStage:
         Otherwise, returns a tuple: (clean name, varType)'''
         return self.listInfo.get(name)
 
-    def whenClicked(self, codeObj, tokens):
+    def whenClicked(self, codeObj, block):
         raise NotImplementedError('Implemented in subclass')
 
     def genAddSpriteCall(self):
@@ -1418,7 +1418,7 @@ class SpriteOrStage:
 
     def whenFlagClicked(self, codeObj, block):
         """Generate code to handle the whenFlagClicked block.
-        All code in tokens goes into a callback.
+        All code in block goes into a callback.
         """
         scriptNum = codeObj.getNextScriptId()
         # Build a name like whenFlagClickedCb0 
@@ -1467,12 +1467,13 @@ class SpriteOrStage:
             self._copyConstructorMade = True
 
 
-    def whenKeyPressed(self, codeObj, key, tokens):
-        """Generate code to handle the whenKeyPressed block.  key is
-        the key to wait for, and tokens is the list of stmts to be put
+    def whenKeyPressed(self, codeObj, topBlock):
+        """Generate code to handle the whenKeyPressed block.
+        topBlock is the keypressed block. Child block code is generated
         into a callback to be called when that key is pressed.
         """
         scriptNum = codeObj.getNextScriptId()
+        key = topBlock.getFields()['KEY_OPTION'][0]
         key = convertKeyPressName(key)
 
         # Build a name like whenAPressedCb0 or whenLeftPressedCb0.
@@ -1488,7 +1489,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                 "(Sequence s)\n"
-        cbStr += self.block(level, tokens) + "\n"  # add blank line after defn.
+        cbStr += self.block(level, topBlock) + "\n"  # add blank line after defn.
 
         codeObj.addToCbCode(cbStr)
 
@@ -2219,7 +2220,7 @@ class SpriteOrStage:
         return retStr + genIndent(level) + "}\n"
 
 
-    def doWaitUntil(self, level, tokens, deferYield = False):
+    def doWaitUntil(self, level, block, deferYield = False):
         """Generate doWaitUtil code: in java we'll do this:
            while (true) {
                if (condition)
@@ -2475,15 +2476,16 @@ class SpriteOrStage:
 
         codeObj = CodeAndCb()	# Holds all the code that is generated.
 
-        if topBlock.getOpcode() == 'event_whenflagclicked':
+        opcode = topBlock.getOpcode()
+        if opcode == 'event_whenflagclicked':
             self.whenFlagClicked(codeObj, topBlock)
         # TODO: stuff below here not tested or altered yet.
-        elif topBlock == 'event_whencloned':   # TODO: guess!
+        elif opcode == 'event_whencloned':   # TODO: guess!
             self.whenSpriteCloned(codeObj, blocks[1:])
-        elif topBlock == 'event_whenclicked':   # TODO: guess!
-            self.whenClicked(codeObj, blocks[1:])
-        elif isinstance(topBlock, list) and topBlock[0] == 'whenKeyPressed':
-            self.whenKeyPressed(codeObj, topBlock[1], blocks[1:])
+        elif opcode == 'event_whenthisspriteclicked':
+            self.whenClicked(codeObj, topBlock)
+        elif opcode == 'event_whenkeypressed':
+            self.whenKeyPressed(codeObj, topBlock)
         elif isinstance(topBlock, list) and topBlock[0] == 'whenIReceive':
             self.whenIReceive(codeObj, topBlock[1], blocks[1:])
         elif isinstance(topBlock, list) and topBlock[0] == 'whenSceneStarts':
@@ -2547,9 +2549,9 @@ class Sprite(SpriteOrStage):
         resStr += self.genRotationStyle(2, self._sprData['rotationStyle'])
         self._initSettingsCode += resStr
 
-    def whenClicked(self, codeObj, tokens):
+    def whenClicked(self, codeObj, block):
         """Generate code to handle the whenClicked block.
-        All code in tokens goes into a callback.
+        All code in block goes into a callback.
         """
         scriptNum = codeObj.getNextScriptId()
         cbName = 'whenSpriteClickedCb' + str(scriptNum)
@@ -2559,7 +2561,7 @@ class Sprite(SpriteOrStage):
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
                         "(Sequence s)\n"
-        cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
+        cbStr += self.block(1, block) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
 
