@@ -1104,7 +1104,7 @@ class SpriteOrStage:
 
             # Events commands
             'event_broadcast': self.broadcast,
-            'doBroadcastAndWait': self.broadcastAndWait,
+            'event_broadcastandwait': self.broadcastAndWait,
 
             # Control commands
             'control_forever': self.doForever,
@@ -2170,13 +2170,12 @@ class SpriteOrStage:
         return genIndent(level) + "broadcast(" + self.strExpr(arg) + ");\n"
 
 
-    def broadcastAndWait(self, level, tokens, deferYield = False):
+    def broadcastAndWait(self, level, block, deferYield = False):
         """Generate code to handle sending a broacast message and
         waiting until all the handlers have completed.
         """
-        cmd, arg1 = tokens
-        assert cmd == "doBroadcastAndWait"
-        return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(arg1) + ");\n"
+        arg = block.getInputs()['BROADCAST_INPUT'][1][1]
+        return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(arg) + ");\n"
 
 
     def doAsk(self, level, tokens, deferYield = False):
