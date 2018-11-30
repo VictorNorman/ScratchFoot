@@ -1103,7 +1103,7 @@ class SpriteOrStage:
             'showList:': self.showList, 
 
             # Events commands
-            'broadcast:': self.broadcast,
+            'event_broadcast': self.broadcast,
             'doBroadcastAndWait': self.broadcastAndWait,
 
             # Control commands
@@ -1494,14 +1494,15 @@ class SpriteOrStage:
         codeObj.addToCbCode(cbStr)
 
 
-    def whenIReceive(self, codeObj, message, tokens):
-        """Generate code to handle the whenIReceive block.  message is
-        the message to wait for, and tokens is the list of stmts to be put
+    def whenIReceive(self, codeObj, topBlock):
+        """Generate code to handle the whenIReceive block.  
+        topBlock contains the message and the list of stmts to be put
         into a callback to be called when that message is received.
         """
         scriptNum = codeObj.getNextScriptId()
 
         # Build a name like whenIReceiveMessage1Cb0
+        message = topBlock.getFields()['BROADCAST_OPTION'][0]
         messageId = convertToJavaId(message, noLeadingNumber=False, capitalizeFirst=True)
         cbName = 'whenIReceive' + messageId + 'Cb' + str(scriptNum)
 
@@ -1513,7 +1514,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         # All cb code is at level 1
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
-        cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
+        cbStr += self.block(1, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr) 
         
     def whenSwitchToBackdrop(self, codeObj, backdrop, tokens):
@@ -2162,12 +2163,11 @@ class SpriteOrStage:
         else:
             return "%s%s.show();\n" % (genIndent(level), disp)
 
-    def broadcast(self, level, tokens, deferYield = False):
+    def broadcast(self, level, block, deferYield = False):
         """Generate code to handle sending a broacast message.
         """
-        cmd, arg1 = tokens
-        assert cmd == "broadcast:"
-        return genIndent(level) + "broadcast(" + self.strExpr(arg1) + ");\n"
+        arg = block.getInputs()['BROADCAST_INPUT'][1][1]
+        return genIndent(level) + "broadcast(" + self.strExpr(arg) + ");\n"
 
 
     def broadcastAndWait(self, level, tokens, deferYield = False):
@@ -2479,15 +2479,14 @@ class SpriteOrStage:
         opcode = topBlock.getOpcode()
         if opcode == 'event_whenflagclicked':
             self.whenFlagClicked(codeObj, topBlock)
-        # TODO: stuff below here not tested or altered yet.
         elif opcode == 'event_whencloned':   # TODO: guess!
             self.whenSpriteCloned(codeObj, blocks[1:])
         elif opcode == 'event_whenthisspriteclicked':
             self.whenClicked(codeObj, topBlock)
         elif opcode == 'event_whenkeypressed':
             self.whenKeyPressed(codeObj, topBlock)
-        elif isinstance(topBlock, list) and topBlock[0] == 'whenIReceive':
-            self.whenIReceive(codeObj, topBlock[1], blocks[1:])
+        elif opcode == 'event_whenbroadcastreceived':
+            self.whenIReceive(codeObj, topBlock)
         elif isinstance(topBlock, list) and topBlock[0] == 'whenSceneStarts':
             self.whenSwitchToBackdrop(codeObj, topBlock[1], blocks[1:])
         elif isinstance(topBlock, list) and topBlock[0] == 'procDef':
