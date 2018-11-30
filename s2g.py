@@ -1114,7 +1114,7 @@ class SpriteOrStage:
             'doUntil': self.repeatUntil,
             'stopScripts': self.stopScripts,
             'control_create_clone_of': self.createCloneOf,
-            'deleteClone': self.deleteThisClone,
+            'control_delete_this_clone': self.deleteThisClone,
 
             # Sensing commands
             'doAsk': self.doAsk,
@@ -1649,8 +1649,8 @@ class SpriteOrStage:
             return genIndent(level) + "goToMouse();\n"
         elif argVal == "_random_":
             return genIndent(level) + "goToRandomPosition();\n"
-        else:           # TODO: implement go to sprite
-            raise ValueError('bad value for goto mouse or random position', argVal)
+        else:           
+            return genIndent(level) + 'goTo("%s");\n' % argVal
 
     def genRotationStyle(self, level, arg):
         resStr = genIndent(level) + "setRotationStyle("
@@ -2287,10 +2287,9 @@ class SpriteOrStage:
             return genIndent(level) + 'createCloneOf("' + argVal + '");\n'
 
 
-    def deleteThisClone(self, level, tokens, deferYield = False):
+    def deleteThisClone(self, level, block, deferYield = False):
         """Delete this sprite.
         """
-        assert len(tokens) == 1 and tokens[0] == "deleteClone"
         return genIndent(level) + "deleteThisClone();\n"
 
 
