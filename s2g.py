@@ -885,6 +885,7 @@ class SpriteOrStage:
     def genCodeForScripts(self):
         # The value of the 'blocks' key is the list of the scripts.  It may be a
         # list of 1 or of many.
+
         if 'blocks' not in self._sprData:
             print("No scripts found in", self._name)
             # if debug:
@@ -1056,7 +1057,7 @@ class SpriteOrStage:
             'motion_changeyby': self.motion1Arg,
             'motion_sety': self.motion1Arg,
             'motion_ifonedgebounce': self.motion0Arg,
-            'setRotationStyle': self.motion1Arg,
+            'motion_setrotationstyle': self.motion1Arg,
             'motion_pointtowards': self.pointTowards,
             'motion_glideto': self.glideTo,
 
@@ -1074,7 +1075,7 @@ class SpriteOrStage:
             'looks_setsizeto': self.setSizeTo,
             'comeToFront': self.goToFront,
             'goBackByLayers:': self.goBackNLayers,
-            'nextScene': self.nextBackdrop,
+            'looks_nextbackdrop': self.nextBackdrop,
             'changeGraphicEffect:by:': self.changeGraphicBy,
             'setGraphicEffect:to:': self.setGraphicTo,
 
@@ -1633,8 +1634,8 @@ class SpriteOrStage:
         elif cmd == "motion_sety":
             arg = block.getInputs()['Y'][1][1]
             return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "setRotationStyle":
-            # TODO!
+        elif cmd == "motion_setrotationstyle":
+            arg = block.getFields()['STYLE'][0]
             return self.genRotationStyle(level, arg)
         else:
             raise ValueError(cmd)
@@ -1785,7 +1786,7 @@ class SpriteOrStage:
         assert cmd == "startScene"
         return genIndent(level) + "switchBackdropTo(" + self.strExpr(arg1) + ");\n"
 
-    def nextBackdrop(self, level, tokens, deferYield = False):
+    def nextBackdrop(self, level, block, deferYield = False):
         """Generate code to switch to the next backdrop.
         """
         return genIndent(level) + "nextBackdrop();\n"
@@ -2854,8 +2855,12 @@ def convert():
     # These need to be processed before we process any Sprite-specific code
     # which may reference these global variables.
     
-    # stage information is in the top-most area of the json.
-    stage = Stage(data)
+    # stage information is in targets where isStage is set to true.
+    for stageData in spritesData:
+        if stageData['isStage']:
+            break
+
+    stage = Stage(stageData)
     
     if 'variables' in data and 'lists' in data:
         stage.genVariablesDefnCode(data['variables'], data['lists'], data['children'], cloudVars)
@@ -2914,14 +2919,7 @@ def convert():
     # we have to process it similarly.  So, lots of repeated code here
     # from above -- although small parts are different enough.
 
-    for target in data['targets']:
-        if target['isStage']:
-            break
-    else:
-        print("\nNo stage information found")
-        sys.exit(-2)
-    stageTarget = target
-    costumes = target['costumes']
+    costumes = stageData['costumes']
         
     # Write out a line to the project.greenfoot file to indicate that this
     # sprite is a subclass of the Scratch class.
@@ -2958,7 +2956,7 @@ def convert():
     if debug:
         print("CostumeCode is ", addBackdropsCode)
     
-    costumeIndex = stageTarget['currentCostume']
+    costumeIndex = stageData['currentCostume']
     addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + str(costumeIndex) + ');\n'
     
     worldCode += worldCtorCode
