@@ -1109,7 +1109,7 @@ class SpriteOrStage:
             # Control commands
             'control_forever': self.doForever,
             'control_wait': self.doWait,
-            'doRepeat': self.doRepeat,
+            'control_repeat': self.doRepeat,
             'doWaitUntil': self.doWaitUntil,
             'doUntil': self.repeatUntil,
             'stopScripts': self.stopScripts,
@@ -1548,7 +1548,6 @@ class SpriteOrStage:
         """
         retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
         retStr += genIndent(level) + "{\n"
-        assert block.hasChild()
         retStr += self.stmts(level, block.getChild())
         if (deferYield):
             retStr += genIndent(level + 1) + \
@@ -1559,7 +1558,7 @@ class SpriteOrStage:
         return retStr + genIndent(level) + "}\n"
 
 
-    def doIf(self, level, tokens, deferYield = False):
+    def doIf(self, level, block, deferYield = False):
         """Generate code for if <test> : <block>.  Format of tokens is
         'doIf' [test expression] [true-block]
         """
@@ -2202,15 +2201,15 @@ class SpriteOrStage:
         return genIndent(level) + "wait(s, " + self.mathExpr(arg) + ");\n"
 
 
-    def doRepeat(self, level, tokens, deferYield = False):
+    def doRepeat(self, level, block, deferYield = False):
         """Generate a repeat <n> times loop.
         """
-        assert len(tokens) == 3 and tokens[0] == "doRepeat"
 
+        numTimes = block.getInputs()['TIMES'][1][1]
         retStr = genIndent(level) + "for (int i" + str(level) + " = 0; i" + str(level) + " < " + \
-                 self.mathExpr(tokens[1]) + "; i" + str(level) + "++)\n"
+                 self.mathExpr(numTimes) + "; i" + str(level) + "++)\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, tokens[2])
+        retStr += self.stmts(level, block.getChild())
         if (deferYield):
             retStr += genIndent(level + 1) + \
                         "deferredYield(s);   // allow other sequences to run occasionally\n"
