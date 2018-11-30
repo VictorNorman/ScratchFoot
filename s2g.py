@@ -1055,7 +1055,7 @@ class SpriteOrStage:
             'motion_setx': self.motion1Arg,
             'motion_changeyby': self.motion1Arg,
             'motion_sety': self.motion1Arg,
-            'bounceOffEdge': self.motion0Arg,
+            'motion_ifonedgebounce': self.motion0Arg,
             'setRotationStyle': self.motion1Arg,
             'motion_pointtowards': self.pointTowards,
             'motion_glideto': self.glideTo,
@@ -1065,8 +1065,8 @@ class SpriteOrStage:
             'looks_say': self.say,
             'think:duration:elapsed:from:':self.thinkForSecs,
             'think:': self.think,
-            'show': self.show,
-            'hide': self.hide,
+            'looks_show': self.show,
+            'looks_hide': self.hide,
             'looks_switchcostumeto': self.switchCostumeTo,
             'looks_nextcostume': self.nextCostume,
             'startScene': self.switchBackdropTo,
@@ -1590,18 +1590,17 @@ class SpriteOrStage:
         return resStr
 
 
-    def motion0Arg(self, level, tokens, deferYield = False):
+    def motion0Arg(self, level, block, deferYield = False):
         """Generate code to handle Motion blocks with 0 arguments"""
-        assert len(tokens) == 1
-        cmd = tokens[0]
-        if cmd == "bounceOffEdge":
+        cmd = block.getOpcode()
+        if cmd == "motion_ifonedgebounce":
             return genIndent(level) + "ifOnEdgeBounce();\n"
         else:
             raise ValueError(cmd)
 
     def motion1Arg(self, level, block, deferYield = False):
         """Generate code to handle Motion blocks with 1 argument:
-        movesteps, turnleft, turnright, etc."""   # TODO: fix this.
+        movesteps, turnleft, turnright, etc.""" 
         cmd = block.getOpcode()
         if cmd == "motion_movesteps":
             #     "inputs": {
@@ -1668,14 +1667,10 @@ class SpriteOrStage:
         gotoxy, etc."""
         cmd = block.getOpcode()
         if cmd == "motion_gotoxy":
-            #     "inputs": {
-            #     "X": [ 1,
-            #       [ 4, "0" ]
-            #     ],
-            #     "Y": [ 1,
-            #       [ 4, "0" ]
-            #     ]
-            #   },
+            #  "inputs": {
+            #  "X": [ 1,  [ 4, "0" ]  ],
+            #  "Y": [ 1,  [ 4, "0" ]  ]
+            #  },
             arg1 = block.getInputs()['X'][1][1]
             arg2 = block.getInputs()['Y'][1][1]
             return genIndent(level) + "goTo(" + self.mathExpr(arg1) + \
@@ -1754,16 +1749,14 @@ class SpriteOrStage:
         assert cmd == "think:"
         return genIndent(level) + "think(" + self.strExpr(arg1) + ");\n"
 
-    def show(self, level, tokens, deferYield = False):
+    def show(self, level, block, deferYield = False):
         """Generate code for the show block.
         """
-        assert tokens[0] == "show"
         return genIndent(level) + "show();\n"
 
-    def hide(self, level, tokens, deferYield = False):
+    def hide(self, level, block, deferYield = False):
         """Generate code for the show block.
         """
-        assert tokens[0] == "hide"
         return genIndent(level) + "hide();\n"
 
     def switchCostumeTo(self, level, block, deferYield = False):
