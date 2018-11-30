@@ -1113,7 +1113,7 @@ class SpriteOrStage:
             'doWaitUntil': self.doWaitUntil,
             'doUntil': self.repeatUntil,
             'stopScripts': self.stopScripts,
-            'createCloneOf': self.createCloneOf,
+            'control_create_clone_of': self.createCloneOf,
             'deleteClone': self.deleteThisClone,
 
             # Sensing commands
@@ -1437,9 +1437,9 @@ class SpriteOrStage:
         codeObj.addToCbCode(cbStr)
 
 
-    def whenSpriteCloned(self, codeObj, tokens):
+    def whenSpriteCloned(self, codeObj, topBlock):
         """Generate code to handle the whenCloned block.
-        All code in tokens goes into a callback.
+        All code in children of topBlock goes into a callback.
         """
         scriptNum = codeObj.getNextScriptId()
         cbName = 'whenIStartAsACloneCb' + str(scriptNum)
@@ -1451,7 +1451,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
                         "(Sequence s)\n"
-        cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
+        cbStr += self.block(1, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
         # Generate a copy constructor too.
@@ -2273,14 +2273,18 @@ class SpriteOrStage:
             raise ValueError("stopScripts: unknown type")
 
 
-    def createCloneOf(self, level, tokens, deferYield = False):
+    def createCloneOf(self, level, block, deferYield = False):
         """Create a clone of the sprite itself or of the given sprite.
         """
-        assert len(tokens) == 2 and tokens[0] == "createCloneOf"
-        if tokens[1] == "_myself_":
+        arg = block.getChild()
+        assert arg.getOpcode() == 'control_create_clone_of_menu'
+        assert arg.getId() == block.getChild().getId()
+        assert arg.getFields() and 'CLONE_OPTION' in arg.getFields()
+        argVal = arg.getFields()['CLONE_OPTION'][0]
+        if argVal == "_myself_":
             return genIndent(level) + "createCloneOfMyself();\n"
-
-        return genIndent(level) + 'createCloneOf("' + tokens[1] + '");\n'
+        else:
+            return genIndent(level) + 'createCloneOf("' + argVal + '");\n'
 
 
     def deleteThisClone(self, level, tokens, deferYield = False):
@@ -2478,8 +2482,8 @@ class SpriteOrStage:
         opcode = topBlock.getOpcode()
         if opcode == 'event_whenflagclicked':
             self.whenFlagClicked(codeObj, topBlock)
-        elif opcode == 'event_whencloned':   # TODO: guess!
-            self.whenSpriteCloned(codeObj, blocks[1:])
+        elif opcode == 'control_start_as_clone':
+            self.whenSpriteCloned(codeObj, topBlock)
         elif opcode == 'event_whenthisspriteclicked':
             self.whenClicked(codeObj, topBlock)
         elif opcode == 'event_whenkeypressed':
