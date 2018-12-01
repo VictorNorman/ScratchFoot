@@ -106,7 +106,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     // Instrument and Drum patch numbers
     static final int[] scratchInstruments = {0, 0, 2, 19, 24, 27, 32, 45, 42, 57, 71, 64, 
                                              73, 75, 70, 91, 11, 10, 114, 12, 82, 90};
-    static final int[] scratchDrums = {0 ,38, 36, 37, 49, 46, 42, 54, 39, 75,
+    static final int[] scratchDrums = {0, 38, 36, 37, 49, 46, 42, 54, 39, 75,
                                        77, 56, 81, 61, 64, 69, 74, 58, 79};
     private boolean isPenDown = false;
     private Color penColor = Color.BLUE;
@@ -3895,7 +3895,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * one to finish first. Note that this uses the Scratch drumset,
      * not the GM drumset.
      */
-    public void playNote(int pitch, double length, Sequence s) 
+    public void playNote(Sequence s, int pitch, double length) 
     {
         // Ensure the pitch is valid
         if (pitch > 127) {
@@ -3929,7 +3929,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * if this sprite already has a drum playing, it will wait for that
      * one to finish first.
      */
-    public void playDrum(int drum, double length, Sequence s) {
+    public void playDrum(Sequence s, int drum, double length) {
         long start = System.currentTimeMillis();
         // Ensure the drum is valid
         if (drum > 18) {
@@ -3947,7 +3947,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * if this sprite already has a drum/instrument playing, it will wait for that
      * one to finish first.
      */
-    public void rest(double length, Sequence s) {
+    public void rest(Sequence s, double length) {
         while (!soundPlayer.playNote(0, 0, 16, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
@@ -4017,6 +4017,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     }
                     if (note != null) { // If a note was found
                         // Play the new note
+                        System.out.println("note channel" + note.channel);
                         synth.getChannels()[note.channel].noteOn(note.pitch, note.vel);
                         // Set the note to active
                         activeNotes.push(note);

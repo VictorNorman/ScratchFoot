@@ -1130,12 +1130,12 @@ class SpriteOrStage:
             'doPlaySoundAndWait': self.playSoundUntilDone,
 
             #Midi commands
-            'noteOn:duration:elapsed:from:': self.noteOn,
+            'music_playNoteForBeats': self.playNote,
             'music_setInstrument': self.instrument,
-            'playDrum': self.playDrum,
-            'rest:elapsed:from:': self.rest,
-            'changeTempoBy:': self.changeTempoBy,
-            'setTempoTo:': self.setTempoTo
+            'music_playDrumForBeats': self.playDrum,
+            'music_restForBeats': self.rest,
+            'music_changeTempo': self.changeTempoBy,
+            'music_setTempo': self.setTempoTo
 
             }
         if debug:
@@ -2430,11 +2430,12 @@ class SpriteOrStage:
         assert len(tokens) == 2 and tokens[0] == "doPlaySoundAndWait"
         return genIndent(level) + "playSoundUntilDone(" + self.strExpr(tokens[1]) + ");\n"
     
-    def noteOn(self, level, tokens, deferYield = False):
-        """ Play the given note
+    def playNote(self, level, block, deferYield = False):
+        """ Play the given note for a given number of beats
         """
-        assert len(tokens) == 3 and tokens[0] == "noteOn:duration:elapsed:from:"
-        return genIndent(level) + "playNote(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n"
+        beats = block.getInputs()['BEATS'][1][1]
+        note = block.getChild().getFields()['NOTE'][0]
+        return genIndent(level) + "playNote(s, " + self.mathExpr(note) + ", " + self.mathExpr(beats) + ");\n"
     
     def instrument(self, level, block, deferYield = False):
         """ Play the given instrument
@@ -2442,29 +2443,30 @@ class SpriteOrStage:
         arg = block.getChild().getFields()['INSTRUMENT'][0]
         return genIndent(level) + "changeInstrument(" + self.mathExpr(arg) + ");\n"
     
-    def playDrum(self, level, tokens, deferYield = False):
-        """ Play the given note
+    def playDrum(self, level, block, deferYield = False):
+        """ Play the given drum
         """
-        assert len(tokens) == 3 and tokens[0] == "playDrum"
-        return genIndent(level) + "playDrum(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n"
+        speed = block.getInputs()['BEATS'][1][1]
+        drum = block.getChild().getFields()['DRUM'][0]
+        return genIndent(level) + "playDrum(s, " + self.mathExpr(drum) + ", " + self.mathExpr(speed) + ");\n"
     
-    def rest(self, level, tokens, deferYield = False):
-        """ Play a rest for the given amount of time
+    def rest(self, level, block, deferYield = False):
+        """ Play a rest for the given number of beats.
         """
-        assert len(tokens) == 2 and tokens[0] == "rest:elapsed:from:"
-        return genIndent(level) + "rest(" + self.mathExpr(tokens[1]) + ", s);\n"
+        arg = block.getInputs()['BEATS'][1][1]
+        return genIndent(level) + "rest(s, " + self.mathExpr(arg) + ");\n"
     
-    def changeTempoBy(self, level, tokens, deferYield = False):
+    def changeTempoBy(self, level, block, deferYield = False):
         """ Change the tempo.
         """
-        assert len(tokens) == 2 and tokens[0] == "changeTempoBy:"
-        return genIndent(level) + "changeTempoBy(" + self.mathExpr(tokens[1]) + ");\n"
+        arg = block.getInputs()['TEMPO'][1][1]
+        return genIndent(level) + "changeTempoBy(" + self.mathExpr(arg) + ");\n"
     
-    def setTempoTo(self, level, tokens, deferYield = False):
+    def setTempoTo(self, level, block, deferYield = False):
         """ Set the tempo
         """
-        assert len(tokens) == 2 and tokens[0] == "setTempoTo:"
-        return genIndent(level) + "setTempo(" + self.mathExpr(tokens[1]) + ");\n"
+        arg = block.getInputs()['TEMPO'][1][1]
+        return genIndent(level) + "setTempo(" + self.mathExpr(arg) + ");\n"
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a
