@@ -1024,7 +1024,7 @@ class SpriteOrStage:
 
     def stmts(self, level, firstBlock, deferYield = False):
         """Generate code for the list of statements, by repeatedly calling stmt(), 
-        following the chain of next pointers frmo the firstBlock."""
+        following the chain of next pointers from the firstBlock."""
         if firstBlock is None:
             return ""
         retStr = ""
@@ -1046,18 +1046,18 @@ class SpriteOrStage:
             'doIfElse': self.doIfElse,
 
             # Motion commands
-            'motion_movesteps': self.motion1Arg,
-            'motion_turnleft': self.motion1Arg,
-            'motion_turnright': self.motion1Arg,
-            'motion_pointindirection': self.motion1Arg,
-            'motion_gotoxy': self.motion2Arg,
-            'motion_goto': self.motion1Arg,    # for random position or mouse or sprite
-            'motion_changexby': self.motion1Arg,
-            'motion_setx': self.motion1Arg,
-            'motion_changeyby': self.motion1Arg,
-            'motion_sety': self.motion1Arg,
-            'motion_ifonedgebounce': self.motion0Arg,
-            'motion_setrotationstyle': self.motion1Arg,
+            'motion_movesteps': self.moveSteps,
+            'motion_turnleft': self.turnLeft,
+            'motion_turnright': self.turnRight,
+            'motion_pointindirection': self.pointInDirection,
+            'motion_gotoxy': self.gotoXY,
+            'motion_goto': self.goto,
+            'motion_changexby': self.changeXBy,
+            'motion_setx': self.setX,
+            'motion_changeyby': self.changeYBy,
+            'motion_sety': self.setY,
+            'motion_ifonedgebounce': self.ifOnEdgeBounce,
+            'motion_setrotationstyle': self.setRotationStyle,
             'motion_pointtowards': self.pointTowards,
             'motion_glideto': self.glideTo,
 
@@ -1080,28 +1080,29 @@ class SpriteOrStage:
             'setGraphicEffect:to:': self.setGraphicTo,
 
             # Pen commands
-            'clearPenTrails': self.pen0Arg,
-            'stampCostume': self.pen0Arg,
-            'putPenDown': self.pen0Arg,
-            'putPenUp': self.pen0Arg,
-            'penColor:': self.pen1Arg,
-            'changePenHueBy:': self.pen1Arg,
-            'setPenHueTo:': self.pen1Arg,
-            'penSize:': self.pen1Arg,
-            'changePenSizeBy:': self.pen1Arg,
+            'pen_clear': self.penClear,
+            'pen_stamp': self.penStamp,
+            'pen_penDown': self.penDown,
+            'pen_penUp': self.penUp,
+            
+            'pen_setPenColorToColor': self.setPenColor,
+            'pen_setPenColorParamTo': self.setPenColorParamTo,
+            'pen_changePenColorParamBy': self.setPenColorParamBy,
+            'pen_setPenSizeTo': self.setPenSizeTo,
+            'pen_changePenSizeBy': self.changePenSizeBy,
 
             # Data commands
             'setVar:to:': self.setVariable,
             'hideVariable:': self.hideVariable,
             'showVariable:': self.showVariable,
             'changeVar:by:': self.changeVarBy,
-            
+
             'append:toList:': self.listAppend,
             'deleteLine:ofList:': self.listRemove,
             'insert:at:ofList:': self.listInsert,
             'setLine:ofList:to:': self.listSet,
             'hideList:': self.hideList,
-            'showList:': self.showList, 
+            'showList:': self.showList,
 
             # Events commands
             'event_broadcast': self.broadcast,
@@ -1123,14 +1124,14 @@ class SpriteOrStage:
 
             # Blocks commands
             'call': self.callABlock,
-            
+
             # Sound commands
             'playSound:': self.playSound,
             'doPlaySoundAndWait': self.playSoundUntilDone,
-            
+
             #Midi commands
             'noteOn:duration:elapsed:from:': self.noteOn,
-            'instrument:': self.instrument,
+            'music_setInstrument': self.instrument,
             'playDrum': self.playDrum,
             'rest:elapsed:from:': self.rest,
             'changeTempoBy:': self.changeTempoBy,
@@ -1592,53 +1593,52 @@ class SpriteOrStage:
         return resStr
 
 
-    def motion0Arg(self, level, block, deferYield = False):
+    def ifOnEdgeBounce(self, level, block, deferYield = False):
         """Generate code to handle Motion blocks with 0 arguments"""
-        cmd = block.getOpcode()
-        if cmd == "motion_ifonedgebounce":
-            return genIndent(level) + "ifOnEdgeBounce();\n"
-        else:
-            raise ValueError(cmd)
+        return genIndent(level) + "ifOnEdgeBounce();\n"
 
-    def motion1Arg(self, level, block, deferYield = False):
-        """Generate code to handle Motion blocks with 1 argument:
-        movesteps, turnleft, turnright, etc.""" 
-        cmd = block.getOpcode()
-        if cmd == "motion_movesteps":
-            #     "inputs": {
-            #       "STEPS": [  1,  [ 4, "10" ] ]
-            #     },
-            arg = block.getInputs()['STEPS'][1][1]
-            return genIndent(level) + "move(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_turnright":
-            # inputs is similar to movesteps, but with DEGREES
-            arg = block.getInputs()['DEGREES'][1][1]
-            return genIndent(level) + "turnRightDegrees(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_turnleft":
-            arg = block.getInputs()['DEGREES'][1][1]
-            return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_pointindirection":
-            arg = block.getInputs()['DIRECTION'][1][1]
-            return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_goto":
-            return self.genGoto(level, block)
-        elif cmd == "motion_changexby":
-            arg = block.getInputs()['DX'][1][1]
-            return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_setx":
-            arg = block.getInputs()['X'][1][1]
-            return genIndent(level) + "setXTo(" + self.mathExpr(arg) + ");\n" 
-        elif cmd == "motion_changeyby":
-            arg = block.getInputs()['DY'][1][1]
-            return genIndent(level) + "changeYBy(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_sety":
-            arg = block.getInputs()['Y'][1][1]
-            return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "motion_setrotationstyle":
-            arg = block.getFields()['STYLE'][0]
-            return self.genRotationStyle(level, arg)
-        else:
-            raise ValueError(cmd)
+    def moveSteps(self, level, block, deferYield = False):
+        #     "inputs": {
+        #       "STEPS": [  1,  [ 4, "10" ] ]
+        #     },
+        arg = block.getInputs()['STEPS'][1][1]
+        return genIndent(level) + "move(" + self.mathExpr(arg) + ");\n"
+
+    def turnRight(self, level, block, deferYield = False):
+        # inputs is similar to moveSteps, but with DEGREES
+        arg = block.getInputs()['DEGREES'][1][1]
+        return genIndent(level) + "turnRightDegrees(" + self.mathExpr(arg) + ");\n"
+
+    def turnLeft(self, level, block, deferYield = False):
+        arg = block.getInputs()['DEGREES'][1][1]
+        return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(arg) + ");\n"
+
+    def pointInDirection(self, level, block, deferYield = False):
+        arg = block.getInputs()['DIRECTION'][1][1]
+        return genIndent(level) + "pointInDirection(" + self.mathExpr(arg) + ");\n"
+
+    def goto(self, level, block, deferYield = False):
+        return self.genGoto(level, block)
+
+    def changeXBy(self, level, block, deferYield = False):
+        arg = block.getInputs()['DX'][1][1]
+        return genIndent(level) + "changeXBy(" + self.mathExpr(arg) + ");\n"
+
+    def changeYBy(self, level, block, deferYield = False):
+        arg = block.getInputs()['DY'][1][1]
+        return genIndent(level) + "changeYBy(" + self.mathExpr(arg) + ");\n"
+
+    def setX(self, level, block, deferYield = False):
+        arg = block.getInputs()['X'][1][1]
+        return genIndent(level) + "setXTo(" + self.mathExpr(arg) + ");\n"
+
+    def setY(self, level, block, deferYield = False):
+        arg = block.getInputs()['Y'][1][1]
+        return genIndent(level) + "setYTo(" + self.mathExpr(arg) + ");\n"
+
+    def setRotationStyle(self, level, block, deferYield = False):
+        arg = block.getFields()['STYLE'][0]
+        return self.genRotationStyle(level, arg)
 
     def genGoto(self, level, block):
         arg = block.getChild()
@@ -1664,21 +1664,17 @@ class SpriteOrStage:
         else:
             raise ValueError('setRotationStyle')
 
-    def motion2Arg(self, level, block, deferYield = False):
+    def gotoXY(self, level, block, deferYield = False):
         """Generate code to handle Motion blocks with 2 arguments:
         gotoxy, etc."""
-        cmd = block.getOpcode()
-        if cmd == "motion_gotoxy":
-            #  "inputs": {
-            #  "X": [ 1,  [ 4, "0" ]  ],
-            #  "Y": [ 1,  [ 4, "0" ]  ]
-            #  },
-            arg1 = block.getInputs()['X'][1][1]
-            arg2 = block.getInputs()['Y'][1][1]
-            return genIndent(level) + "goTo(" + self.mathExpr(arg1) + \
-                   ", " + self.mathExpr(arg2) + ");\n"
-        else:
-            raise ValueError(cmd)
+        #  "inputs": {
+        #     "X": [ 1,  [ 4, "0" ]  ],
+        #     "Y": [ 1,  [ 4, "0" ]  ]
+        #  },
+        arg1 = block.getInputs()['X'][1][1]
+        arg2 = block.getInputs()['Y'][1][1]
+        return genIndent(level) + "goTo(" + self.mathExpr(arg1) + \
+                ", " + self.mathExpr(arg2) + ");\n"
 
     def pointTowards(self, level, block, deferYield = False):
         """Generate code to turn the sprite to point to something.
@@ -1718,12 +1714,8 @@ class SpriteOrStage:
         """Generate code to handle say <str> for <n> seconds.
         """
         # inputs contains (for the basic case):
-        # "MESSAGE": [ 1,
-        #   [ 10, "Hello!" ]
-        # ],
-        # "SECS": [ 1,
-        #   [ 4, "2" ]
-        # ]
+        # "MESSAGE": [ 1, [ 10, "Hello!" ] ],
+        # "SECS": [ 1, [ 4, "2" ] ]
         arg1 = block.getInputs()['MESSAGE'][1][1]
         arg2 = block.getInputs()['SECS'][1][1]
         return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
@@ -1855,41 +1847,64 @@ class SpriteOrStage:
             return genIndent(level) + "setColorEffectTo(" + self.mathExpr(arg2) + ");\n"
         else:
             return genIndent(level) + "// " + arg1 + " effect is not implemented\n"  
-        
-    def pen0Arg(self, level, tokens, deferYield = False):
-        """Generate code to handle Pen blocks with 0 arguments"""
-        assert len(tokens) == 1
-        resStr = genIndent(level)
-        cmd = tokens[0]
-        if cmd == "clearPenTrails":
-            return resStr + "clear();\n"
-        elif cmd == "stampCostume":
-            return resStr + "stamp();\n"
-        elif cmd == "putPenDown":
-            return resStr + "penDown();\n"
-        elif cmd == "putPenUp":
-            return resStr + "penUp();\n"
-        else:
-            raise ValueError(cmd)
 
-    def pen1Arg(self, level, tokens, deferYield = False):
+
+    def penClear(self, level, block, deferYield = False):
+        return genIndent(level) + "clear();\n"
+
+    def penDown(self, level, block, deferYield = False):
+        return genIndent(level) + "penDown();\n"
+
+    def penUp(self, level, block, deferYield = False):
+        return genIndent(level) + "penDown();\n"
+
+    def penStamp(self, level, block, deferYield = False):
+        return genIndent(level) + "stamp();\n"
+
+    def setPenColor(self, level, block, deferYield = False):
+        # TODO: need to add code to import java.awt.Color  ??
+        # color is a string like "#a249e8"
+        # TODO: TEST!
+        color = block.getInputs()['COLOR'][1][1]
+        color = color[1:]       # lose the first # sign
+        return genIndent(level) + 'setPenColor(new java.awt.Color(0x%s));\n' % color
+
+    def changePenSizeBy(self, level, block, deferYield = False):
+        arg = block.getInputs()['SIZE'][1][1]
+        return genIndent(level) + "changePenSizeBy(" + self.mathExpr(arg) + ");\n"
+
+    def setPenSizeTo(self, level, block, deferYield = False):
+        arg = block.getInputs()['SIZE'][1][1]
+        return genIndent(level) + "setPenSize(" + self.mathExpr(arg) + ");\n"
+
+    def setPenColorParamBy(self, level, block, deferYield = False):
+        '''Change color or saturation, etc., by an amount'''
+        arg = block.getInputs()['VALUE'][1][1]
+        thingToChange = block.getChild().getFields()['colorParam'][0]
+        if thingToChange == 'color':
+            return genIndent(level) + "changePenColorBy(" + self.mathExpr(arg) + ");\n"
+        else:
+            raise ValueError('Cannot change pen %s now' % thingToChange)
+
+    def setPenColorParamTo(self, level, block, deferYield = False):
+        '''Set color or saturation, etc., to an amount'''
+        arg = block.getInputs()['VALUE'][1][1]
+        thingToChange = block.getChild().getFields()['colorParam'][0]
+        if thingToChange == 'color':
+            return genIndent(level) + "setPenColor(" + self.mathExpr(arg) + ");\n"
+        else:
+            raise ValueError('Cannot change pen %s now' % thingToChange)
+
+    def pen1Arg(self, level, block, deferYield = False):
         """Generate code to handle Pen blocks with 1 argument."""
 
         assert len(tokens) == 2
         cmd, arg = tokens
         resStr = genIndent(level)
-        if cmd == "penColor:":
-            # arg is an integer representing a color.  
-            # TODO: need to add code to import java.awt.Color  ??
-            return resStr + "setPenColor(new java.awt.Color((int) " + self.mathExpr(arg) + "));\n"
-        elif cmd == "changePenHueBy:":
+        if cmd == "changePenHueBy:":
             return resStr + "changePenColorBy(" + self.mathExpr(arg) + ");\n"
         elif cmd == "setPenHueTo:":
             return resStr + "setPenColor(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "changePenSizeBy:":
-            return resStr + "changePenSizeBy(" + self.mathExpr(arg) + ");\n"
-        elif cmd == "penSize:":
-            return resStr + "setPenSize(" + self.mathExpr(arg) + ");\n"
         else:
             raise ValueError(cmd)
 
@@ -2421,11 +2436,11 @@ class SpriteOrStage:
         assert len(tokens) == 3 and tokens[0] == "noteOn:duration:elapsed:from:"
         return genIndent(level) + "playNote(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n"
     
-    def instrument(self, level, tokens, deferYield = False):
-        """ Play the given note
+    def instrument(self, level, block, deferYield = False):
+        """ Play the given instrument
         """
-        assert len(tokens) == 2 and tokens[0] == "instrument:"
-        return genIndent(level) + "changeInstrument(" + self.mathExpr(tokens[1]) + ");\n"
+        arg = block.getChild().getFields()['INSTRUMENT'][0]
+        return genIndent(level) + "changeInstrument(" + self.mathExpr(arg) + ");\n"
     
     def playDrum(self, level, tokens, deferYield = False):
         """ Play the given note
@@ -2434,19 +2449,19 @@ class SpriteOrStage:
         return genIndent(level) + "playDrum(" + self.mathExpr(tokens[1]) + ", " + self.mathExpr(tokens[2]) + ", s);\n"
     
     def rest(self, level, tokens, deferYield = False):
-        """ Play the given note
+        """ Play a rest for the given amount of time
         """
         assert len(tokens) == 2 and tokens[0] == "rest:elapsed:from:"
         return genIndent(level) + "rest(" + self.mathExpr(tokens[1]) + ", s);\n"
     
     def changeTempoBy(self, level, tokens, deferYield = False):
-        """ Play the given note
+        """ Change the tempo.
         """
         assert len(tokens) == 2 and tokens[0] == "changeTempoBy:"
         return genIndent(level) + "changeTempoBy(" + self.mathExpr(tokens[1]) + ");\n"
     
     def setTempoTo(self, level, tokens, deferYield = False):
-        """ Play the given note
+        """ Set the tempo
         """
         assert len(tokens) == 2 and tokens[0] == "setTempoTo:"
         return genIndent(level) + "setTempo(" + self.mathExpr(tokens[1]) + ");\n"
