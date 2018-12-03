@@ -1127,7 +1127,7 @@ class SpriteOrStage:
 
             # Sound commands
             'playSound:': self.playSound,
-            'doPlaySoundAndWait': self.playSoundUntilDone,
+            'sound_playuntildone': self.playSoundUntilDone,
 
             #Midi commands
             'music_playNoteForBeats': self.playNote,
@@ -2424,11 +2424,11 @@ class SpriteOrStage:
         assert len(tokens) == 2 and tokens[0] == "playSound:"
         return genIndent(level) + "playSound(" + self.strExpr(tokens[1]) + ");\n"
 
-    def playSoundUntilDone(self, level, tokens, deferYield = False):
+    def playSoundUntilDone(self, level, block, deferYield = False):
         """ Play the given sound without interrupting it.
         """
-        assert len(tokens) == 2 and tokens[0] == "doPlaySoundAndWait"
-        return genIndent(level) + "playSoundUntilDone(" + self.strExpr(tokens[1]) + ");\n"
+        arg = block.getChild().getFields()['SOUND_MENU'][0]
+        return genIndent(level) + "playSoundUntilDone(" + self.strExpr(arg) + ");\n"
     
     def playNote(self, level, block, deferYield = False):
         """ Play the given note for a given number of beats

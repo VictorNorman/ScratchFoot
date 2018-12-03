@@ -4017,7 +4017,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     }
                     if (note != null) { // If a note was found
                         // Play the new note
-                        System.out.println("note channel" + note.channel);
+                        // TODO: System.out.println("note channel" + note.channel);
                         synth.getChannels()[note.channel].noteOn(note.pitch, note.vel);
                         // Set the note to active
                         activeNotes.push(note);
@@ -4146,7 +4146,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 }
                 toPlay.start();
             } else {
-                System.err.println("Attempted to play non-existent sound");
+                System.err.println("Attempted to play non-existent sound: " + clipName);
             }
         }
     
@@ -4165,7 +4165,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     toPlay.start();
                 }
             } else {
-                System.err.println("Attempted to play non-existent sound");
+                System.err.println("Attempted to play non-existent sound: " + clipName);
             }
         }
     
