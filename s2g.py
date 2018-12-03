@@ -1290,6 +1290,10 @@ class SpriteOrStage:
                     "10 ^": "Math.pow(10, "
                     }
                 return '(' + op2Func[mathop] + self.mathExpr(child, 'NUM') + "))"
+            elif child.getOpcode() == 'operator_length':
+                arg = child.getInputs()['STRING'][1][1]
+                # TODO: should call strExpr 
+                return "lengthOf(" + arg + ")"
             elif child.getOpcode() == 'motion_xposition':
                 return 'getX()'
             elif child.getOpcode() == 'motion_ypos':
@@ -1699,35 +1703,28 @@ class SpriteOrStage:
 
     def turnRight(self, level, block, deferYield = False):
         # inputs is similar to moveSteps, but with DEGREES
-        arg = block.getInputs()['DEGREES'][1][1]
-        return genIndent(level) + "turnRightDegrees(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "turnRightDegrees(" + self.mathExpr(block, 'DEGREES') + ");\n"
 
     def turnLeft(self, level, block, deferYield = False):
-        arg = block.getInputs()['DEGREES'][1][1]
-        return genIndent(level) + "turnLeftDegrees(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(block, 'DEGREES') + ");\n"
 
     def pointInDirection(self, level, block, deferYield = False):
-        arg = block.getInputs()['DIRECTION'][1][1]
-        return genIndent(level) + "pointInDirection(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "pointInDirection(" + self.mathExpr(block, 'DIRECTION') + ");\n"
 
     def goto(self, level, block, deferYield = False):
         return self.genGoto(level, block)
 
     def changeXBy(self, level, block, deferYield = False):
-        arg = block.getInputs()['DX'][1][1]
-        return genIndent(level) + "changeXBy(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "changeXBy(" + self.mathExpr(block, 'DX') + ");\n"
 
     def changeYBy(self, level, block, deferYield = False):
-        arg = block.getInputs()['DY'][1][1]
-        return genIndent(level) + "changeYBy(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "changeYBy(" + self.mathExpr(block, 'DY') + ");\n"
 
     def setX(self, level, block, deferYield = False):
-        arg = block.getInputs()['X'][1][1]
-        return genIndent(level) + "setXTo(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "setXTo(" + self.mathExpr(block, 'X') + ");\n"
 
     def setY(self, level, block, deferYield = False):
-        arg = block.getInputs()['Y'][1][1]
-        return genIndent(level) + "setYTo(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "setYTo(" + self.mathExpr(block, 'Y') + ");\n"
 
     def setRotationStyle(self, level, block, deferYield = False):
         arg = block.getFields()['STYLE'][0]
@@ -1764,10 +1761,8 @@ class SpriteOrStage:
         #     "X": [ 1,  [ 4, "0" ]  ],
         #     "Y": [ 1,  [ 4, "0" ]  ]
         #  },
-        arg1 = block.getInputs()['X'][1][1]
-        arg2 = block.getInputs()['Y'][1][1]
-        return genIndent(level) + "goTo(" + self.oldMathExpr(arg1) + \
-                ", " + self.oldMathExpr(arg2) + ");\n"
+        return genIndent(level) + "goTo(" + self.mathExpr(block, 'X') + \
+                ", " + self.mathExpr(block, 'Y') + ");\n"
 
     def pointTowards(self, level, block, deferYield = False):
         """Generate code to turn the sprite to point to something.
@@ -1794,14 +1789,13 @@ class SpriteOrStage:
         assert child.getId() == block.getChild().getId()
         assert child.getFields() and 'TO' in child.getFields()
         argVal = child.getFields()['TO'][0]
-        duration = block.getInputs()['SECS'][1][1]
         if argVal == "_mouse_":
-            return genIndent(level) + "glideToMouse(s, " + self.oldMathExpr(duration) + ");\n"
+            return genIndent(level) + "glideToMouse(s, " + self.mathExpr(block, 'SECS') + ");\n"
         elif argVal == "_random_":
-            return genIndent(level) + "glideToRandomPosition(s, " + self.oldMathExpr(duration) + ");\n"
+            return genIndent(level) + "glideToRandomPosition(s, " + self.mathExpr(block, 'SECS') + ");\n"
         else:       # gliding to another sprite
             return genIndent(level) + 'glideToSprite(s, "%s", %s);\n' % \
-                        (argVal, self.oldMathExpr(duration))
+                        (argVal, self.mathExpr(block, 'DURATION'))
 
     def sayForSecs(self, level, block, deferYield = False):
         """Generate code to handle say <str> for <n> seconds.
@@ -1810,9 +1804,8 @@ class SpriteOrStage:
         # "MESSAGE": [ 1, [ 10, "Hello!" ] ],
         # "SECS": [ 1, [ 4, "2" ] ]
         arg1 = block.getInputs()['MESSAGE'][1][1]
-        arg2 = block.getInputs()['SECS'][1][1]
         return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
-               self.oldMathExpr(arg2) + ");\n"
+               self.mathExpr(block, 'SECS') + ");\n"
 
     def say(self, level, block, deferYield = False):
         """Generate code to handle say <str>.
@@ -1825,9 +1818,8 @@ class SpriteOrStage:
         """Generate code to handle think <str> for <n> seconds.
         """
         arg1 = block.getInputs()['MESSAGE'][1][1]
-        arg2 = block.getInputs()['SECS'][1][1]
         return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(arg1) + ", " + \
-               self.oldMathExpr(arg2) + ");\n"
+               self.mathExpr(block, 'SECS') + ");\n"
     
     def think(self, level, block, deferYield = False):
         """Generate code to handle think <str>.
@@ -1853,6 +1845,7 @@ class SpriteOrStage:
         # and the value in 'fields' being the costume name.
         arg = block.getChild().getFields()['COSTUME'][0]
         try:
+            # TODO!
             return genIndent(level) + "switchToCostume(" + self.oldMathExpr(arg) + ");\n"
         except (ValueError, AssertionError):
             # if mathExpr is unable to resolve arg, use strExpr instead
@@ -1879,14 +1872,12 @@ class SpriteOrStage:
     def changeSizeBy(self, level, block, deferYield = False):
         """Generate code to change the size of the sprite
         """
-        arg = block.getInputs()['CHANGE'][1][1]
-        return genIndent(level) + "changeSizeBy(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "changeSizeBy(" + self.mathExpr(block, 'CHANGE') + ");\n"
 
     def setSizeTo(self, level, block, deferYield = False):
         """Generate code to change the size of the sprite to a certain percentage
         """
-        arg = block.getInputs()['SIZE'][1][1]
-        return genIndent(level) + "setSizeTo(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "setSizeTo(" + self.mathExpr(block, 'SIZE') + ");\n"
 
     def goToFront(self, level, tokens, deferYield = False):
         """Generate code to move the sprite to the front
@@ -1963,43 +1954,39 @@ class SpriteOrStage:
         return genIndent(level) + 'setPenColor(new java.awt.Color(0x%s));\n' % color
 
     def changePenSizeBy(self, level, block, deferYield = False):
-        arg = block.getInputs()['SIZE'][1][1]
-        return genIndent(level) + "changePenSizeBy(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "changePenSizeBy(" + self.mathExpr(block, 'SIZE') + ");\n"
 
     def setPenSizeTo(self, level, block, deferYield = False):
-        arg = block.getInputs()['SIZE'][1][1]
-        return genIndent(level) + "setPenSize(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "setPenSize(" + self.mathExpr(block, 'SIZE') + ");\n"
 
     def setPenColorParamBy(self, level, block, deferYield = False):
         '''Change color or saturation, etc., by an amount'''
-        arg = block.getInputs()['VALUE'][1][1]
         thingToChange = block.getChild().getFields()['colorParam'][0]
         if thingToChange == 'color':
-            return genIndent(level) + "changePenColorBy(" + self.oldMathExpr(arg) + ");\n"
+            return genIndent(level) + "changePenColorBy(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
             raise ValueError('Cannot change pen %s now' % thingToChange)
 
     def setPenColorParamTo(self, level, block, deferYield = False):
         '''Set color or saturation, etc., to an amount'''
-        arg = block.getInputs()['VALUE'][1][1]
         thingToChange = block.getChild().getFields()['colorParam'][0]
         if thingToChange == 'color':
-            return genIndent(level) + "setPenColor(" + self.oldMathExpr(arg) + ");\n"
+            return genIndent(level) + "setPenColor(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
             raise ValueError('Cannot change pen %s now' % thingToChange)
 
-    def pen1Arg(self, level, block, deferYield = False):
-        """Generate code to handle Pen blocks with 1 argument."""
+    # def pen1Arg(self, level, block, deferYield = False):
+    #     """Generate code to handle Pen blocks with 1 argument."""
 
-        assert len(tokens) == 2
-        cmd, arg = tokens
-        resStr = genIndent(level)
-        if cmd == "changePenHueBy:":
-            return resStr + "changePenColorBy(" + self.oldMathExpr(arg) + ");\n"
-        elif cmd == "setPenHueTo:":
-            return resStr + "setPenColor(" + self.oldMathExpr(arg) + ");\n"
-        else:
-            raise ValueError(cmd)
+    #     assert len(tokens) == 2
+    #     cmd, arg = tokens
+    #     resStr = genIndent(level)
+    #     if cmd == "changePenHueBy:":
+    #         return resStr + "changePenColorBy(" + self.oldMathExpr(arg) + ");\n"
+    #     elif cmd == "setPenHueTo:":
+    #         return resStr + "setPenColor(" + self.oldMathExpr(arg) + ");\n"
+    #     else:
+    #         raise ValueError(cmd)
 
     def getNameTypeAndLocalGlobal(self, varTok):
         """Look up the token representing a variable name in the varInfo
@@ -2299,24 +2286,15 @@ class SpriteOrStage:
     def doWait(self, level, block, deferYield = False):
         """Generate a wait call."""
         assert block.getOpcode() == "control_wait"
-        # inputs: "DURATION": [
-        #       1,
-        #       [
-        #         5,
-        #         "1"
-        #       ]
-        #     ]
-        arg = block.getInputs()['DURATION'][1][1]
-        return genIndent(level) + "wait(s, " + self.oldMathExpr(arg) + ");\n"
+        # inputs: "DURATION": [ 1,  [  5,  "1" ] ]
+        return genIndent(level) + "wait(s, " + self.mathExpr(block, 'DURATION') + ");\n"
 
 
     def doRepeat(self, level, block, deferYield = False):
         """Generate a repeat <n> times loop.
         """
-
-        numTimes = block.getInputs()['TIMES'][1][1]
         retStr = genIndent(level) + "for (int i" + str(level) + " = 0; i" + str(level) + " < " + \
-                 self.oldMathExpr(numTimes) + "; i" + str(level) + "++)\n"
+                 self.mathExpr(block, 'TIMES') + "; i" + str(level) + "++)\n"
         retStr += genIndent(level) + "{\n"
         retStr += self.stmts(level, block.getChild())
         if (deferYield):
@@ -2526,9 +2504,8 @@ class SpriteOrStage:
     def playNote(self, level, block, deferYield = False):
         """ Play the given note for a given number of beats
         """
-        beats = block.getInputs()['BEATS'][1][1]
         note = block.getChild().getFields()['NOTE'][0]
-        return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + self.oldMathExpr(beats) + ");\n"
+        return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def instrument(self, level, block, deferYield = False):
         """ Play the given instrument
@@ -2539,27 +2516,23 @@ class SpriteOrStage:
     def playDrum(self, level, block, deferYield = False):
         """ Play the given drum
         """
-        speed = block.getInputs()['BEATS'][1][1]
         drum = block.getChild().getFields()['DRUM'][0]
-        return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + self.oldMathExpr(speed) + ");\n"
+        return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def rest(self, level, block, deferYield = False):
         """ Play a rest for the given number of beats.
         """
-        arg = block.getInputs()['BEATS'][1][1]
-        return genIndent(level) + "rest(s, " + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "rest(s, " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def changeTempoBy(self, level, block, deferYield = False):
         """ Change the tempo.
         """
-        arg = block.getInputs()['TEMPO'][1][1]
-        return genIndent(level) + "changeTempoBy(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "changeTempoBy(" + self.mathExpr(block, 'TEMPO') + ");\n"
     
     def setTempoTo(self, level, block, deferYield = False):
         """ Set the tempo
         """
-        arg = block.getInputs()['TEMPO'][1][1]
-        return genIndent(level) + "setTempo(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "setTempo(" + self.mathExpr(block, 'TEMPO') + ");\n"
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a
@@ -2649,8 +2622,11 @@ class Sprite(SpriteOrStage):
         """
         resStr = ""
 
-        # Set the initial costume (NOTE: could use the name of the costume instead of index...)
-        resStr = genIndent(2) + 'switchToCostume(' + str(self._sprData['currentCostume']) + ');\n'
+        costumeIdx = self._sprData['currentCostume']
+        costumeName = self._sprData['costumes'][costumeIdx]['name']
+
+        # Set the initial costume 
+        resStr = genIndent(2) + 'switchToCostume("' + costumeName + '");\n'
 
         # TODO: using size instead of scale.  Removed multiplying by 100 here!  Test!
         if self._sprData['size'] != 100:
@@ -3066,8 +3042,9 @@ def convert():
     if debug:
         print("CostumeCode is ", addBackdropsCode)
     
-    costumeIndex = stageData['currentCostume']
-    addBackdropsCode += genIndent(2) + 'switchBackdropTo(' + str(costumeIndex) + ');\n'
+    costumeIdx = stageData['currentCostume']
+    costumeName = stageData['costumes'][costumeIdx]['name']
+    addBackdropsCode += genIndent(2) + 'switchBackdropTo("' + costumeName + '");\n'
     
     worldCode += worldCtorCode
     worldCode += addBackdropsCode
