@@ -198,7 +198,8 @@ class Block:
         self._fields = {}
         self._topLevel = False
         self._next = None
-        self._child = None
+        # dictionary mapping key -> child block.
+        self._children = {}
     
     def setInputs(self, inputs):
         '''inputs are a json object (for now)'''
@@ -214,14 +215,16 @@ class Block:
     def setNext(self, blockObj):
         self._next = blockObj
 
-    def setChild(self, childBlock):
-        self._child = childBlock
+    def setChild(self, key, childBlock):
+        if key in self._children:
+            raise ValueError('block has child with key %s already' % key)
+        self._children[key] = childBlock
 
     def isTopLevel(self):
         return self._topLevel
 
-    def hasChild(self):
-        return self._child != None
+    def hasChild(self, key):
+        return key in self._children
 
     def getId(self):
         return self._id
@@ -238,8 +241,8 @@ class Block:
     def getFields(self):
         return self._fields
 
-    def getChild(self):
-        return self._child
+    def getChild(self, key):
+        return self._children[key]
 
     def strWithIndent(self, indentLevel = 0):
         res = ("  " * indentLevel) + str(self)
@@ -944,6 +947,8 @@ class SpriteOrStage:
         #     ... etc ...
 
         allBlocks = {}   # Map of blockId to Block object.
+
+        # Create all the block objects first
         for blockId in blocksJson:
             vals = blocksJson[blockId]
             block = Block(blockId, vals['opcode'])
@@ -956,34 +961,36 @@ class SpriteOrStage:
             if vals['topLevel']:
                 block.setTopLevel(vals['topLevel'])
 
+        # Link the blocks together.
         for blockId in blocksJson:
-            childVals = blocksJson[blockId]
+            blockJson = blocksJson[blockId]
             block = allBlocks[blockId]
-            print("making links for child ", str(block))
-            if childVals['parent']:
-                # must have a parent object, so make the link from parent to child
-                # if the parent is a containing block, this is indicated by
-                # 1) the parent's next id is not this child, and 
-                # 2) the parent has an inputs called SUBSTACK, containing this 
-                #    child id.  E.g.:
-                # "inputs": {
-                #     "SUBSTACK": [
-                #       2,
-                #       "%?R0lmqrvySH00}u~j,l"
-                #     ]
-                #   },
-                parent = allBlocks[childVals['parent']]
-                parentVals = blocksJson[parent.getId()]
-                if parentVals['next'] != block.getId():
-                    # if 'inputs' in parentVals and 'SUBSTACK' in parentVals['inputs']:
-                    #     assert parentVals['inputs']['SUBSTACK'][1] == block.getId()
-                    # elif 'inputs' in parentVals and 'TO' in parentVals['inputs']:
-                    #     assert parentVals['inputs']['TO'][1] == block.getId()
-                    parent.setChild(block)
-                    print("setting child of %s to be %s" % (str(parent), str(block)))
-                else:
-                    parent.setNext(block)
-                    print("setting next of %s to be %s" % (str(parent), str(block)))
+            if blockJson['next'] != None:
+                nextBlock = allBlocks[blockJson['next']]
+                print('setting next block of %s to be %s' % (str(block), str(nextBlock)))
+                block.setNext(nextBlock)
+            inputs = blockJson['inputs']
+            for inputKey in inputs:
+                # inputs is like this:
+                # "OPERAND1": [
+                #   3,          
+                #   "#70%(-M,b|(xTdgz(p@p",   <-- here is the child at index 1
+                #   [
+                #     10,
+                #     ""
+                #   ]
+                # ],
+                # "OPERAND2": [
+                #   1,
+                #   [
+                #     10,
+                #     "50"
+                #   ]
+                # ]
+                if isinstance(inputs[inputKey][1], str) and inputs[inputKey][1] in allBlocks:
+                    block.setChild(inputKey, allBlocks[inputs[inputKey][1]])
+                    print('setting child block of %s with key %s to %s' %
+                        (str(block), inputKey, str(allBlocks[inputs[inputKey][1]])))
         
         listOfTopLevelBlocks = [block for block in allBlocks.values() if block.isTopLevel()]
         return listOfTopLevelBlocks
@@ -1042,7 +1049,7 @@ class SpriteOrStage:
         """
 
         scratchStmt2genCode = {
-            'doIf': self.doIf,
+            'control_if': self.doIf,
             'doIfElse': self.doIfElse,
 
             # Motion commands
@@ -1126,7 +1133,7 @@ class SpriteOrStage:
             'call': self.callABlock,
 
             # Sound commands
-            'playSound:': self.playSound,
+            'sound_play': self.playSound,
             'sound_playuntildone': self.playSoundUntilDone,
 
             #Midi commands
@@ -1151,7 +1158,7 @@ class SpriteOrStage:
             return genIndent(level) + 'System.out.println("Unimplemented stmt: ' + cmd + '");\n'
 
 
-    def boolExpr(self, tokenList):
+    def boolExpr(self, block):
         """Generate code for a boolean expression.
         It will have the format
         [<boolOp>, <boolExpr>, <boolExpr>], where boolOp is one of "&", "|"     or
@@ -1250,15 +1257,14 @@ class SpriteOrStage:
         expr = block.getInputs()[exprKey]
 
         assert isinstance(expr, list)
-        if expr[0] == 1:  # assume this means we have a direct value        
-            # e.g., [  1,  [ 4, "10" ] ]
-            # TODO: does 4 mean it is a string of an int?
+        if not block.hasChild(exprKey):
+            expr = block.getInputs()[exprKey]
             val = expr[1][1]
             return '0' if val == '' else val
-        elif expr[0] == 3:      # an expression?
+        else:
             # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
             # the value after 'alongidhere' is the default value -- we don't care about this.
-            child = block.getChild()
+            child = block.getChild(exprKey)
             if child.getOpcode() == 'operator_add':
                 return '(' + self.mathExpr(child, 'NUM1') + ' + ' + self.mathExpr(child, 'NUM2') + ')'
             elif child.getOpcode() == 'operator_subtract':
@@ -1325,7 +1331,7 @@ class SpriteOrStage:
             elif child.getOpcode() == "sensing_dayssince2000":
                 return "daysSince2000()"
             elif child.getOpcode() == "sensing_distanceto":
-                grandchild = child.getChild()
+                grandchild = child.getChild('DISTANCETOMENU')
                 arg = grandchild.getFields()['DISTANCETOMENU'][0]
                 if arg == '_mouse_':
                     return "distanceToMouse()"
@@ -1644,7 +1650,7 @@ class SpriteOrStage:
         """
         retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, block.getChild())
+        retStr += self.stmts(level, block.getChild('SUBSTACK'))
         if (deferYield):
             retStr += genIndent(level + 1) + \
                         "deferredYield(s);   // allow other sequences to run occasionally\n"
@@ -1655,33 +1661,28 @@ class SpriteOrStage:
 
 
     def doIf(self, level, block, deferYield = False):
-        """Generate code for if <test> : <block>.  Format of tokens is
-        'doIf' [test expression] [true-block]
+        """Generate code for if <test> : <block>.
         """
-        assert len(tokens) == 3 and tokens[0] == "doIf"
-
         # Handle the boolean expression
         # We don't generate parens around the boolExpr as it will put them there.
+        
         resStr = genIndent(level) + "if "
-        resStr += self.boolExpr(tokens[1])
+        resStr += self.boolExpr(block.getChild('CONDITION'))
         resStr += "\n"
-        resStr += self.block(level, tokens[2])
+        resStr += self.block(level, block.getChild('SUBSTACK'))
         return resStr
 
 
-    def doIfElse(self, level, tokens, deferYield = False):
-        """Generate code for if <test> : <block> else: <block>.  Format of tokens is
-        'doIfElse' [test expression] [true-block] [else-block]
+    def doIfElse(self, level, block, deferYield = False):
+        """Generate code for if <test> : <block> else: <block>.
         """
 
-        assert len(tokens) == 4 and tokens[0] == 'doIfElse'
-
         resStr = genIndent(level) + "if "
-        resStr += self.boolExpr(tokens[1])
+        resStr += self.boolExpr(block.getChild('CONDITION'))
         resStr += "\n"
-        resStr += self.block(level, tokens[2])
+        resStr += self.block(level, block.getChild('SUBSTACK'))
         resStr += genIndent(level) + "else\n"
-        resStr += self.block(level, tokens[3])
+        resStr += self.block(level, block.getChild('SUBSTACK2'))
         return resStr
 
 
@@ -1731,11 +1732,8 @@ class SpriteOrStage:
         return self.genRotationStyle(level, arg)
 
     def genGoto(self, level, block):
-        arg = block.getChild()
-        assert arg.getOpcode() == 'motion_goto_menu'
-        assert arg.getId() == block.getChild().getId()
-        assert arg.getFields() and 'TO' in arg.getFields()
-        argVal = arg.getFields()['TO'][0]
+        child = block.getChild('TO')
+        argVal = child.getFields()['TO'][0]
         if argVal == "_mouse_":
             return genIndent(level) + "goToMouse();\n"
         elif argVal == "_random_":
@@ -1767,11 +1765,8 @@ class SpriteOrStage:
     def pointTowards(self, level, block, deferYield = False):
         """Generate code to turn the sprite to point to something.
         """
-        arg = block.getChild()
-        assert arg.getOpcode() == 'motion_pointtowards_menu'
-        assert arg.getId() == block.getChild().getId()
-        assert arg.getFields() and 'TOWARDS' in arg.getFields()
-        argVal = arg.getFields()['TOWARDS'][0]
+        child = block.getChild('TOWARDS')
+        argVal = child.getFields()['TOWARDS'][0]
         if argVal == '_mouse_':
             return genIndent(level) + "pointTowardMouse();\n"
         else:   # pointing toward a sprite
@@ -1784,10 +1779,7 @@ class SpriteOrStage:
         The block contains the time, and a child block that specifies if
         it is gliding to a random position, the mouse, or another sprite
         """
-        child = block.getChild()
-        assert child.getOpcode() == 'motion_glideto_menu'
-        assert child.getId() == block.getChild().getId()
-        assert child.getFields() and 'TO' in child.getFields()
+        child = block.getChild('TO')
         argVal = child.getFields()['TO'][0]
         if argVal == "_mouse_":
             return genIndent(level) + "glideToMouse(s, " + self.mathExpr(block, 'SECS') + ");\n"
@@ -1843,7 +1835,7 @@ class SpriteOrStage:
         """
         # the child of block is a looks_costume block, with COSTUME in 'fields',
         # and the value in 'fields' being the costume name.
-        arg = block.getChild().getFields()['COSTUME'][0]
+        arg = block.getChild('COSTUME').getFields()['COSTUME'][0]
         try:
             # TODO!
             return genIndent(level) + "switchToCostume(" + self.oldMathExpr(arg) + ");\n"
@@ -1961,7 +1953,7 @@ class SpriteOrStage:
 
     def setPenColorParamBy(self, level, block, deferYield = False):
         '''Change color or saturation, etc., by an amount'''
-        thingToChange = block.getChild().getFields()['colorParam'][0]
+        thingToChange = block.getChild('COLOR_PARAM').getFields()['colorParam'][0]
         if thingToChange == 'color':
             return genIndent(level) + "changePenColorBy(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
@@ -1969,7 +1961,7 @@ class SpriteOrStage:
 
     def setPenColorParamTo(self, level, block, deferYield = False):
         '''Set color or saturation, etc., to an amount'''
-        thingToChange = block.getChild().getFields()['colorParam'][0]
+        thingToChange = block.getChild('COLOR_PARAM').getFields()['colorParam'][0]
         if thingToChange == 'color':
             return genIndent(level) + "setPenColor(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
@@ -2296,7 +2288,7 @@ class SpriteOrStage:
         retStr = genIndent(level) + "for (int i" + str(level) + " = 0; i" + str(level) + " < " + \
                  self.mathExpr(block, 'TIMES') + "; i" + str(level) + "++)\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, block.getChild())
+        retStr += self.stmts(level, block.getChild('SUBSTACK'))
         if (deferYield):
             retStr += genIndent(level + 1) + \
                         "deferredYield(s);   // allow other sequences to run occasionally\n"
@@ -2363,11 +2355,8 @@ class SpriteOrStage:
     def createCloneOf(self, level, block, deferYield = False):
         """Create a clone of the sprite itself or of the given sprite.
         """
-        arg = block.getChild()
-        assert arg.getOpcode() == 'control_create_clone_of_menu'
-        assert arg.getId() == block.getChild().getId()
-        assert arg.getFields() and 'CLONE_OPTION' in arg.getFields()
-        argVal = arg.getFields()['CLONE_OPTION'][0]
+        child = block.getChild('CLONE_OPTION')
+        argVal = child.getFields()['CLONE_OPTION'][0]
         if argVal == "_myself_":
             return genIndent(level) + "createCloneOfMyself();\n"
         else:
@@ -2489,34 +2478,34 @@ class SpriteOrStage:
         resStr += self.oldMathExpr(tokens[-1]) + ");\n"
         return resStr
 
-    def playSound(self, level, tokens, deferYield = False):
+    def playSound(self, level, block, deferYield = False):
         """ Play the given sound
         """
-        assert len(tokens) == 2 and tokens[0] == "playSound:"
-        return genIndent(level) + "playSound(" + self.strExpr(tokens[1]) + ");\n"
+        arg = block.getChild('SOUND_MENU').getFields()['SOUND_MENU'][0]
+        return genIndent(level) + "playSound(" + self.strExpr(arg) + ");\n"
 
     def playSoundUntilDone(self, level, block, deferYield = False):
         """ Play the given sound without interrupting it.
         """
-        arg = block.getChild().getFields()['SOUND_MENU'][0]
+        arg = block.getChild('SOUND_MENU').getFields()['SOUND_MENU'][0]
         return genIndent(level) + "playSoundUntilDone(" + self.strExpr(arg) + ");\n"
     
     def playNote(self, level, block, deferYield = False):
         """ Play the given note for a given number of beats
         """
-        note = block.getChild().getFields()['NOTE'][0]
+        note = block.getChild('NOTE').getFields()['NOTE'][0]
         return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def instrument(self, level, block, deferYield = False):
         """ Play the given instrument
         """
-        arg = block.getChild().getFields()['INSTRUMENT'][0]
+        arg = block.getChild('INSTRUMENT').getFields()['INSTRUMENT'][0]
         return genIndent(level) + "changeInstrument(" + self.oldMathExpr(arg) + ");\n"
     
     def playDrum(self, level, block, deferYield = False):
         """ Play the given drum
         """
-        drum = block.getChild().getFields()['DRUM'][0]
+        drum = block.getChild('DRUM').getFields()['DRUM'][0]
         return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def rest(self, level, block, deferYield = False):
