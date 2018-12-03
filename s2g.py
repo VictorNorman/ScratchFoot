@@ -1290,6 +1290,36 @@ class SpriteOrStage:
                     "10 ^": "Math.pow(10, "
                     }
                 return '(' + op2Func[mathop] + self.mathExpr(child, 'NUM') + "))"
+            elif child.getOpcode() == 'motion_xposition':
+                return 'getX()'
+            elif child.getOpcode() == 'motion_ypos':
+                return "getY()"
+            elif child.getOpcode() == 'motion_direction':
+                return "getDirection()"
+            elif child.getOpcode() == "looks_costumenumbername":
+                if child.getFields()['NUMBER_NAME'][0] == 'number':
+                    return "costumeNumber()"
+                else:
+                    raise ValueError('not supported yet')
+            elif child.getOpcode() == 'looks_backdropnumbername':
+                if child.getFields()['NUMBER_NAME'][0] == 'number':
+                    return 'getBackdropNumber()'
+                else:
+                    raise ValueError('not supported yet')
+            elif child.getOpcode() == "looks_size":
+                return "size()"
+            elif child.getOpcode() == "sensing_mousedown":
+                # this will produce uncompileable Java code... but if you try this kind of
+                # thing, you are kind of asking for it...
+                return " (int) isMouseDown()"   
+            elif child.getOpcode() == "sensing_mousex":
+                return "getMouseX()"
+            elif child.getOpcode() == 'sensing_mousey':
+                return "getMouseY()"
+            elif child.getOpcode() == "sensing_timer":
+                return "getTimer()"
+            elif child.getOpcode() == "sensing_dayssince2000":
+                return "daysSince2000()"
             else:
                 raise ValueError("Unsupported operator %s" % child.getOpcode())
 
@@ -1649,7 +1679,9 @@ class SpriteOrStage:
         return genIndent(level) + "ifOnEdgeBounce();\n"
 
     def stripOutsideParens(self, s):
-        return s[1:-1]
+        if s[0] == '(' and s[-1] == ')':
+            return s[1:-1]
+        return s
 
     def moveSteps(self, level, block, deferYield = False):
         #     "inputs": {
