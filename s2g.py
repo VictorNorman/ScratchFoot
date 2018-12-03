@@ -1320,6 +1320,13 @@ class SpriteOrStage:
                 return "getTimer()"
             elif child.getOpcode() == "sensing_dayssince2000":
                 return "daysSince2000()"
+            elif child.getOpcode() == "sensing_distanceto":
+                grandchild = child.getChild()
+                arg = grandchild.getFields()['DISTANCETOMENU'][0]
+                if arg == '_mouse_':
+                    return "distanceToMouse()"
+                else:   # must be distance to a sprite
+                    return 'distanceTo("' + arg + '")'
             else:
                 raise ValueError("Unsupported operator %s" % child.getOpcode())
 

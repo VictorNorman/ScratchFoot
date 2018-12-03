@@ -3623,8 +3623,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public int distanceTo(Scratch other)
     {
-        int deltaX = super.getX() - other.getX();
-        int deltaY = super.getY() - other.getY();
+        int deltaX = getX() - other.getX();
+        int deltaY = getY() - other.getY();
         return (int) java.lang.Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     }
 
