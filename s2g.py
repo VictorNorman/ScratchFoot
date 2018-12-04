@@ -1018,16 +1018,15 @@ class SpriteOrStage:
         outFile.close()
 
 
-    def block(self, level, topBlock, deferYield = False):
-        """Handle a block containing a list of statements wrapped in { }."""
-
-        if debug:
-            print("block: topBlock = ")
-            print(topBlock.strWithIndent(level))
-
+    def topBlock(self, level, topBlock, deferYield = False):
+        """Handle a topblock containing a list of statements wrapped in { }."""
         return genIndent(level) + "{\n" + self.stmts(level, topBlock.getNext(), deferYield) + \
                genIndent(level) + "}\n"
 
+    def block(self, level, block, deferYield = False):
+        """Handle a block that is the first in a list of statements wrapped in { }."""
+        return genIndent(level) + "{\n" + self.stmts(level, block, deferYield) + \
+               genIndent(level) + "}\n"
 
     def stmts(self, level, firstBlock, deferYield = False):
         """Generate code for the list of statements, by repeatedly calling stmt(), 
@@ -1049,8 +1048,6 @@ class SpriteOrStage:
         """
 
         scratchStmt2genCode = {
-            'control_if': self.doIf,
-            'doIfElse': self.doIfElse,
 
             # Motion commands
             'motion_movesteps': self.moveSteps,
@@ -1124,6 +1121,8 @@ class SpriteOrStage:
             'stopScripts': self.stopScripts,
             'control_create_clone_of': self.createCloneOf,
             'control_delete_this_clone': self.deleteThisClone,
+            'control_if': self.doIf,
+            'control_if_else': self.doIfElse,
 
             # Sensing commands
             'doAsk': self.doAsk,
@@ -1163,50 +1162,55 @@ class SpriteOrStage:
         It will have the format
         [<boolOp>, <boolExpr>, <boolExpr>], where boolOp is one of "&", "|"     or
         ['not', <boolExpr>]                                                     or
-        [<cmpOp>, <mathExpr>, <mathExpr>], where <cmpOp> is one of "<", ">", or "="  or
+        [<mathExpr> <cmpOp> <mathExpr>], where <cmpOp> is one of "<", ">", or "="  or
         ['isTouching:' <val>], etc.						    or
         False	when the boolean expression was left empty in Scratch
         """
-        resStr = ""
-        if tokenList == False:  # means no condition was provided in Scratch.
-            return "(false)"
-        firstOp = tokenList[0]
-        if firstOp in ('&', '|'):
-            assert len(tokenList) == 3
-            resStr += "(" + self.boolExpr(tokenList[1])
-            if firstOp == '&':
-                resStr += " && "
-            else:
-                resStr += " || "
-            resStr += self.boolExpr(tokenList[2]) + ")"
-        elif firstOp == 'not':
-            assert len(tokenList) == 2
-            resStr += "(! " + self.boolExpr(tokenList[1]) + ")"
-        elif firstOp in ('<', '>', '='):
-            assert len(tokenList) == 3
-            resStr += "(" + self.oldMathExpr(tokenList[1])
-            if firstOp == '<':
-                resStr += " < "
-            elif firstOp == '>':
-                resStr += " > "
-            else: 	# must be ' = '
-                resStr += " == "
-            resStr += self.oldMathExpr(tokenList[2]) + ")"
-        elif firstOp == 'touching:':
-            arg = tokenList[1]
-            if arg == "_mouse_":
-                resStr += "(isTouchingMouse())"
+
+        opcode = block.getOpcode()
+        if opcode == 'operator_lt':
+            # TODO: assume numbers for less than... bad idea?
+            return '(' + self.mathExpr(block, 'OPERAND1') + ' < ' + \
+                self.mathExpr(block, 'OPERAND2') + ')'
+        elif opcode == 'operator_gt':
+            # TODO: assume numbers for less than... bad idea?
+            return '(' + self.mathExpr(block, 'OPERAND1') + ' > ' + \
+                self.mathExpr(block, 'OPERAND2') + ')'
+        elif opcode == 'operator_equals':
+            # TODO: assume numbers for equals... bad idea?
+            return '(' + self.mathExpr(block, 'OPERAND1') + ' == ' + \
+                self.mathExpr(block, 'OPERAND2') + ')'
+        elif opcode == 'operator_and':
+            return '(' + self.boolExpr(block.getChild('OPERAND1')) + ' && ' + \
+                self.boolExpr(block.getChild('OPERAND2')) + ')'
+        elif opcode == 'operator_or':
+            return '(' + self.boolExpr(block.getChild('OPERAND1')) + ' || ' + \
+                self.boolExpr(block.getChild('OPERAND2')) + ')'
+        elif opcode == 'operator_not':
+            return '( !' + self.boolExpr(block.getChild('OPERAND')) + ')'
+        elif opcode == 'sensing_touchingobject':
+            arg = block.getChild('TOUCHINGOBJECTMENU').getFields()['TOUCHINGOBJECTMENU'][0]
+            if arg == '_mouse_':
+                return "(isTouchingMouse())"
             elif arg == "_edge_":
-                resStr += "(isTouchingEdge())"
-            else:
-                # touching another sprite
-                resStr += '(isTouching("' + tokenList[1] + '"))'
-        elif firstOp == 'touchingColor:':
-            resStr += "(isTouchingColor(new java.awt.Color(" + self.oldMathExpr(tokenList[1]) + ")))"
-        elif firstOp == 'keyPressed:':
-            resStr += '(isKeyPressed("' + convertKeyPressName(tokenList[1]) + '"))'
-        elif firstOp == 'mousePressed':
-            resStr += "(isMouseDown())"
+                return "(isTouchingEdge())"
+            else:   # touching another sprite
+                return '(isTouching("' + arg + '"))'
+        elif opcode == 'sensing_touchingcolor':
+            # TODO: does not support expressions that evaluate to a color
+            color = block.getInputs()['COLOR'][1][1][1:]   # remove the leading #-sign
+            return "(isTouchingColor(new java.awt.Color(0x" + color + ")))"
+        elif opcode == 'sensing_coloristouchingcolor':
+            return 'Unsupported boolean expression: ' + opcode
+        elif opcode == 'sensing_mousedown':
+            return "(isMouseDown())"
+        elif opcode == 'sensing_keypressed':
+            keyoption = block.getChild('KEY_OPTION').getFields()['KEY_OPTION'][0]
+            return '(isKeyPressed("' + convertKeyPressName(keyoption) + '"))'
+        else:
+            raise ValueError('unsupported op', opcode)
+
+        '''
         elif firstOp == 'readVariable':
             resStr += self.readVariable(tokenList[1])
         elif firstOp == 'list:contains:':
@@ -1216,6 +1220,7 @@ class SpriteOrStage:
         else:
             raise ValueError(firstOp)
         return resStr
+        '''
 
     def strExpr(self, tokenOrList):
         """Evaluate a string-producing expression (or literal).
@@ -1255,8 +1260,8 @@ class SpriteOrStage:
         returning a string equivalent.'''
 
         expr = block.getInputs()[exprKey]
-
         assert isinstance(expr, list)
+
         if not block.hasChild(exprKey):
             expr = block.getInputs()[exprKey]
             val = expr[1][1]
@@ -1265,19 +1270,20 @@ class SpriteOrStage:
             # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
             # the value after 'alongidhere' is the default value -- we don't care about this.
             child = block.getChild(exprKey)
-            if child.getOpcode() == 'operator_add':
+            opcode = child.getOpcode()
+            if opcode == 'operator_add':
                 return '(' + self.mathExpr(child, 'NUM1') + ' + ' + self.mathExpr(child, 'NUM2') + ')'
-            elif child.getOpcode() == 'operator_subtract':
+            elif opcode == 'operator_subtract':
                 return '(' + self.mathExpr(child, 'NUM1') + ' - ' + self.mathExpr(child, 'NUM2') + ')'
-            elif child.getOpcode() == 'operator_multiply':
+            elif opcode == 'operator_multiply':
                 return '(' + self.mathExpr(child, 'NUM1') + ' * ' + self.mathExpr(child, 'NUM2') + ')'
-            elif child.getOpcode() == 'operator_divide':
+            elif opcode == 'operator_divide':
                 return '(' + self.mathExpr(child, 'NUM1') + ' / ' + self.mathExpr(child, 'NUM2') + ')'
-            elif child.getOpcode() == 'operator_mod':
+            elif opcode == 'operator_mod':
                 return '(' + "Math.floorMod(" + self.mathExpr(child, 'NUM1') + ", " + self.mathExpr(child, 'NUM2') + "))"
-            elif child.getOpcode() == 'operator_round':
+            elif opcode == 'operator_round':
                 return '(' + "Math.round((float) " + self.mathExpr(child, 'NUM') + "))"
-            elif child.getOpcode() == 'operator_mathop':
+            elif opcode == 'operator_mathop':
                 mathop = child.getFields()['OPERATOR'][0]
                 op2Func = {
                     "abs": "Math.abs(",
@@ -1296,41 +1302,43 @@ class SpriteOrStage:
                     "10 ^": "Math.pow(10, "
                     }
                 return '(' + op2Func[mathop] + self.mathExpr(child, 'NUM') + "))"
-            elif child.getOpcode() == 'operator_length':
+            elif opcode == 'operator_length':
                 arg = child.getInputs()['STRING'][1][1]
                 # TODO: should call strExpr 
                 return "lengthOf(" + arg + ")"
-            elif child.getOpcode() == 'motion_xposition':
+            elif opcode == 'operator_random':
+                return "pickRandom(" + self.mathExpr(child, 'FROM') + ", " + self.mathExpr(child, 'TO') + ")"
+            elif opcode == 'motion_xposition':
                 return 'getX()'
-            elif child.getOpcode() == 'motion_ypos':
+            elif opcode == 'motion_ypos':
                 return "getY()"
-            elif child.getOpcode() == 'motion_direction':
+            elif opcode == 'motion_direction':
                 return "getDirection()"
-            elif child.getOpcode() == "looks_costumenumbername":
+            elif opcode == "looks_costumenumbername":
                 if child.getFields()['NUMBER_NAME'][0] == 'number':
                     return "costumeNumber()"
                 else:
                     raise ValueError('not supported yet')
-            elif child.getOpcode() == 'looks_backdropnumbername':
+            elif opcode == 'looks_backdropnumbername':
                 if child.getFields()['NUMBER_NAME'][0] == 'number':
                     return 'getBackdropNumber()'
                 else:
                     raise ValueError('not supported yet')
-            elif child.getOpcode() == "looks_size":
+            elif opcode == "looks_size":
                 return "size()"
-            elif child.getOpcode() == "sensing_mousedown":
+            elif opcode == "sensing_mousedown":
                 # this will produce uncompileable Java code... but if you try this kind of
                 # thing, you are kind of asking for it...
                 return " (int) isMouseDown()"   
-            elif child.getOpcode() == "sensing_mousex":
+            elif opcode == "sensing_mousex":
                 return "getMouseX()"
-            elif child.getOpcode() == 'sensing_mousey':
+            elif opcode == 'sensing_mousey':
                 return "getMouseY()"
-            elif child.getOpcode() == "sensing_timer":
+            elif opcode == "sensing_timer":
                 return "getTimer()"
-            elif child.getOpcode() == "sensing_dayssince2000":
+            elif opcode == "sensing_dayssince2000":
                 return "daysSince2000()"
-            elif child.getOpcode() == "sensing_distanceto":
+            elif opcode == "sensing_distanceto":
                 grandchild = child.getChild('DISTANCETOMENU')
                 arg = grandchild.getFields()['DISTANCETOMENU'][0]
                 if arg == '_mouse_':
@@ -1533,7 +1541,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                         "(Sequence s)\n"
-        cbStr += self.block(level, block) + "\n"  # add blank line after defn.
+        cbStr += self.topBlock(level, block) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
 
@@ -1551,7 +1559,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
                         "(Sequence s)\n"
-        cbStr += self.block(1, topBlock) + "\n"  # add blank line after defn.
+        cbStr += self.topBlock(1, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
         # Generate a copy constructor too.
@@ -1589,7 +1597,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                 "(Sequence s)\n"
-        cbStr += self.block(level, topBlock) + "\n"  # add blank line after defn.
+        cbStr += self.topBlock(level, topBlock) + "\n"  # add blank line after defn.
 
         codeObj.addToCbCode(cbStr)
 
@@ -1614,7 +1622,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         # All cb code is at level 1
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
-        cbStr += self.block(1, topBlock) + "\n"  # add blank line after defn.
+        cbStr += self.topBlock(1, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr) 
         
     def whenSwitchToBackdrop(self, codeObj, backdrop, tokens):
@@ -1637,7 +1645,7 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                 "(Sequence s)\n"
-        cbStr += self.block(level, tokens) + "\n"  # add blank line after defn.
+        cbStr += self.topBlock(level, tokens) + "\n"  # add blank line after defn.
 
         codeObj.addToCbCode(cbStr)
 
@@ -2638,7 +2646,7 @@ class Sprite(SpriteOrStage):
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
                         "(Sequence s)\n"
-        cbStr += self.block(1, block) + "\n"  # add blank line after defn.
+        cbStr += self.topBlock(1, block) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
 
