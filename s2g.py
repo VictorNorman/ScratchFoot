@@ -1119,7 +1119,7 @@ class SpriteOrStage:
             'control_stop': self.stopScripts,
 
             # Sensing commands
-            'doAsk': self.doAsk,
+            'sensing_askandwait': self.doAsk,
             'timerReset': self.resetTimer,
 
             # Blocks commands
@@ -1244,6 +1244,8 @@ class SpriteOrStage:
             return '"' + child.getFields()['COSTUME'][0] + '"'
         elif opcode == 'looks_backdrops':
             return '"' + child.getFields()['BACKDROP'][0] + '"'
+        elif opcode == 'sensing_answer':
+            return 'answer'
         elif opcode == 'sensing_of':
             return 'String.valueOf(' + self.getAttributeOf(block) + ')'
         else:
@@ -1816,22 +1818,18 @@ class SpriteOrStage:
     def say(self, level, block, deferYield = False):
         """Generate code to handle say <str>.
         """
-        arg = block.getInputs()['MESSAGE'][1][1]
-        return genIndent(level) + "say(" + self.strExpr(arg) + ");\n"
+        return genIndent(level) + "say(" + self.strExpr(block, 'MESSAGE') + ");\n"
     
     def thinkForSecs(self, level, block, deferYield = False):
         """Generate code to handle think <str> for <n> seconds.
         """
-        arg1 = block.getInputs()['MESSAGE'][1][1]
-        return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(arg1) + ", " + \
+        return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(block, 'MESSAGE') + ", " + \
                self.mathExpr(block, 'SECS') + ");\n"
     
     def think(self, level, block, deferYield = False):
         """Generate code to handle think <str>.
         """
-        arg1 = block.getInputs()['MESSAGE'][1][1]
-        assert block.getOpcode() == "looks_think"
-        return genIndent(level) + "think(" + self.strExpr(arg1) + ");\n"
+        return genIndent(level) + "think(" + self.strExpr(block, 'MESSAGE') + ");\n"
 
     def show(self, level, block, deferYield = False):
         """Generate code for the show block.
@@ -2265,25 +2263,22 @@ class SpriteOrStage:
     def broadcast(self, level, block, deferYield = False):
         """Generate code to handle sending a broacast message.
         """
-        arg = block.getInputs()['BROADCAST_INPUT'][1][1]
-        return genIndent(level) + "broadcast(" + self.strExpr(arg) + ");\n"
+        return genIndent(level) + "broadcast(" + self.strExpr(block, 'BROADCAST_INPUT') + ");\n"
 
 
     def broadcastAndWait(self, level, block, deferYield = False):
         """Generate code to handle sending a broacast message and
         waiting until all the handlers have completed.
         """
-        arg = block.getInputs()['BROADCAST_INPUT'][1][1]
-        return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(arg) + ");\n"
+        return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(block, 'BROADCAST_INPUT') + ");\n"
 
 
-    def doAsk(self, level, tokens, deferYield = False):
-        """Generate code to ask the user for input.  Returns the resulting String."""
+    def doAsk(self, level, block, deferYield = False):
+        """Generate code to ask the user for input.  Returns the resulting string."""
 
-        assert len(tokens) == 2 and tokens[0] == "doAsk"
-        quest = tokens[1]
-        return genIndent(level) + "String answer = askStringAndWait(" + \
-               self.strExpr(quest) + ");\t\t// may want to replace answer with a better name\n"
+        question = self.strExpr(block, 'QUESTION')
+        return genIndent(level) + 'String answer = askStringAndWait(' + \
+               question + ');\t\t// may want to replace answer with a better name\n'
 
 
     def doWait(self, level, block, deferYield = False):
@@ -2492,13 +2487,13 @@ class SpriteOrStage:
         """ Play the given sound
         """
         arg = block.getChild('SOUND_MENU').getFields()['SOUND_MENU'][0]
-        return genIndent(level) + "playSound(" + self.strExpr(arg) + ");\n"
+        return genIndent(level) + 'playSound("' + arg + '");\n'
 
     def playSoundUntilDone(self, level, block, deferYield = False):
         """ Play the given sound without interrupting it.
         """
         arg = block.getChild('SOUND_MENU').getFields()['SOUND_MENU'][0]
-        return genIndent(level) + "playSoundUntilDone(" + self.strExpr(arg) + ");\n"
+        return genIndent(level) + 'playSoundUntilDone("' + arg + '");\n'
     
     def playNote(self, level, block, deferYield = False):
         """ Play the given note for a given number of beats
