@@ -1116,7 +1116,7 @@ class SpriteOrStage:
             'control_if_else': self.doIfElse,
             'control_wait_until': self.doWaitUntil,
             'control_repeat_until': self.repeatUntil,
-            'stopScripts': self.stopScripts,
+            'control_stop': self.stopScripts,
 
             # Sensing commands
             'doAsk': self.doAsk,
@@ -2348,18 +2348,18 @@ class SpriteOrStage:
         return retStr + genIndent(level) + "}\n"
 
 
-    def stopScripts(self, level, tokens, deferYield = False):
-        """Generate code to stop all scripts.
+    def stopScripts(self, level, block, deferYield = False):
+        """Generate code to stop scripts: all, other, etc.
         """
-        assert len(tokens) == 2 and tokens[0] == "stopScripts"
-        if tokens[1] == "all":
+        option = block.getFields()['STOP_OPTION'][0]
+        if option == "all":
             return genIndent(level) + "stopAll();\n"
-        elif tokens[1] == "this script":
+        elif option == "this script":
             return genIndent(level) + "stopThisScript();\n"
-        elif tokens[1] == "other scripts in sprite":
+        elif option == "other scripts in sprite":
             return genIndent(level) + "stopOtherScriptsInSprite();\n"
         else:
-            raise ValueError("stopScripts: unknown type")
+            raise ValueError("stopScripts: unknown option", option)
 
 
     def createCloneOf(self, level, block, deferYield = False):
