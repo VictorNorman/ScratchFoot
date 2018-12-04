@@ -1341,6 +1341,8 @@ class SpriteOrStage:
             return "getTimer()"
         elif opcode == "sensing_dayssince2000":
             return "daysSince2000()"
+        elif opcode == 'sensing_current':
+            return self.genSensingCurrentDateEtc(child)
         elif opcode == "sensing_distanceto":
             grandchild = child.getChild('DISTANCETOMENU')
             arg = grandchild.getField('DISTANCETOMENU')
@@ -1496,6 +1498,24 @@ class SpriteOrStage:
         resStr += self.oldMathExpr(tok2) + ")"
         return resStr
 
+    def genSensingCurrentDateEtc(self, block):
+        option = block.getField('CURRENTMENU')
+        if option == "MINUTE":
+            return 'getCurrentMinute()'
+        elif option == "MONTH":
+            return 'getCurrentMonth()'
+        elif option == "SECOND":
+            return 'getCurrentSecond()'
+        elif option == "HOUR":
+            return 'getCurrentHour()'
+        elif option == "YEAR":
+            return 'getCurrentYear()'
+        elif option == 'DAYOFWEEK':
+            return 'getCurrentDayOfWeek()'
+        elif option == 'DATE':
+            return 'getCurrentDate()'
+        else:
+            raise ValueError('Unknown date/time sensing: ' + option)
 
     def getAttributeOf(self, block):
         """Return code to handle the various sensing_of calls
