@@ -241,6 +241,9 @@ class Block:
     def getFields(self):
         return self._fields
 
+    def getField(self, key, index=0):
+        return self.getFields()[key][index]
+
     def getChild(self, key):
         return self._children[key]
 
@@ -1078,7 +1081,7 @@ class SpriteOrStage:
             'comeToFront': self.goToFront,
             'goBackByLayers:': self.goBackNLayers,
             'looks_nextbackdrop': self.nextBackdrop,
-            'changeGraphicEffect:by:': self.changeGraphicBy,
+            'looks_changeeffectby': self.changeGraphicBy,
             'setGraphicEffect:to:': self.setGraphicTo,
 
             'pen_clear': self.penClear,
@@ -1177,7 +1180,7 @@ class SpriteOrStage:
         elif opcode == 'operator_not':
             return '( !' + self.boolExpr(block.getChild('OPERAND')) + ')'
         elif opcode == 'sensing_touchingobject':
-            arg = block.getChild('TOUCHINGOBJECTMENU').getFields()['TOUCHINGOBJECTMENU'][0]
+            arg = block.getChild('TOUCHINGOBJECTMENU').getField('TOUCHINGOBJECTMENU')
             if arg == '_mouse_':
                 return "(isTouchingMouse())"
             elif arg == "_edge_":
@@ -1193,7 +1196,7 @@ class SpriteOrStage:
         elif opcode == 'sensing_mousedown':
             return "(isMouseDown())"
         elif opcode == 'sensing_keypressed':
-            keyoption = block.getChild('KEY_OPTION').getFields()['KEY_OPTION'][0]
+            keyoption = block.getChild('KEY_OPTION').getField('KEY_OPTION')
             return '(isKeyPressed("' + convertKeyPressName(keyoption) + '"))'
         else:
             raise ValueError('unsupported op', opcode)
@@ -1229,21 +1232,21 @@ class SpriteOrStage:
         elif opcode == 'operator_letter_of':
             return "letterNOf(" + self.mathExpr(child, 'LETTER') + ", " + self.strExpr(child, 'STRING') + ")"
         elif opcode == 'looks_costumenumbername':
-            numberOrName = child.getFields()['NUMBER_NAME'][0]
+            numberOrName = child.getField('NUMBER_NAME')
             if numberOrName == 'name':
                 return 'costumeName()'
             elif numberOrName == 'number':
                 return "String.valueOf(costumeNumber())";
         elif opcode == 'looks_backdropnumbername':
-            numberOrName = child.getFields()['NUMBER_NAME'][0]
+            numberOrName = child.getField('NUMBER_NAME')
             if numberOrName == 'name':
                 return 'backdropName()'
             elif numberOrName == 'number':
                 return "String.valueOf(backdropNumber())";
         elif opcode == 'looks_costume':
-            return '"' + child.getFields()['COSTUME'][0] + '"'
+            return '"' + child.getField('COSTUME') + '"'
         elif opcode == 'looks_backdrops':
-            return '"' + child.getFields()['BACKDROP'][0] + '"'
+            return '"' + child.getField('BACKDROP') + '"'
         elif opcode == 'sensing_answer':
             return 'answer'
         elif opcode == 'sensing_of':
@@ -1284,7 +1287,7 @@ class SpriteOrStage:
         elif opcode == 'operator_round':
             return '(' + "Math.round((float) " + self.mathExpr(child, 'NUM') + "))"
         elif opcode == 'operator_mathop':
-            mathop = child.getFields()['OPERATOR'][0]
+            mathop = child.getField('OPERATOR')
             op2Func = {
                 "abs": "Math.abs(",
                 "floor": "Math.floor(",
@@ -1315,12 +1318,12 @@ class SpriteOrStage:
         elif opcode == 'motion_direction':
             return "getDirection()"
         elif opcode == "looks_costumenumbername":
-            if child.getFields()['NUMBER_NAME'][0] == 'number':
+            if child.getField('NUMBER_NAME') == 'number':
                 return "costumeNumber()"
             else:
                 raise ValueError('not supported yet')
         elif opcode == 'looks_backdropnumbername':
-            if child.getFields()['NUMBER_NAME'][0] == 'number':
+            if child.getField('NUMBER_NAME') == 'number':
                 return 'getBackdropNumber()'
             else:
                 raise ValueError('not supported yet')
@@ -1340,7 +1343,7 @@ class SpriteOrStage:
             return "daysSince2000()"
         elif opcode == "sensing_distanceto":
             grandchild = child.getChild('DISTANCETOMENU')
-            arg = grandchild.getFields()['DISTANCETOMENU'][0]
+            arg = grandchild.getField('DISTANCETOMENU')
             if arg == '_mouse_':
                 return "distanceToMouse()"
             else:   # must be distance to a sprite
@@ -1498,8 +1501,8 @@ class SpriteOrStage:
         """Return code to handle the various sensing_of calls
         from the sensing block.
         """
-        objChild = block.getChild('OBJECT').getFields()['OBJECT'][0]
-        prop = block.getFields()['PROPERTY'][0]
+        objChild = block.getChild('OBJECT').getField('OBJECT')
+        prop = block.getField('PROPERTY')
 
         if objChild == 'Stage':
             # most of the attributes -- direction, x position, etc. --
@@ -1589,7 +1592,7 @@ class SpriteOrStage:
         into a callback to be called when that key is pressed.
         """
         scriptNum = codeObj.getNextScriptId()
-        key = topBlock.getFields()['KEY_OPTION'][0]
+        key = topBlock.getField('KEY_OPTION')
         key = convertKeyPressName(key)
 
         # Build a name like whenAPressedCb0 or whenLeftPressedCb0.
@@ -1618,7 +1621,7 @@ class SpriteOrStage:
         scriptNum = codeObj.getNextScriptId()
 
         # Build a name like whenIReceiveMessage1Cb0
-        message = topBlock.getFields()['BROADCAST_OPTION'][0]
+        message = topBlock.getField('BROADCAST_OPTION')
         messageId = convertToJavaId(message, noLeadingNumber=False, capitalizeFirst=True)
         cbName = 'whenIReceive' + messageId + 'Cb' + str(scriptNum)
 
@@ -1744,12 +1747,12 @@ class SpriteOrStage:
         return genIndent(level) + "setYTo(" + self.mathExpr(block, 'Y') + ");\n"
 
     def setRotationStyle(self, level, block, deferYield = False):
-        arg = block.getFields()['STYLE'][0]
+        arg = block.getField('STYLE')
         return self.genRotationStyle(level, arg)
 
     def genGoto(self, level, block):
         child = block.getChild('TO')
-        argVal = child.getFields()['TO'][0]
+        argVal = child.getField('TO')
         if argVal == "_mouse_":
             return genIndent(level) + "goToMouse();\n"
         elif argVal == "_random_":
@@ -1782,7 +1785,7 @@ class SpriteOrStage:
         """Generate code to turn the sprite to point to something.
         """
         child = block.getChild('TOWARDS')
-        argVal = child.getFields()['TOWARDS'][0]
+        argVal = child.getField('TOWARDS')
         if argVal == '_mouse_':
             return genIndent(level) + "pointTowardMouse();\n"
         else:   # pointing toward a sprite
@@ -1796,7 +1799,7 @@ class SpriteOrStage:
         it is gliding to a random position, the mouse, or another sprite
         """
         child = block.getChild('TO')
-        argVal = child.getFields()['TO'][0]
+        argVal = child.getField('TO')
         if argVal == "_mouse_":
             return genIndent(level) + "glideToMouse(s, " + self.mathExpr(block, 'SECS') + ");\n"
         elif argVal == "_random_":
@@ -1893,25 +1896,26 @@ class SpriteOrStage:
         assert cmd == "goBackByLayers:"
         return genIndent(level) + "goBackNLayers(" + self.oldMathExpr(arg1) + ");\n"
 
-    def changeGraphicBy(self, level, tokens, deferYield = False):
-        cmd, arg1, arg2 = tokens
-        assert(cmd == "changeGraphicEffect:by:")
-        if arg1 == "ghost":
-            return genIndent(level) + "changeGhostEffectBy(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "pixelate":
-            return genIndent(level) + "changePixelateEffectBy(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "whirl":
-            return genIndent(level) + "changeWhirlEffectBy(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "fisheye":
-            return genIndent(level) + "changeFisheyeEffectBy(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "mosaic":
-            return genIndent(level) + "changeMosaicEffectBy(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "brightness":
-            return genIndent(level) + "changeBrightnessEffectBy(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "color":
-            return genIndent(level) + "changeColorEffectBy(" + self.oldMathExpr(arg2) + ");\n"
+    def changeGraphicBy(self, level, block, deferYield = False):
+        '''Generate code to change the graphics effect on this sprite'''
+        effect = block.getField('EFFECT')
+        value = self.mathExpr(block, 'CHANGE')
+        if effect == "GHOST":
+            return genIndent(level) + "changeGhostEffectBy(" + value + ");\n"
+        elif effect == "PIXELATE":
+            return genIndent(level) + "changePixelateEffectBy(" + value + ");\n"
+        elif effect == "WHIRL":
+            return genIndent(level) + "changeWhirlEffectBy(" + value + ");\n"
+        elif effect == "FISHEYE":
+            return genIndent(level) + "changeFisheyeEffectBy(" + value + ");\n"
+        elif effect == "MOSAIC":
+            return genIndent(level) + "changeMosaicEffectBy(" + value + ");\n"
+        elif effect == "BRIGHTNESS":
+            return genIndent(level) + "changeBrightnessEffectBy(" + value + ");\n"
+        elif effect == "COLOR":
+            return genIndent(level) + "changeColorEffectBy(" + value + ");\n"
         else:
-            return genIndent(level) + "// " + arg1 + " effect is not implemented\n" 
+            return genIndent(level) + "// " + effect + " effect is not implemented\n" 
         
     def setGraphicTo(self, level, tokens, deferYield = False):
         cmd, arg1, arg2 = tokens
@@ -1962,7 +1966,7 @@ class SpriteOrStage:
 
     def setPenColorParamBy(self, level, block, deferYield = False):
         '''Change color or saturation, etc., by an amount'''
-        thingToChange = block.getChild('COLOR_PARAM').getFields()['colorParam'][0]
+        thingToChange = block.getChild('COLOR_PARAM').getField('colorParam')
         if thingToChange == 'color':
             return genIndent(level) + "changePenColorBy(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
@@ -1970,7 +1974,7 @@ class SpriteOrStage:
 
     def setPenColorParamTo(self, level, block, deferYield = False):
         '''Set color or saturation, etc., to an amount'''
-        thingToChange = block.getChild('COLOR_PARAM').getFields()['colorParam'][0]
+        thingToChange = block.getChild('COLOR_PARAM').getField('colorParam')
         if thingToChange == 'color':
             return genIndent(level) + "setPenColor(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
@@ -2346,7 +2350,7 @@ class SpriteOrStage:
     def stopScripts(self, level, block, deferYield = False):
         """Generate code to stop scripts: all, other, etc.
         """
-        option = block.getFields()['STOP_OPTION'][0]
+        option = block.getField('STOP_OPTION')
         if option == "all":
             return genIndent(level) + "stopAll();\n"
         elif option == "this script":
@@ -2361,7 +2365,7 @@ class SpriteOrStage:
         """Create a clone of the sprite itself or of the given sprite.
         """
         child = block.getChild('CLONE_OPTION')
-        argVal = child.getFields()['CLONE_OPTION'][0]
+        argVal = child.getField('CLONE_OPTION')
         if argVal == "_myself_":
             return genIndent(level) + "createCloneOfMyself();\n"
         else:
@@ -2486,31 +2490,31 @@ class SpriteOrStage:
     def playSound(self, level, block, deferYield = False):
         """ Play the given sound
         """
-        arg = block.getChild('SOUND_MENU').getFields()['SOUND_MENU'][0]
+        arg = block.getChild('SOUND_MENU').getField('SOUND_MENU')
         return genIndent(level) + 'playSound("' + arg + '");\n'
 
     def playSoundUntilDone(self, level, block, deferYield = False):
         """ Play the given sound without interrupting it.
         """
-        arg = block.getChild('SOUND_MENU').getFields()['SOUND_MENU'][0]
+        arg = block.getChild('SOUND_MENU').getField('SOUND_MENU')
         return genIndent(level) + 'playSoundUntilDone("' + arg + '");\n'
     
     def playNote(self, level, block, deferYield = False):
         """ Play the given note for a given number of beats
         """
-        note = block.getChild('NOTE').getFields()['NOTE'][0]
+        note = block.getChild('NOTE').getField('NOTE')
         return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def instrument(self, level, block, deferYield = False):
         """ Play the given instrument
         """
-        arg = block.getChild('INSTRUMENT').getFields()['INSTRUMENT'][0]
+        arg = block.getChild('INSTRUMENT').getField('INSTRUMENT')
         return genIndent(level) + "changeInstrument(" + self.oldMathExpr(arg) + ");\n"
     
     def playDrum(self, level, block, deferYield = False):
         """ Play the given drum
         """
-        drum = block.getChild('DRUM').getFields()['DRUM'][0]
+        drum = block.getChild('DRUM').getField('DRUM')
         return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
     
     def rest(self, level, block, deferYield = False):
