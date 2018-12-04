@@ -1114,8 +1114,8 @@ class SpriteOrStage:
             'control_delete_this_clone': self.deleteThisClone,
             'control_if': self.doIf,
             'control_if_else': self.doIfElse,
-            'doWaitUntil': self.doWaitUntil,
-            'doUntil': self.repeatUntil,
+            'control_wait_until': self.doWaitUntil,
+            'control_repeat_until': self.repeatUntil,
             'stopScripts': self.stopScripts,
 
             # Sensing commands
@@ -2317,16 +2317,16 @@ class SpriteOrStage:
                yield(s);
            }
         """
-        assert len(tokens) == 2 and tokens[0] == 'doWaitUntil'
+        condition = self.boolExpr(block.getChild('CONDITION'))
         retStr =  genIndent(level) + "// wait until code\n"
         retStr += genIndent(level) + "while (true) {\n"
-        retStr += genIndent(level + 1) + "if (" + self.boolExpr(tokens[1]) + ")\n"
+        retStr += genIndent(level + 1) + "if (" + condition + ")\n"
         retStr += genIndent(level + 2) + "break;\n"
         retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
 
-    def repeatUntil(self, level, tokens, deferYield = False):
+    def repeatUntil(self, level, block, deferYield = False):
         """Generate doUntil code, which translates to this:
            while (! condition)
            {
@@ -2334,12 +2334,11 @@ class SpriteOrStage:
                yield(s);
            }
         """
-        assert len(tokens) == 3 and tokens[0] == "doUntil"
-
+        condition = self.boolExpr(block.getChild('CONDITION'))
         retStr =  genIndent(level) + "// repeat until code\n"
-        retStr += genIndent(level) + "while (! " + self.boolExpr(tokens[1]) + ")\n"
+        retStr += genIndent(level) + "while (! " + condition + ")\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, tokens[2])
+        retStr += self.stmts(level, block.getChild('SUBSTACK'))
         if (deferYield):
             retStr += genIndent(level + 1) + \
                         "deferredYield(s);   // allow other sequences to run occasionally\n"
