@@ -3190,6 +3190,15 @@ public class Scratch extends Actor implements Comparable<Scratch>
     }
 
     /**
+     * Move the sprite to the front in the paint order.
+     */
+    public void goToBack()
+    {
+        // move this object's class in the paint order.
+        ((ScratchWorld) getWorld()).moveClassToBack(this.getClass());
+    }
+
+    /**
      * Move the sprite forward <n> layers in the paint order.
      */
     public void goForwardNLayers(int n)
@@ -3201,11 +3210,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
     /**
      * Move the sprite back <n> layers in the paint order.
      */
-    public void goBackNLayers(int n)
+    public void goBackwardNLayers(int n)
     {
         // move this object's class in the paint order.
         ((ScratchWorld) getWorld()).moveClassBackNLayers(this.getClass(), n);
     }
+
 
     /**
      * Paint the sprite at layer n.

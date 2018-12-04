@@ -547,9 +547,16 @@ public class ScratchWorld extends World
             System.err.println("Error: moveClassToFront: class " + cls + " not found");
             return;
         }
-        clses4PaintOrder.remove(cls);
-        clses4PaintOrder.add(0, cls);
-        setPaintOrderInGF();
+        moveClassToLayerN(cls, 0);
+    }
+
+    public void moveClassToBack(Class cls)
+    {
+        if (! clses4PaintOrder.contains(cls)) {
+            System.err.println("Error: moveClassToBack: class " + cls + " not found");
+            return;
+        }
+        moveClassToLayerN(cls, 1000);   // end
     }
 
     public void moveClassBackNLayers(Class cls, int n)
@@ -573,7 +580,7 @@ public class ScratchWorld extends World
     {
         int idx = clses4PaintOrder.indexOf(cls);
         if (idx < 0) {
-            System.err.println("Error: moveClassBackNLayers: class " + cls + " not found");
+            System.err.println("Error: moveClassForwardNLayers: class " + cls + " not found");
             return;
         }
         clses4PaintOrder.remove(idx);
@@ -590,7 +597,7 @@ public class ScratchWorld extends World
     {
         int idx = clses4PaintOrder.indexOf(cls);
         if (idx < 0) {
-            System.err.println("Error: moveClassBackNLayers: class " + cls + " not found");
+            System.err.println("Error: moveClassToLayerN: class " + cls + " not found");
             return;
         }
         if (idx == n) {

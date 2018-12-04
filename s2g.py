@@ -1078,11 +1078,11 @@ class SpriteOrStage:
             'looks_switchbackdropto': self.switchBackdropTo,
             'looks_changesizeby': self.changeSizeBy,
             'looks_setsizeto': self.setSizeTo,
-            'comeToFront': self.goToFront,
-            'goBackByLayers:': self.goBackNLayers,
+            'looks_gotofrontback': self.goToFrontBack,
+            'looks_goforwardbackwardlayers': self.goForwBackNLayers,
             'looks_nextbackdrop': self.nextBackdrop,
             'looks_changeeffectby': self.changeGraphicBy,
-            'setGraphicEffect:to:': self.setGraphicTo,
+            'looks_seteffectto': self.setGraphicTo,
 
             'pen_clear': self.penClear,
             'pen_stamp': self.penStamp,
@@ -1883,18 +1883,23 @@ class SpriteOrStage:
         """
         return genIndent(level) + "setSizeTo(" + self.mathExpr(block, 'SIZE') + ");\n"
 
-    def goToFront(self, level, tokens, deferYield = False):
+    def goToFrontBack(self, level, block, deferYield = False):
         """Generate code to move the sprite to the front
         """
-        assert tokens[0] == "comeToFront"
-        return genIndent(level) + "goToFront();\n"
+        option = block.getField('FRONT_BACK')
+        if option == 'front':
+            return genIndent(level) + "goToFront();\n"
+        else:
+            return genIndent(level) + "goToBack();\n"
 
-    def goBackNLayers(self, level, tokens, deferYield = False):
+    def goForwBackNLayers(self, level, block, deferYield = False):
         """Generate code to move the sprite back 1 layer in the paint order
         """
-        cmd, arg1 = tokens
-        assert cmd == "goBackByLayers:"
-        return genIndent(level) + "goBackNLayers(" + self.oldMathExpr(arg1) + ");\n"
+        option = block.getField('FORWARD_BACKWARD')
+        if option == 'forward':
+            return genIndent(level) + "goForwardNLayers(" + self.mathExpr(block, 'NUM') + ");\n"
+        else:
+            return genIndent(level) + "goBackwardNLayers(" + self.mathExpr(block, 'NUM') + ");\n"
 
     def changeGraphicBy(self, level, block, deferYield = False):
         '''Generate code to change the graphics effect on this sprite'''
@@ -1917,25 +1922,25 @@ class SpriteOrStage:
         else:
             return genIndent(level) + "// " + effect + " effect is not implemented\n" 
         
-    def setGraphicTo(self, level, tokens, deferYield = False):
-        cmd, arg1, arg2 = tokens
-        assert(cmd == "setGraphicEffect:to:")
-        if arg1 == "ghost":
-            return genIndent(level) + "setGhostEffectTo(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "pixelate":
-            return genIndent(level) + "setPixelateEffectTo(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "whirl":
-            return genIndent(level) + "setWhirlEffectTo(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "fisheye":
-            return genIndent(level) + "setFisheyeEffectTo(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "mosaic":
-            return genIndent(level) + "setMosaicEffectTo(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "brightness":
-            return genIndent(level) + "setBrightnessEffectTo(" + self.oldMathExpr(arg2) + ");\n"
-        elif arg1 == "color":
-            return genIndent(level) + "setColorEffectTo(" + self.oldMathExpr(arg2) + ");\n"
+    def setGraphicTo(self, level, block, deferYield = False):
+        effect = block.getField('EFFECT')
+        value = self.mathExpr(block, 'VALUE')
+        if effect == "GHOST":
+            return genIndent(level) + "setGhostEffectTo(" + value + ");\n"
+        elif effect == "PIXELATE":
+            return genIndent(level) + "setPixelateEffectTo(" + value + ");\n"
+        elif effect == "WHIRL":
+            return genIndent(level) + "setWhirlEffectTo(" + value + ");\n"
+        elif effect == "FISHEYE":
+            return genIndent(level) + "setFisheyeEffectTo(" + value + ");\n"
+        elif effect == "MOSAIC":
+            return genIndent(level) + "setMosaicEffectTo(" + value + ");\n"
+        elif effect == "BRIGHTNESS":
+            return genIndent(level) + "setBrightnessEffectTo(" + value + ");\n"
+        elif effect == "COLOR":
+            return genIndent(level) + "setColorEffectTo(" + value + ");\n"
         else:
-            return genIndent(level) + "// " + arg1 + " effect is not implemented\n"  
+            return genIndent(level) + "// " + effect + " effect is not implemented\n"  
 
 
     def penClear(self, level, block, deferYield = False):
@@ -1951,7 +1956,6 @@ class SpriteOrStage:
         return genIndent(level) + "stamp();\n"
 
     def setPenColor(self, level, block, deferYield = False):
-        # TODO: need to add code to import java.awt.Color  ??
         # color is a string like "#a249e8"
         # TODO: TEST!
         color = block.getInputs()['COLOR'][1][1]
