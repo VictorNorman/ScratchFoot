@@ -1123,7 +1123,7 @@ class SpriteOrStage:
 
             # Sensing commands
             'sensing_askandwait': self.doAsk,
-            'timerReset': self.resetTimer,
+            'sensing_resettimer': self.resetTimer,
 
             # Blocks commands
             'call': self.callABlock,
@@ -2382,7 +2382,7 @@ class SpriteOrStage:
         return genIndent(level) + "deleteThisClone();\n"
 
 
-    def resetTimer(self, level, tokens, deferYield = False):
+    def resetTimer(self, level, block, deferYield = False):
         return genIndent(level) + "resetTimer();\n"
 
 

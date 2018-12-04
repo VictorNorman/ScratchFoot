@@ -631,7 +631,7 @@ public class ScratchWorld extends World
      */
     public void resetTimer() 
     {
-        startTime = 0;
+        startTime = System.currentTimeMillis();
     }    
 
     private int translateToGreenfootX(int x) 
