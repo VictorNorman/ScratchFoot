@@ -1049,7 +1049,6 @@ class SpriteOrStage:
 
         scratchStmt2genCode = {
 
-            # Motion commands
             'motion_movesteps': self.moveSteps,
             'motion_turnleft': self.turnLeft,
             'motion_turnright': self.turnRight,
@@ -1065,7 +1064,6 @@ class SpriteOrStage:
             'motion_pointtowards': self.pointTowards,
             'motion_glideto': self.glideTo,
 
-            # Looks commands
             'looks_sayforsecs': self.sayForSecs,
             'looks_say': self.say,
             'looks_thinkforsecs':self.thinkForSecs,
@@ -1083,12 +1081,10 @@ class SpriteOrStage:
             'changeGraphicEffect:by:': self.changeGraphicBy,
             'setGraphicEffect:to:': self.setGraphicTo,
 
-            # Pen commands
             'pen_clear': self.penClear,
             'pen_stamp': self.penStamp,
             'pen_penDown': self.penDown,
             'pen_penUp': self.penUp,
-            
             'pen_setPenColorToColor': self.setPenColor,
             'pen_setPenColorParamTo': self.setPenColorParamTo,
             'pen_changePenColorParamBy': self.setPenColorParamBy,
@@ -1108,21 +1104,19 @@ class SpriteOrStage:
             'hideList:': self.hideList,
             'showList:': self.showList,
 
-            # Events commands
             'event_broadcast': self.broadcast,
             'event_broadcastandwait': self.broadcastAndWait,
 
-            # Control commands
             'control_forever': self.doForever,
             'control_wait': self.doWait,
             'control_repeat': self.doRepeat,
-            'doWaitUntil': self.doWaitUntil,
-            'doUntil': self.repeatUntil,
-            'stopScripts': self.stopScripts,
             'control_create_clone_of': self.createCloneOf,
             'control_delete_this_clone': self.deleteThisClone,
             'control_if': self.doIf,
             'control_if_else': self.doIfElse,
+            'doWaitUntil': self.doWaitUntil,
+            'doUntil': self.repeatUntil,
+            'stopScripts': self.stopScripts,
 
             # Sensing commands
             'doAsk': self.doAsk,
@@ -1159,12 +1153,6 @@ class SpriteOrStage:
 
     def boolExpr(self, block):
         """Generate code for a boolean expression.
-        It will have the format
-        [<boolOp>, <boolExpr>, <boolExpr>], where boolOp is one of "&", "|"     or
-        ['not', <boolExpr>]                                                     or
-        [<mathExpr> <cmpOp> <mathExpr>], where <cmpOp> is one of "<", ">", or "="  or
-        ['isTouching:' <val>], etc.						    or
-        False	when the boolean expression was left empty in Scratch
         """
 
         opcode = block.getOpcode()
@@ -1222,38 +1210,44 @@ class SpriteOrStage:
         return resStr
         '''
 
-    def strExpr(self, tokenOrList):
+    def strExpr(self, block, exprKey):
         """Evaluate a string-producing expression (or literal).
         """
-        if debug:
-            print("strExpr: tokenOrList is", tokenOrList)
+        expr = block.getInputs()[exprKey]
+        assert isinstance(expr, list)
 
-        if isinstance(tokenOrList, str):
-            # Wrap in double quotes like Java.
-            return '"' + str(tokenOrList) + '"'
+        if not block.hasChild(exprKey):
+            expr = block.getInputs()[exprKey]
+            return '"' + expr[1][1] + '"'
 
-        if len(tokenOrList) == 1:
-            # Handle built-in variables.
-            op = tokenOrList[0]
-            if op == "sceneName":
-                return "backdropName()"
-            elif op == "username":
-                return "username NOT IMPLEMENTED"
-        if len(tokenOrList) == 2:
-            if tokenOrList[0] == "readVariable":
-                return self.readVariable(tokenOrList[1])
-        if len(tokenOrList) == 3:
-            op, tok1, tok2 = tokenOrList	
-            if op == "concatenate:with:":
-                # This is a little strange because I know you can join a string
-                # with an integer literal or expression result in Scratch.
-                return "join(" + self.strExpr(tok1) + ", " + self.strExpr(tok2) + ")"
-            elif op == "letter:of:":
-                return "letterNOf(" + self.strExpr(tok2) + ", " + self.oldMathExpr(tok1) + ")"
-            elif op == 'getAttribute:of:':
-                return self.getAttributeOf(tok1, tok2)
-        print("No string operator '" + tokenOrList[0] + "' trying mathExpr")
-        return "String.valueOf(" + str(self.oldMathExpr(tokenOrList)) + ")"
+        # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
+        # the value after 'alongidhere' is the default value -- we don't care about this.
+        child = block.getChild(exprKey)
+        opcode = child.getOpcode()
+        if opcode == 'operator_join':
+            return 'join(' + self.strExpr(child, 'STRING1') + ', ' + self.strExpr(child, 'STRING2') + ')'
+        elif opcode == 'operator_letter_of':
+            return "letterNOf(" + self.mathExpr(child, 'LETTER') + ", " + self.strExpr(child, 'STRING') + ")"
+        elif opcode == 'looks_costumenumbername':
+            numberOrName = child.getFields()['NUMBER_NAME'][0]
+            if numberOrName == 'name':
+                return 'costumeName()'
+            elif numberOrName == 'number':
+                return "String.valueOf(costumeNumber())";
+        elif opcode == 'looks_backdropnumbername':
+            numberOrName = child.getFields()['NUMBER_NAME'][0]
+            if numberOrName == 'name':
+                return 'backdropName()'
+            elif numberOrName == 'number':
+                return "String.valueOf(backdropNumber())";
+        elif opcode == 'sensing_of':
+            return 'String.valueOf(' + self.getAttributeOf(block) + ')'
+        else:
+            # You can put math expression in where strings are expected
+            # and they are automatically used.  So, we'll try that
+            # too.
+            return "String.valueOf(" + str(self.mathExpr(block, 'MESSAGE')) + ")"
+
 
     def mathExpr(self, block, exprKey):
         '''Evaluate the expression in block[exprKey] and its children, as a math expression,
@@ -1266,87 +1260,89 @@ class SpriteOrStage:
             expr = block.getInputs()[exprKey]
             val = expr[1][1]
             return '0' if val == '' else val
-        else:
-            # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
-            # the value after 'alongidhere' is the default value -- we don't care about this.
-            child = block.getChild(exprKey)
-            opcode = child.getOpcode()
-            if opcode == 'operator_add':
-                return '(' + self.mathExpr(child, 'NUM1') + ' + ' + self.mathExpr(child, 'NUM2') + ')'
-            elif opcode == 'operator_subtract':
-                return '(' + self.mathExpr(child, 'NUM1') + ' - ' + self.mathExpr(child, 'NUM2') + ')'
-            elif opcode == 'operator_multiply':
-                return '(' + self.mathExpr(child, 'NUM1') + ' * ' + self.mathExpr(child, 'NUM2') + ')'
-            elif opcode == 'operator_divide':
-                return '(' + self.mathExpr(child, 'NUM1') + ' / ' + self.mathExpr(child, 'NUM2') + ')'
-            elif opcode == 'operator_mod':
-                return '(' + "Math.floorMod(" + self.mathExpr(child, 'NUM1') + ", " + self.mathExpr(child, 'NUM2') + "))"
-            elif opcode == 'operator_round':
-                return '(' + "Math.round((float) " + self.mathExpr(child, 'NUM') + "))"
-            elif opcode == 'operator_mathop':
-                mathop = child.getFields()['OPERATOR'][0]
-                op2Func = {
-                    "abs": "Math.abs(",
-                    "floor": "Math.floor(",
-                    "ceiling": "Math.ceil(",
-                    "sqrt": "Math.sqrt(",
-                    "sin": "Math.sin(",
-                    "cos": "Math.cos(",
-                    "tan": "Math.tan(",
-                    "asin": "Math.asin(",
-                    "acos": "Math.acos(",
-                    "atan": "Math.atan(",
-                    "ln": "Math.log(",
-                    "log": "Math.log10(",
-                    "e ^": "Math.exp(",
-                    "10 ^": "Math.pow(10, "
-                    }
-                return '(' + op2Func[mathop] + self.mathExpr(child, 'NUM') + "))"
-            elif opcode == 'operator_length':
-                arg = child.getInputs()['STRING'][1][1]
-                # TODO: should call strExpr 
-                return "lengthOf(" + arg + ")"
-            elif opcode == 'operator_random':
-                return "pickRandom(" + self.mathExpr(child, 'FROM') + ", " + self.mathExpr(child, 'TO') + ")"
-            elif opcode == 'motion_xposition':
-                return 'getX()'
-            elif opcode == 'motion_ypos':
-                return "getY()"
-            elif opcode == 'motion_direction':
-                return "getDirection()"
-            elif opcode == "looks_costumenumbername":
-                if child.getFields()['NUMBER_NAME'][0] == 'number':
-                    return "costumeNumber()"
-                else:
-                    raise ValueError('not supported yet')
-            elif opcode == 'looks_backdropnumbername':
-                if child.getFields()['NUMBER_NAME'][0] == 'number':
-                    return 'getBackdropNumber()'
-                else:
-                    raise ValueError('not supported yet')
-            elif opcode == "looks_size":
-                return "size()"
-            elif opcode == "sensing_mousedown":
-                # this will produce uncompileable Java code... but if you try this kind of
-                # thing, you are kind of asking for it...
-                return " (int) isMouseDown()"   
-            elif opcode == "sensing_mousex":
-                return "getMouseX()"
-            elif opcode == 'sensing_mousey':
-                return "getMouseY()"
-            elif opcode == "sensing_timer":
-                return "getTimer()"
-            elif opcode == "sensing_dayssince2000":
-                return "daysSince2000()"
-            elif opcode == "sensing_distanceto":
-                grandchild = child.getChild('DISTANCETOMENU')
-                arg = grandchild.getFields()['DISTANCETOMENU'][0]
-                if arg == '_mouse_':
-                    return "distanceToMouse()"
-                else:   # must be distance to a sprite
-                    return 'distanceTo("' + arg + '")'
+
+        # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
+        # the value after 'alongidhere' is the default value -- we don't care about this.
+        child = block.getChild(exprKey)
+        opcode = child.getOpcode()
+        if opcode == 'operator_add':
+            return '(' + self.mathExpr(child, 'NUM1') + ' + ' + self.mathExpr(child, 'NUM2') + ')'
+        elif opcode == 'operator_subtract':
+            return '(' + self.mathExpr(child, 'NUM1') + ' - ' + self.mathExpr(child, 'NUM2') + ')'
+        elif opcode == 'operator_multiply':
+            return '(' + self.mathExpr(child, 'NUM1') + ' * ' + self.mathExpr(child, 'NUM2') + ')'
+        elif opcode == 'operator_divide':
+            return '(' + self.mathExpr(child, 'NUM1') + ' / ' + self.mathExpr(child, 'NUM2') + ')'
+        elif opcode == 'operator_mod':
+            return '(' + "Math.floorMod(" + self.mathExpr(child, 'NUM1') + ", " + self.mathExpr(child, 'NUM2') + "))"
+        elif opcode == 'operator_round':
+            return '(' + "Math.round((float) " + self.mathExpr(child, 'NUM') + "))"
+        elif opcode == 'operator_mathop':
+            mathop = child.getFields()['OPERATOR'][0]
+            op2Func = {
+                "abs": "Math.abs(",
+                "floor": "Math.floor(",
+                "ceiling": "Math.ceil(",
+                "sqrt": "Math.sqrt(",
+                "sin": "Math.sin(",
+                "cos": "Math.cos(",
+                "tan": "Math.tan(",
+                "asin": "Math.asin(",
+                "acos": "Math.acos(",
+                "atan": "Math.atan(",
+                "ln": "Math.log(",
+                "log": "Math.log10(",
+                "e ^": "Math.exp(",
+                "10 ^": "Math.pow(10, "
+                }
+            return '(' + op2Func[mathop] + self.mathExpr(child, 'NUM') + "))"
+        elif opcode == 'operator_length':
+            arg = child.getInputs()['STRING'][1][1]
+            # TODO: should call strExpr 
+            return "lengthOf(" + arg + ")"
+        elif opcode == 'operator_random':
+            return "pickRandom(" + self.mathExpr(child, 'FROM') + ", " + self.mathExpr(child, 'TO') + ")"
+        elif opcode == 'motion_xposition':
+            return 'getX()'
+        elif opcode == 'motion_ypos':
+            return "getY()"
+        elif opcode == 'motion_direction':
+            return "getDirection()"
+        elif opcode == "looks_costumenumbername":
+            if child.getFields()['NUMBER_NAME'][0] == 'number':
+                return "costumeNumber()"
             else:
-                raise ValueError("Unsupported operator %s" % child.getOpcode())
+                raise ValueError('not supported yet')
+        elif opcode == 'looks_backdropnumbername':
+            if child.getFields()['NUMBER_NAME'][0] == 'number':
+                return 'getBackdropNumber()'
+            else:
+                raise ValueError('not supported yet')
+        elif opcode == "looks_size":
+            return "size()"
+        elif opcode == "sensing_mousedown":
+            # this will produce uncompileable Java code... but if you try this kind of
+            # thing, you are kind of asking for it...
+            return " (int) isMouseDown()"   
+        elif opcode == "sensing_mousex":
+            return "getMouseX()"
+        elif opcode == 'sensing_mousey':
+            return "getMouseY()"
+        elif opcode == "sensing_timer":
+            return "getTimer()"
+        elif opcode == "sensing_dayssince2000":
+            return "daysSince2000()"
+        elif opcode == "sensing_distanceto":
+            grandchild = child.getChild('DISTANCETOMENU')
+            arg = grandchild.getFields()['DISTANCETOMENU'][0]
+            if arg == '_mouse_':
+                return "distanceToMouse()"
+            else:   # must be distance to a sprite
+                return 'distanceTo("' + arg + '")'
+        elif opcode == 'sensing_of':
+            return self.getAttributeOf(child)
+        else:
+            raise ValueError("Unsupported operator %s" % opcode)
 
 
     def oldMathExpr(self, tokenOrList):
@@ -1492,23 +1488,26 @@ class SpriteOrStage:
         return resStr
 
 
-    def getAttributeOf(self, tok1, tok2):
-        """Return code to handle the various getAttributeOf calls
+    def getAttributeOf(self, block):
+        """Return code to handle the various sensing_of calls
         from the sensing block.
         """
-        if tok2 == '_stage_':
-            if tok1 == 'backdrop name':
-                return "backdropName()"
-            elif tok1 == 'backdrop #':
-                return "getBackdropNumber()"
-            elif tok1 == 'volume':
-                return ' Volume not implemented '
-            else:
-                # TODO: We must assume that this is a variable, as not all variable have necessarily
-                # been parsed yet. Note that because of this, we cannot look up the actual name
-                # of the variable, we must use the unsanitized name.
-                return 'world.' + tok1 + '.get()'
+        objChild = block.getChild('OBJECT').getFields()['OBJECT'][0]
+        prop = block.getFields()['PROPERTY'][0]
 
+        if objChild == 'Stage':
+            # most of the attributes -- direction, x position, etc. --
+            # return 0 in Scratch.  We'll do the same, obviously.
+            if prop in ('direction', 'x position', 'y position', 'costume name', 'costume #', 'size', 'volume'):
+                return 0
+            if prop == 'backdrop #':
+                return "backdropNumber()"
+            elif prop == 'backdrop name':
+                return 'backdropName()'
+            else:
+                return 'Unknown property: ' + prop
+
+        # object is a sprite name
         mapping = { 'x position': 'xPositionOf',
                     'y position': 'yPositionOf',
                     'direction': 'directionOf',
@@ -1516,13 +1515,16 @@ class SpriteOrStage:
                     'costume name': 'costumeNameOf',
                     'size': 'sizeOf',
                     }
-        if tok1 in mapping:
-            return mapping[tok1] + '("' + tok2 + '")'
-        else:   # volumeOf, backdropNumberOf
+        if prop in mapping:
+            return mapping[prop] + '("' + objChild + '")'
+        elif prop in ('backdrop #', 'backdrop name', 'volume'):
+            return 0        # bogus in Scratch and here too
+        else:
             # TODO: We must assume that this is a variable, as not all variable have necessarily
             # been parsed yet. Note that because of this, we cannot look up the actual name
             # of the variable, we must use the unsanitized name. TODO fix this 
-            return '((' + tok2 + ')world.getActorByName("' + tok2 + '")).' + tok1 + '.get()'
+            return '((' + prop + ')world.getActorByName("' + objChild + '")).' + tok1 + '.get()'            
+        
 
     def whenFlagClicked(self, codeObj, block):
         """Generate code to handle the whenFlagClicked block.
@@ -1803,15 +1805,14 @@ class SpriteOrStage:
         # inputs contains (for the basic case):
         # "MESSAGE": [ 1, [ 10, "Hello!" ] ],
         # "SECS": [ 1, [ 4, "2" ] ]
-        arg1 = block.getInputs()['MESSAGE'][1][1]
-        return genIndent(level) + "sayForNSeconds(s, " + self.strExpr(arg1) + ", " + \
+        message = self.strExpr(block, 'MESSAGE')
+        return genIndent(level) + "sayForNSeconds(s, " + message + ", " + \
                self.mathExpr(block, 'SECS') + ");\n"
 
     def say(self, level, block, deferYield = False):
         """Generate code to handle say <str>.
         """
         arg = block.getInputs()['MESSAGE'][1][1]
-        assert block.getOpcode() == "looks_say"
         return genIndent(level) + "say(" + self.strExpr(arg) + ");\n"
     
     def thinkForSecs(self, level, block, deferYield = False):
@@ -1846,7 +1847,7 @@ class SpriteOrStage:
         arg = block.getChild('COSTUME').getFields()['COSTUME'][0]
         try:
             # TODO!
-            return genIndent(level) + "switchToCostume(" + self.oldMathExpr(arg) + ");\n"
+            return genIndent(level) + "switchToCostume(" + self.mathExpr(arg) + ");\n"
         except (ValueError, AssertionError):
             # if mathExpr is unable to resolve arg, use strExpr instead
             return genIndent(level) + "switchToCostume(" + self.strExpr(arg) + ");\n"

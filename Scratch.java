@@ -3270,7 +3270,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
     /**
      * return the current backdrop number being shown in the world.
      */
-    public int getBackdropNumber()
+    public int backdropNumber()
     {
         return getWorld().getBackdropNumber();
     }
@@ -4376,16 +4376,19 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
     public String join(Object a, Object b) { return a.toString() + b.toString(); }
 
-    public String letterNOf(Object o, int n) 
+    /**
+     * return the nth letter of the given string.  strings in Scratch are indexed from 1.
+     */
+    public String letterNOf(int n, Object o) 
     {
         String s = o.toString();
-        if (n < 0) {
+        if (n < 1) {
             return "";
         }
-        if (n >= s.length()) {
+        if (n > s.length()) {
             return "";
         }
-        return "" + s.charAt(n);
+        return "" + s.charAt(n - 1);
     }
 
     public int lengthOf(Object o) 
