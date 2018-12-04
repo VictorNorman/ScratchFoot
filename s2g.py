@@ -1072,7 +1072,7 @@ class SpriteOrStage:
             'looks_hide': self.hide,
             'looks_switchcostumeto': self.switchCostumeTo,
             'looks_nextcostume': self.nextCostume,
-            'startScene': self.switchBackdropTo,
+            'looks_switchbackdropto': self.switchBackdropTo,
             'looks_changesizeby': self.changeSizeBy,
             'looks_setsizeto': self.setSizeTo,
             'comeToFront': self.goToFront,
@@ -1240,6 +1240,10 @@ class SpriteOrStage:
                 return 'backdropName()'
             elif numberOrName == 'number':
                 return "String.valueOf(backdropNumber())";
+        elif opcode == 'looks_costume':
+            return '"' + child.getFields()['COSTUME'][0] + '"'
+        elif opcode == 'looks_backdrops':
+            return '"' + child.getFields()['BACKDROP'][0] + '"'
         elif opcode == 'sensing_of':
             return 'String.valueOf(' + self.getAttributeOf(block) + ')'
         else:
@@ -1842,15 +1846,11 @@ class SpriteOrStage:
     def switchCostumeTo(self, level, block, deferYield = False):
         """Generate code for the switch costume block.
         """
-        # the child of block is a looks_costume block, with COSTUME in 'fields',
-        # and the value in 'fields' being the costume name.
-        arg = block.getChild('COSTUME').getFields()['COSTUME'][0]
         try:
-            # TODO!
-            return genIndent(level) + "switchToCostume(" + self.mathExpr(arg) + ");\n"
-        except (ValueError, AssertionError):
-            # if mathExpr is unable to resolve arg, use strExpr instead
-            return genIndent(level) + "switchToCostume(" + self.strExpr(arg) + ");\n"
+            return genIndent(level) + "switchToCostume(" + self.strExpr(block, 'COSTUME') + ");\n"
+        except Exception:
+            # if strExpr is unable to resolve arg, use mathExpr instead
+            return genIndent(level) + "switchToCostume(" + self.mathExpr(block, 'COSTUME') + ");\n"
 
     def nextCostume(self, level, block, deferYield = False):
         """Generate code for the next costume block.
@@ -1858,12 +1858,14 @@ class SpriteOrStage:
         assert block.getOpcode() == "looks_nextcostume"
         return genIndent(level) + "nextCostume();\n"
 
-    def switchBackdropTo(self, level, tokens, deferYield = False):
+    def switchBackdropTo(self, level, block, deferYield = False):
         """Generate code to switch the backdrop.
         """
-        cmd, arg1 = tokens
-        assert cmd == "startScene"
-        return genIndent(level) + "switchBackdropTo(" + self.strExpr(arg1) + ");\n"
+        try:
+            return genIndent(level) + "switchBackdropTo(" + self.strExpr(block, 'BACKDROP') + ");\n"
+        except Exception:
+            # if strExpr is unable to resolve arg, use mathExpr instead
+            return genIndent(level) + "switchBackdropTo(" + self.mathExpr(block, 'BACKDROP') + ");\n"
 
     def nextBackdrop(self, level, block, deferYield = False):
         """Generate code to switch to the next backdrop.
