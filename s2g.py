@@ -200,6 +200,9 @@ class Block:
         self._next = None
         # dictionary mapping key -> child block.
         self._children = {}
+        # Used for calling a user-defined procedure.
+        self._procCode = None
+        self._procArgIds = []
     
     def setInputs(self, inputs):
         '''inputs are a json object (for now)'''
@@ -220,32 +223,27 @@ class Block:
             raise ValueError('block has child with key %s already' % key)
         self._children[key] = childBlock
 
-    def isTopLevel(self):
-        return self._topLevel
+    def setProcCode(self, proccode):
+        self._procCode = proccode
+
+    def setProcCallArgIds(self, j):
+        self._procArgIds = json.loads(j)
+
+    def isTopLevel(self): return self._topLevel
 
     def hasChild(self, key):
         return key in self._children
 
-    def getId(self):
-        return self._id
-
-    def getOpcode(self):
-        return self._opcode
-
-    def getNext(self):
-        return self._next
-
-    def getInputs(self):
-        return self._inputs
-
-    def getFields(self):
-        return self._fields
-
-    def getField(self, key, index=0):
-        return self.getFields()[key][index]
-
-    def getChild(self, key):
-        return self._children[key]
+    def getId(self): return self._id
+    def getOpcode(self): return self._opcode
+    def getNext(self): return self._next
+    def getInputs(self): return self._inputs
+    def getInput(self, key): return self._inputs[key]
+    def getFields(self): return self._fields
+    def getField(self, key, index=0): return self.getFields()[key][index]
+    def getChild(self, key): return self._children[key]
+    def getProcCode(self): return self._procCode
+    def getProcCallArgIds(self): return self._procArgIds
 
     def strWithIndent(self, indentLevel = 0):
         res = ("  " * indentLevel) + str(self)
@@ -489,7 +487,7 @@ class SpriteOrStage:
                 for e in nameList:
                     s = e.get()
                     e.delete(0, tkinter.END)
-                    e.insert(tkinter.END, convertToJavaId(s, True, False))
+                    e.insert(tkinter.END, convertToJavaId(s))
                 for i in range(0, len(typeList)):
                     try:
                         typeList[i].set(deriveType("", valueList[i].get())[1])
@@ -601,7 +599,7 @@ class SpriteOrStage:
                     contents = l['contents']
                     visible = l['visible']
                     try:
-                        sanname = convertToJavaId(name, True, False)
+                        sanname = convertToJavaId(name)
                     except:
                         print("Error converting list to java id")
                         sys.exit(0)
@@ -788,11 +786,11 @@ class SpriteOrStage:
             # Sanitize the name: make it a legal Java identifier.
             try:
                 if name_resolution:
-                    sanname = convertToJavaId(name, True, False)
-                elif not convertToJavaId(name, True, False) == name:
+                    sanname = convertToJavaId(name)
+                elif not convertToJavaId(name) == name:
                     sanname = self.resolveName(name)
                 else:
-                    sanname = convertToJavaId(name, True, False)
+                    sanname = convertToJavaId(name)
             except:
                 print("Error converting variable to java id")
                 sys.exit(0)
@@ -856,7 +854,7 @@ class SpriteOrStage:
             contents = l['contents']
             visible = l['visible']
             try:
-                sanname = convertToJavaId(name, True, False)
+                sanname = convertToJavaId(name)
             except:
                 print("Error converting list to java id")
                 sys.exit(0)
@@ -963,6 +961,11 @@ class SpriteOrStage:
                 block.setFields(vals['fields'])
             if vals['topLevel']:
                 block.setTopLevel(vals['topLevel'])
+            if 'mutation' in vals:
+                if 'proccode' in vals['mutation']:
+                    block.setProcCode(vals['mutation']['proccode'])
+                if 'argumentids' in vals['mutation']:
+                    block.setProcCallArgIds(vals['mutation']['argumentids'])
 
         # Link the blocks together.
         for blockId in blocksJson:
@@ -1125,22 +1128,21 @@ class SpriteOrStage:
             'sensing_askandwait': self.doAsk,
             'sensing_resettimer': self.resetTimer,
 
-            # Blocks commands
-            'call': self.callABlock,
-
             # Sound commands
             'sound_play': self.playSound,
             'sound_playuntildone': self.playSoundUntilDone,
 
-            #Midi commands
+            # Midi commands
             'music_playNoteForBeats': self.playNote,
             'music_setInstrument': self.instrument,
             'music_playDrumForBeats': self.playDrum,
             'music_restForBeats': self.rest,
             'music_changeTempo': self.changeTempoBy,
-            'music_setTempo': self.setTempoTo
+            'music_setTempo': self.setTempoTo,
 
-            }
+            # User-defined function
+            'procedures_call': self.callABlock,
+        }
         if debug:
             print("stmt: block = ")
             print(block.strWithIndent(level))
@@ -1262,11 +1264,11 @@ class SpriteOrStage:
         '''Evaluate the expression in block[exprKey] and its children, as a math expression,
         returning a string equivalent.'''
 
-        expr = block.getInputs()[exprKey]
+        expr = block.getInput(exprKey)
         assert isinstance(expr, list)
 
         if not block.hasChild(exprKey):
-            expr = block.getInputs()[exprKey]
+            expr = block.getInput(exprKey)
             val = expr[1][1]
             return '0' if val == '' else val
 
@@ -2406,19 +2408,28 @@ class SpriteOrStage:
         return genIndent(level) + "resetTimer();\n"
 
 
-    def genProcDefCode(self, codeObj, tokens):
+    def genProcDefCode(self, codeObj, block):
         """Generate code for a custom block definition in Scratch.
         All the generated code goes into codeObj's cbCode since it doesn't
         belong in the constructor.
         """
-        # Tokens is like this:
-        # [["procDef", "name", [list of param-names], [list of values (not used)], false],
-        #  [code here]]
+
+        # topBlock has a child, 'procedures_prototype', that has the info like this:
+        #   "inputs": {
+        #     "W4-$x?M#(z-O;zL#JGtD": [ 1, ";wRdEi9dvXIeYHWSe]qY" ],
+        #     "8DW5FO+wpV?B_E07*Gd{": [ 2, ".ksStxZtV=A6)v.2F=5b" ],
+        #     "]lPKh6+rN{|NDMR,K|)t": [ 2, "V%Lqx`q;;-4(US)kpqpo" ]
+        #   },
+        #   "mutation": {
+        #     "proccode": "turnamount %s %b degrees %s",
+        #     "argumentids": "[\"W4-$x?M#(z-O;zL#JGtD\",\"8DW5FO+wpV?B_E07*Gd{\",\"]lPKh6+rN{|NDMR,K|)t\"]",
+        #     "argumentnames": "[\"number\",\"boolean\",\"number or text\"]",
+        #     "argumentdefaults": "[\"\",\"false\",\"\"]",
+        #     "warp": "false"
+        #   }
 
         print("===========")
-        print(tokens)
-        decl = tokens[0]
-        code = tokens[1:]
+
         # blockName and param types: e.g., block3args %n %s %b
         blockAndParamTypes = decl[1]    
         paramNames = decl[2]
@@ -2453,7 +2464,7 @@ class SpriteOrStage:
             idx += 1
         # Trim off any trailing spaces in blockName
         blockName = blockName.strip()
-        blockName = convertToJavaId(blockName, True, False)
+        blockName = convertToJavaId(blockName)
 
         # Now, scanning through %? and words, which we'll drop for now.
         while idx < len(blockAndParamTypes):
@@ -2491,24 +2502,67 @@ class SpriteOrStage:
         return codeObj
 
 
-    def callABlock(self, level, tokens, deferYield = False):
+    def callABlock(self, level, block, deferYield = False):
         """Generate a call to a custom-defined block.
-        Format of tokens is: ["call", "blockToCall", param code]
-        blockToCall has the param type specs in it: "blockToCall %n %s %b"
-        We need to strip these out.
+        inputs in the block look like this:
+        "inputs": {
+            "W4-$x?M#(z-O;zL#JGtD": [
+              1,
+              [
+                10,
+                "3"         <-- value to pass 
+              ]
+            ],
+            "8DW5FO+wpV?B_E07*Gd{": [
+              2,
+              "?i(/2Z~tf~8@O=8#khV1"        <-- blockid to be evaluated to a value
+            ]
+          },
+        Also, there is a "mutation" block:
+        {
+            "tagName": "mutation",
+            "children": [],
+            "proccode": "turnamount %s %b",
+            "argumentids": "[\"W4-$x?M#(z-O;zL#JGtD\",\"8DW5FO+wpV?B_E07*Gd{\"]",
+            "warp": "false"
+        }
+        The name of the function to call is only found in the proccode, afaict.
+        It is (perhaps) impossible to tell if an argument is supposed to be a 
+        string or a number.  So, we'll try to evaluate as a number, and if that
+        fails, try strExpr, and if that fails, boolean expression.
         """
-        func2Call = tokens[1]
+        func2Call = block.getProcCode()
+        # func2Call is a string like this: nameOfFunc %s %b someword %s 
+        # We could parse this to get some type info from it, although numbers and strings
+        # are always %s.
+
         firstPercent = func2Call.find("%")
         if firstPercent == -1:
-            assert len(tokens) == 2    # just "call" and "blockToCall"
-            return genIndent(level) + convertToJavaId(func2Call, True, False) + "(s);\n"
+            # No percent sign, so no parameters.
+            return genIndent(level) + convertToJavaId(func2Call) + "(s);\n"
         func2Call = func2Call[0:firstPercent]
         func2Call = func2Call.strip()	# remove trailing blanks.
 
-        resStr = genIndent(level) + convertToJavaId(func2Call, True, False) + "(s, "
-        for i in range(2, len(tokens) - 1):
-            resStr += self.oldMathExpr(tokens[i]) + ", "
-        resStr += self.oldMathExpr(tokens[-1]) + ");\n"
+        resStr = genIndent(level) + convertToJavaId(func2Call) + "(s, "
+
+        # Determine order of the arguments.  This comes from the "argumentids" in the
+        # mutation block.  It is a jsonified list of blockIds.... E.g.,
+        # "argumentids": "[\"W4-$x?M#(z-O;zL#JGtD\",\"8DW5FO+wpV?B_E07*Gd{\",\"]lPKh6+rN{|NDMR,K|)t\"]",
+        argIdList = block.getProcCallArgIds()
+
+        # each argId is in inputs.
+        resStrs = []
+        for argId in argIdList:   # skip last one.
+            try:
+                resStrs.append(self.mathExpr(block, argId))
+            except:
+                try:
+                    resStrs.append(self.strExpr(block, argId))
+                except:
+                    boolExprBlock = block.getChild(argId)
+                    resStrs.append(self.boolExpr(boolExprBlock))
+
+        resStr += ', '.join(resStrs) + ');\n'
         return resStr
 
     def playSound(self, level, block, deferYield = False):
@@ -2564,11 +2618,11 @@ class SpriteOrStage:
             try:
                 print("\"" + name + "\" is not a valid java variable name.")
                 n = input("Java variables must start with a letter and contain only letters and numbers.\n" +\
-                      "Enter a new name, or type nothing to use \"" + convertToJavaId(name, True, False) + "\"\n> ")
+                      "Enter a new name, or type nothing to use \"" + convertToJavaId(name) + "\"\n> ")
                 if n == "":
-                    return convertToJavaId(name, True, False)
+                    return convertToJavaId(name)
                 name = n
-                if convertToJavaId(n, True, False) == n:
+                if convertToJavaId(n) == n:
                     return n
             except IndexError:
                 # The variable name has no valid characters
@@ -2595,11 +2649,10 @@ class SpriteOrStage:
             self.whenKeyPressed(codeObj, topBlock)
         elif opcode == 'event_whenbroadcastreceived':
             self.whenIReceive(codeObj, topBlock)
+        elif opcode == 'procedures_definition':
+            self.genProcDefCode(codeObj, topBlock)
         elif isinstance(topBlock, list) and topBlock[0] == 'whenSceneStarts':
             self.whenSwitchToBackdrop(codeObj, topBlock[1], blocks[1:])
-        elif isinstance(topBlock, list) and topBlock[0] == 'procDef':
-            # Defining a procedure in Scratch.
-            self.genProcDefCode(codeObj, blocks)
 
         # If not in one of the above "hat blocks", then it is an
         # orphaned bit of code that will not be run in either Scratch
