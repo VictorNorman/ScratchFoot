@@ -203,6 +203,7 @@ class Block:
         # Used for calling a user-defined procedure.
         self._procCode = None
         self._procArgIds = []
+        self._procDefnParamNames = []
     
     def setInputs(self, inputs):
         '''inputs are a json object (for now)'''
@@ -229,6 +230,9 @@ class Block:
     def setProcCallArgIds(self, j):
         self._procArgIds = json.loads(j)
 
+    def setProcDefnParamNames(self, j):
+        self._procDefnParamNames = json.loads(j)
+
     def isTopLevel(self): return self._topLevel
 
     def hasChild(self, key):
@@ -244,6 +248,7 @@ class Block:
     def getChild(self, key): return self._children[key]
     def getProcCode(self): return self._procCode
     def getProcCallArgIds(self): return self._procArgIds
+    def getProcDefnParamNames(self): return self._procDefnParamNames
 
     def strWithIndent(self, indentLevel = 0):
         res = ("  " * indentLevel) + str(self)
@@ -957,7 +962,7 @@ class SpriteOrStage:
             # print('adding block with id to collection', blockId, vals['opcode'])
             if vals['inputs']: 
                 block.setInputs(vals['inputs'])
-            if vals['fields']: 
+            if vals['fields']:
                 block.setFields(vals['fields'])
             if vals['topLevel']:
                 block.setTopLevel(vals['topLevel'])
@@ -966,6 +971,9 @@ class SpriteOrStage:
                     block.setProcCode(vals['mutation']['proccode'])
                 if 'argumentids' in vals['mutation']:
                     block.setProcCallArgIds(vals['mutation']['argumentids'])
+                if 'argumentnames' in vals['mutation']:
+                    block.setProcDefnParamNames(vals['mutation']['argumentnames'])
+
 
         # Link the blocks together.
         for blockId in blocksJson:
@@ -1218,11 +1226,11 @@ class SpriteOrStage:
     def strExpr(self, block, exprKey):
         """Evaluate a string-producing expression (or literal).
         """
-        expr = block.getInputs()[exprKey]
+        expr = block.getInput(exprKey)
         assert isinstance(expr, list)
 
         if not block.hasChild(exprKey):
-            expr = block.getInputs()[exprKey]
+            expr = block.getInputs(exprKey)
             return '"' + expr[1][1] + '"'
 
         # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
@@ -1238,13 +1246,13 @@ class SpriteOrStage:
             if numberOrName == 'name':
                 return 'costumeName()'
             elif numberOrName == 'number':
-                return "String.valueOf(costumeNumber())";
+                return "String.valueOf(costumeNumber())"
         elif opcode == 'looks_backdropnumbername':
             numberOrName = child.getField('NUMBER_NAME')
             if numberOrName == 'name':
                 return 'backdropName()'
             elif numberOrName == 'number':
-                return "String.valueOf(backdropNumber())";
+                return "String.valueOf(backdropNumber())"
         elif opcode == 'looks_costume':
             return '"' + child.getField('COSTUME') + '"'
         elif opcode == 'looks_backdrops':
@@ -1252,12 +1260,14 @@ class SpriteOrStage:
         elif opcode == 'sensing_answer':
             return 'answer'
         elif opcode == 'sensing_of':
-            return 'String.valueOf(' + self.getAttributeOf(block) + ')'
+            return 'String.valueOf(' + self.getAttributeOf(child) + ')'
+        elif opcode == 'argument_reporter_string_number':
+            return self.procDefnUseParamName(child)
         else:
             # You can put math expression in where strings are expected
             # and they are automatically used.  So, we'll try that
             # too.
-            return "String.valueOf(" + str(self.mathExpr(block, 'MESSAGE')) + ")"
+            return "String.valueOf(" + str(self.mathExpr(child, 'MESSAGE')) + ")"
 
 
     def mathExpr(self, block, exprKey):
@@ -1354,9 +1364,14 @@ class SpriteOrStage:
                 return 'distanceTo("' + arg + '")'
         elif opcode == 'sensing_of':
             return self.getAttributeOf(child)
+        elif opcode == 'argument_reporter_string_number':
+            return self.procDefnUseParamName(child)
         else:
             raise ValueError("Unsupported operator %s" % opcode)
 
+    def procDefnUseParamName(self, block):
+        paramName = block.getField('VALUE')
+        return convertToJavaId(paramName)
 
     def oldMathExpr(self, tokenOrList):
 
@@ -2408,7 +2423,7 @@ class SpriteOrStage:
         return genIndent(level) + "resetTimer();\n"
 
 
-    def genProcDefCode(self, codeObj, block):
+    def genProcDefCode(self, codeObj, topBlock):
         """Generate code for a custom block definition in Scratch.
         All the generated code goes into codeObj's cbCode since it doesn't
         belong in the constructor.
@@ -2428,78 +2443,72 @@ class SpriteOrStage:
         #     "warp": "false"
         #   }
 
-        print("===========")
+        block = topBlock.getChild('custom_block')
 
-        # blockName and param types: e.g., block3args %n %s %b
-        blockAndParamTypes = decl[1]    
-        paramNames = decl[2]
+        # funcname and param types: e.g., block3args %s %s %b
+        (funcname, paramTypes) = self.extractInfoFromProcCode(block)
 
-        # TODO: need to sanitize blockName, paramNames, etc.
+        # convert all names to legal java ids.
+        paramNames = list(map(convertToJavaId, block.getProcDefnParamNames()))
 
-        # Need to split up blockAndParamTypes to extract the name of the
-        # procedure and the types of the parameters.
-        # The name of the procedure can have spaces, and there can be words
-        # in the middle of the param specs.
-        # Examples:
-        # "aBlock"  -- no params
-        # "a block" -- no params, but name has spaces
-        # "block2args %n %n" -- 2 "number" params.  We'll use float for all
-        #     numbers.
-        # "blockwithtext %s a word or four %b" -- 2 params, a string and a
-        #     boolean and words in the middle.
-
-        # For now we'll just take the first words before the first % sign and
-        # remove spaces and make that the procedure name.
-        # TODO: somehow append words in the middle of the param list into the
-        # name of the procedure.
-        #
-        paramTypes = []
-        idx = 0
-        # Look from beginning until we see a %.  The first part is the blockName.
-        blockName = ""
-        while idx < len(blockAndParamTypes):
-            if blockAndParamTypes[idx] == "%":
-                break
-            blockName += blockAndParamTypes[idx]
-            idx += 1
-        # Trim off any trailing spaces in blockName
-        blockName = blockName.strip()
-        blockName = convertToJavaId(blockName)
-
-        # Now, scanning through %? and words, which we'll drop for now.
-        while idx < len(blockAndParamTypes):
-            # TODO: perhaps rewrite this with str.find() or str.index().
-            if blockAndParamTypes[idx] == "%":
-                # Now, we are looking at %.  Must be %s, %b, or %n.
-                idx += 1
-                if blockAndParamTypes[idx] == "s":
-                    paramTypes.append("String")
-                elif blockAndParamTypes[idx] == "b":
-                    paramTypes.append("boolean")
-                elif blockAndParamTypes[idx] == "n":
-                    paramTypes.append("double")	# TODO: probably usually int
-                else:
-                    raise ValueError("unknown Block param type %" +
-                                     blockAndParamTypes[idx])
-            # eat up everything else.
-            idx += 1
         assert len(paramTypes) == len(paramNames)
         
         if len(paramTypes) == 0:
-            codeObj.addToCbCode(genIndent(1) + "private void " + blockName + "(Sequence s")
+            codeObj.addToCbCode(genIndent(1) + "private void " + funcname + "(Sequence s")
         else:
-            codeObj.addToCbCode(genIndent(1) + "private void " + blockName + "(Sequence s, ")
+            codeObj.addToCbCode(genIndent(1) + "private void " + funcname + "(Sequence s, ")
 
         for i in range(len(paramTypes)):
-            codeObj.addToCbCode(paramTypes[i] + " " + paramNames[i])
+            if paramTypes[i] == 'stringOrNumber':
+                t = 'String'        # Assuming everything is a string now... nasty.
+            else:
+                t = 'boolean'
+            codeObj.addToCbCode(t + " " + paramNames[i])
             # Add following ", " if not add end of list.
             if i < len(paramTypes) - 1:
                 codeObj.addToCbCode(", ")
 
         codeObj.addToCbCode(")\n")
-        codeObj.addToCbCode(self.block(1, code, decl[4]))
+        codeObj.addToCbCode(self.block(1, topBlock.getNext()))
         codeObj.addToCbCode("\n")	# add blank line after function defn.
         return codeObj
+
+    def extractInfoFromProcCode(self, block):
+        '''extract the function to call and list of argument types from
+        the proccode string.  return tuple: (funcname, listOfArgType),
+        where arg types are 'stringOrNumber', 'boolean'
+        '''
+
+        # proccode is a string like this: nameOfFunc %s %b someword %s
+        # We could parse this to get some type info from it, although numbers and strings
+        # are always %s.
+
+        argsList = []
+
+        proccode = block.getProcCode()
+        firstPercent = proccode.find("%")
+        if firstPercent == -1:
+            # No percent sign, so no parameters.
+            return proccode.strip(), argsList
+
+        func2Call = proccode[0:firstPercent].strip()   # remove trailing blanks.
+
+        proccode = proccode[firstPercent:]      # remove func2call name
+
+        # split on spaces to get each word.
+        paramsEtc = proccode.split()
+        for param in paramsEtc:
+            if param[0] == '%':
+                # we have a param
+                if param[1] == 's' or param[1] == 'n':  # only s will be seen (now)
+                    argsList.append('stringOrNumber')
+                elif param[1] == 'b':
+                    argsList.append('boolean')
+                else:
+                    raise ValueError('unknown specifier in args list')
+            # else do nothing: it is a string in the middle of the args list and we'll
+            # ignore those (for now)
+        return func2Call, argsList
 
 
     def callABlock(self, level, block, deferYield = False):
@@ -2531,19 +2540,14 @@ class SpriteOrStage:
         string or a number.  So, we'll try to evaluate as a number, and if that
         fails, try strExpr, and if that fails, boolean expression.
         """
-        func2Call = block.getProcCode()
-        # func2Call is a string like this: nameOfFunc %s %b someword %s 
-        # We could parse this to get some type info from it, although numbers and strings
-        # are always %s.
 
-        firstPercent = func2Call.find("%")
-        if firstPercent == -1:
-            # No percent sign, so no parameters.
-            return genIndent(level) + convertToJavaId(func2Call) + "(s);\n"
-        func2Call = func2Call[0:firstPercent]
-        func2Call = func2Call.strip()	# remove trailing blanks.
+        (func2Call, argTypes) = self.extractInfoFromProcCode(block)
+        func2Call = convertToJavaId(func2Call)
 
-        resStr = genIndent(level) + convertToJavaId(func2Call) + "(s, "
+        if len(argTypes) == 0:
+            return genIndent(level) + func2Call + "(s);\n"
+
+        resStr = genIndent(level) + func2Call + "(s, "
 
         # Determine order of the arguments.  This comes from the "argumentids" in the
         # mutation block.  It is a jsonified list of blockIds.... E.g.,
@@ -2552,15 +2556,16 @@ class SpriteOrStage:
 
         # each argId is in inputs.
         resStrs = []
-        for argId in argIdList:   # skip last one.
-            try:
-                resStrs.append(self.mathExpr(block, argId))
-            except:
+        for argIdx in range(len(argIdList)):   # skip last one.
+            argId = argIdList[argIdx]
+            if argTypes[argIdx] == 'stringOrNumber':
                 try:
-                    resStrs.append(self.strExpr(block, argId))
+                    resStrs.append(self.mathExpr(block, argId))
                 except:
-                    boolExprBlock = block.getChild(argId)
-                    resStrs.append(self.boolExpr(boolExprBlock))
+                    resStrs.append(self.strExpr(block, argId))
+            else:       # boolean
+                boolExprBlock = block.getChild(argId)
+                resStrs.append(self.boolExpr(boolExprBlock))
 
         resStr += ', '.join(resStrs) + ');\n'
         return resStr
