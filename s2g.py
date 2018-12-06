@@ -3017,11 +3017,6 @@ def convert():
     if not onlyDecode:
         print ("------------ Processing " + SCRATCH_FILE + ' ---------------\n')
 
-        try:
-            os.mkdir(scratch_dir)
-        except FileExistsError as e:
-            pass  # If the directory exists already, no problem.
-
         if not os.path.exists(SCRATCH_FILE):
             print("Scratch download file " + SCRATCH_FILE + " not found.")
             sys.exit(1)
@@ -3042,6 +3037,12 @@ def convert():
         if not os.path.isdir(PROJECT_DIR):
             print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
             sys.exit(1)
+
+        try:
+            os.mkdir(scratch_dir)
+        except FileExistsError as e:
+            pass  # If the directory exists already, no problem.
+
 
         # Unzip the .sb3 file into the project/scratch_code directory.
         print("Unpacking Scratch download file.")
