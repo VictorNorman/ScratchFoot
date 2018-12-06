@@ -30,12 +30,13 @@ import shutil
 from subprocess import call, getstatusoutput
 import sys
 import tkinter
+import tkinter.messagebox
 
 # Global Variables that can be set via command-line arguments.
 debug = False
 inference = False
 name_resolution = False
-useGui= False
+useGui = False
 
 # Indentation level in outputted Java code.
 NUM_SPACES_PER_LEVEL = 4
@@ -53,6 +54,7 @@ parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose
 parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
 parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
 parser.add_argument("-g", "--gui", action="store_true", help="Use GUI converter (Experimental)")
+parser.add_argument('-o', "--onlydecode", action="store_true", help="Only decode the project.json, don't move files, etc.")
 parser.add_argument("--scratch_file", help="Location of scratch sb2/sb3 file", default = os.getcwd(), required=False)
 parser.add_argument("--greenfoot_dir", help="Location of greenfoot project directory", default = os.getcwd(), required=False)
 args = parser.parse_args()
@@ -66,6 +68,8 @@ if args.resolvevariablenames:
     name_resolution = True
 if args.gui:
     useGui = True
+onlyDecode = args.onlydecode
+
 
 SCRATCH_FILE = args.scratch_file.strip()
 # Take off spaces and a possible trailing "/"
@@ -185,6 +189,48 @@ def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
         res += '_'
     return res
 
+class Variable:
+    '''Represents a single variable defined in Scratch, and
+    includes properties of it: its name, type, what sprite
+    it belongs to, whether it is a cloud variable or not, its
+    uniqueId defined in Scratch, etc.'''
+    # NOTE NOTE NOTE: there does not seem to be any information in the project.json
+    # file now about persistence, whether it is shown or not, slider, etc...
+    def __init__(self, uniqId, json):
+        '''json is of this format (now):
+           [
+              "vic",                          <-- unsanitized scratch name
+              "44"                            <-- initial value
+           ]
+        '''
+        self._json = json
+        self._uniqId = uniqId
+        self._type = None
+        self._scratchName = json[0]
+        self._initValue = json[1]
+        self._isCloud = False
+        self._owner = None
+        self._gfName = None
+        # Stuff used for GUI when converting types, resolving
+        # names, etc.
+        self._nameEntry = None
+        self._typeStringVar = None
+        self._initValueEntry = None
+
+    def setGfName(self, name):
+        self._gfName = name
+    def setType(self, type):
+        self._type = type
+    def setOwner(self, owner):
+        self._owner = owner
+    def getName(self): return self._scratchName
+    def getInitValue(self): return self._initValue
+    def setNameEntry(self, ent):
+        self._ent = ent
+    def setTypeStringVar(self, svar):
+        self._svar = svar
+    def setInitialValueEntry(self, ive):
+        self._initValueEntry = ive
 
 class Block:
     '''
@@ -385,7 +431,6 @@ class SpriteOrStage:
         #     "isPersistent": false
         #     }]
         # We get the name and default value from this easily, but we have to derive
-        # the type from the default value.
         # A variable-specific dictionary (in 'children' list) has this format:
         # {
         #			"target": "Sprite1",
@@ -1908,6 +1953,7 @@ class SpriteOrStage:
     def nextBackdrop(self, level, block, deferYield = False):
         """Generate code to switch to the next backdrop.
         """
+        block.getOpcode()
         return genIndent(level) + "nextBackdrop();\n"
 
     def changeSizeBy(self, level, block, deferYield = False):
@@ -2882,119 +2928,122 @@ def convert():
     global soundsDir 
     global worldClassName
     global stage
-    print ("---------" + SCRATCH_FILE)
-    
-    if not os.path.exists(SCRATCH_FILE):
-        print("Scratch download file " + SCRATCH_FILE + " not found.")
-        sys.exit(1)
-    if not os.path.exists(PROJECT_DIR):
-        if useGui:
-            if (tkinter.messagebox.askokcancel("Make New Directory", "Greenfoot directory not found, generate it?")):
-                print("Generating new project directory...")
-                os.makedirs(PROJECT_DIR)
-            else:
-                sys.exit(1)
-        else:
-            if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
-                print("Generating new project directory...")
-                os.makedirs(PROJECT_DIR)
-            else:
-                print("Project directory could not be found")
-                sys.exit(1)
-    if not os.path.isdir(PROJECT_DIR):
-        print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
-        sys.exit(1)
-    
+    global onlyDecode
+
     # Make a directory into which to unzip the scratch zip file.
     scratch_dir = os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR)
     try:
         os.mkdir(scratch_dir)
     except FileExistsError as e:
-        pass    # If the directory exists already, no problem.
-    
-    # Unzip the .sb2 file into the project/scratch_code directory.
-    print("Unpacking Scratch download file.")
-    shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
-    
-    # Make directories if they don't exist yet
-    if not os.path.exists(imagesDir):
-        os.makedirs(imagesDir)
-    if not os.path.exists(soundsDir):
-        os.makedirs(soundsDir)
-    
-    print("Copying image files to " + imagesDir)
-    
-    files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
-    for f in files2Copy:
-        # Copy png files over to the images dir, but if they are large
-        # (which probably means they are background images) convert
-        # them to 480x360.
-        res = getstatusoutput("identify " + f)
-        if res[0] != 0:
-            print(res[1])
+        pass  # If the directory exists already, no problem.
+
+    if not onlyDecode:
+        print ("------------ Processing " + SCRATCH_FILE + ' ---------------\n')
+
+        if not os.path.exists(SCRATCH_FILE):
+            print("Scratch download file " + SCRATCH_FILE + " not found.")
             sys.exit(1)
-        # Output from identify is like this:
-        # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
-        size = res[1].split()[2]     # got the geometry.
-        width, height = size.split("x")	 # got the width and height, as strings
-        width = int(width)
-        height = int(height)
-        if width >= 480:
-            # For now, just make 480x360.  This may not be correct in all cases.
-            dest = os.path.join(imagesDir, os.path.basename(f))
-            execOrDie("convert -resize 480x360 " + f + " " + dest,
-                  "copy and resize png file")
-        else:
-            dest = os.path.join(imagesDir, os.path.basename(f))
-            execOrDie("convert -resize 50% " + f + " " + dest,
-                  "copy and resize png file")
-    
-    # Convert svg images files to png files in the images dir.
-    files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
-    for f in files2Copy:
-        # fname is just the file name -- all directories removed.
-        fname = os.path.basename(f)
-        dest = os.path.join(imagesDir, fname)
-        dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
-        # background -None keeps the transparent part of the image transparent.
-        # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
-        # same size as you see on the screen with Scratch in the web browser.
-        execOrDie("convert -background None " + f + " " + dest,
-                  "convert svg file to png")
-    # Copy Scratch.java and ScratchWorld.java to GF project directory
-    # They must be in the same directory as s2g.py
-    try: 
-        # If the file already exists, skip copying it
-        if not os.path.isfile(os.path.join(PROJECT_DIR, "Scratch.java")):
-            shutil.copyfile("Scratch.java", os.path.join(PROJECT_DIR, "Scratch.java"))
-            print("Scratch.java copied successfully")
-        else:
-            print("Scratch.java was already in the project directory")
-        if not os.path.isfile(os.path.join(PROJECT_DIR, "ScratchWorld.java")):
-            shutil.copyfile("ScratchWorld.java", os.path.join(PROJECT_DIR, "ScratchWorld.java"))
-            print("ScratchWorld.java copied successfully")
-        else:
-            print("ScratchWorld.java was already in the project directory")
-    except Exception as e:
-        print("\n\tScratch.java and ScratchWorld.java were NOT copied!", e)
-        
-    try: 
-        # If the file already exists, skip copying it
-        shutil.copyfile("say.png", os.path.join(imagesDir, "say.png"))
-        print("say.png copied successfully")
-        shutil.copyfile("say2.png", os.path.join(imagesDir, "say2.png"))
-        print("say2.png copied successfully")
-        shutil.copyfile("say3.png", os.path.join(imagesDir, "say3.png"))
-        print("say3.png copied successfully")
-        shutil.copyfile("think.png", os.path.join(imagesDir, "think.png"))
-        print("think.png copied successfully")
-    except Exception as e:
-        print("\n\tImages for say/think were NOT all copied!", e)
-    
-    worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""), True, True) + "World"
-    
-    # End of preparing directories, copying files, etc,
-    # ---------------------------------------------------------------------------
+        if not os.path.exists(PROJECT_DIR):
+            if useGui:
+                if (tkinter.messagebox.askokcancel("Make New Directory", "Greenfoot directory not found, generate it?")):
+                    print("Generating new project directory...")
+                    os.makedirs(PROJECT_DIR)
+                else:
+                    sys.exit(1)
+            else:
+                if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
+                    print("Generating new project directory...")
+                    os.makedirs(PROJECT_DIR)
+                else:
+                    print("Project directory could not be found")
+                    sys.exit(1)
+        if not os.path.isdir(PROJECT_DIR):
+            print("Greenfoot folder " + PROJECT_DIR + " is not a directory.")
+            sys.exit(1)
+
+        # Unzip the .sb3 file into the project/scratch_code directory.
+        print("Unpacking Scratch download file.")
+        shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
+
+        # Make directories if they don't exist yet
+        if not os.path.exists(imagesDir):
+            os.makedirs(imagesDir)
+        if not os.path.exists(soundsDir):
+            os.makedirs(soundsDir)
+
+        print("Copying image files to " + imagesDir)
+
+        files2Copy = glob.glob(os.path.join(scratch_dir, "*.png"))
+        for f in files2Copy:
+            # Copy png files over to the images dir, but if they are large
+            # (which probably means they are background images) convert
+            # them to 480x360.
+            res = getstatusoutput("identify " + f)
+            if res[0] != 0:
+                print(res[1])
+                sys.exit(1)
+            # Output from identify is like this:
+            # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
+            size = res[1].split()[2]     # got the geometry.
+            width, height = size.split("x")	 # got the width and height, as strings
+            width = int(width)
+            height = int(height)
+            if width >= 480:
+                # For now, just make 480x360.  This may not be correct in all cases.
+                dest = os.path.join(imagesDir, os.path.basename(f))
+                execOrDie("convert -resize 480x360 " + f + " " + dest,
+                      "copy and resize png file")
+            else:
+                dest = os.path.join(imagesDir, os.path.basename(f))
+                execOrDie("convert -resize 50% " + f + " " + dest,
+                      "copy and resize png file")
+
+        # Convert svg images files to png files in the images dir.
+        files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
+        for f in files2Copy:
+            # fname is just the file name -- all directories removed.
+            fname = os.path.basename(f)
+            dest = os.path.join(imagesDir, fname)
+            dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
+            # background -None keeps the transparent part of the image transparent.
+            # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
+            # same size as you see on the screen with Scratch in the web browser.
+            execOrDie("convert -background None " + f + " " + dest,
+                      "convert svg file to png")
+        # Copy Scratch.java and ScratchWorld.java to GF project directory
+        # They must be in the same directory as s2g.py
+        try:
+            # If the file already exists, skip copying it
+            if not os.path.isfile(os.path.join(PROJECT_DIR, "Scratch.java")):
+                shutil.copyfile("Scratch.java", os.path.join(PROJECT_DIR, "Scratch.java"))
+                print("Scratch.java copied successfully")
+            else:
+                print("Scratch.java was already in the project directory")
+            if not os.path.isfile(os.path.join(PROJECT_DIR, "ScratchWorld.java")):
+                shutil.copyfile("ScratchWorld.java", os.path.join(PROJECT_DIR, "ScratchWorld.java"))
+                print("ScratchWorld.java copied successfully")
+            else:
+                print("ScratchWorld.java was already in the project directory")
+        except Exception as e:
+            print("\n\tScratch.java and ScratchWorld.java were NOT copied!", e)
+
+        try:
+            # If the file already exists, skip copying it
+            shutil.copyfile("say.png", os.path.join(imagesDir, "say.png"))
+            print("say.png copied successfully")
+            shutil.copyfile("say2.png", os.path.join(imagesDir, "say2.png"))
+            print("say2.png copied successfully")
+            shutil.copyfile("say3.png", os.path.join(imagesDir, "say3.png"))
+            print("say3.png copied successfully")
+            shutil.copyfile("think.png", os.path.join(imagesDir, "think.png"))
+            print("think.png copied successfully")
+        except Exception as e:
+            print("\n\tImages for say/think were NOT all copied!", e)
+
+        worldClassName = convertToJavaId(os.path.basename(PROJECT_DIR).replace(" ", ""), True, True) + "World"
+
+        # End of preparing directories, copying files, etc,
+        # ---------------------------------------------------------------------------
     
     
     # Now, (finally!), open the project.json file and start processing it.
@@ -3012,9 +3061,7 @@ def convert():
     # idea, but hey, what are you going to do...
     # Take the last component of the PROJECT_DIR, convert it to a legal
     # Java identifier, then add World to end.
-    
-    
-    
+
     # If there are global variables, they are defined in the outermost part
     # of the json data, and more info about each is defined in objects labeled
     # with "target": "Stage" in 'childen'.
@@ -3059,7 +3106,7 @@ def convert():
         sprite.genInitSettingsCode()
 
         # Handle variables defined for this sprite.  This has to be done
-        # before handling the scripts, as the scripts may refer will the
+        # before handling the scripts, as the scripts may refer to the
         # variables.
         # Variable initializations have to be done in a method called
         # addedToWorld(), which is not necessary if no variable defns exist.
@@ -3178,7 +3225,6 @@ def convert():
             if debug:
                 print("DEBUG: writing this line to project.greenfoot file:", p)
             projF.write(p)
-
 
 
 
