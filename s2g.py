@@ -47,6 +47,9 @@ cloudVars = 0
 
 worldClassName = ""
 
+# A list of all variables, some local, some global
+allVars = []
+
 
 # Set up arguments
 parser = argparse.ArgumentParser()
@@ -210,12 +213,15 @@ class Variable:
         self._initValue = json[1]
         self._isCloud = False
         self._owner = None
+        self._local_or_global = None
         self._gfName = None
         # Stuff used for GUI when converting types, resolving
         # names, etc.
         self._nameEntry = None
         self._typeStringVar = None
         self._initValueEntry = None
+        print('Variable with name %s, gfname %s, uniqId %s defined' % (self._scratchName, self._gfName, self._uniqId))
+        allVars.append(self)
 
     def setGfName(self, name):
         self._gfName = name
@@ -223,14 +229,52 @@ class Variable:
         self._type = type
     def setOwner(self, owner):
         self._owner = owner
+    def setGlobal(self):
+        self._local_or_global = 'global'
+    def setLocal(self):
+        self._local_or_global = 'local'
     def getName(self): return self._scratchName
     def getInitValue(self): return self._initValue
+    def getOwner(self): return self._owner
+    def getType(self): return self._type
+    def getGfName(self): return self._gfName
+    def getUniqueId(self): return self._uniqId
+    def isLocal(self):
+        assert self._local_or_global is not None
+        return self._local_or_global == 'local'
     def setNameEntry(self, ent):
         self._ent = ent
     def setTypeStringVar(self, svar):
         self._svar = svar
     def setInitialValueEntry(self, ive):
         self._initValueEntry = ive
+
+
+def getVariableBySpriteAndName(sprite, name):
+    '''
+    :param sprite: the sprite object
+    :param name: the name of the variable
+    :return: var found in allVars list
+    '''
+
+    for v in allVars:
+        if v.getOwner() == sprite and v.getName() == name:
+            return v
+    return None
+
+def getVariableByUniqueId(id):
+    '''
+    :param id: unique block id
+    :return: var found in allVars list
+    '''
+
+    print('looking up var with id', id)
+
+    for v in allVars:
+        if v.getUniqueId() == id:
+            return v
+    return None
+
 
 class Block:
     '''
@@ -313,7 +357,7 @@ class SpriteOrStage:
     most/all script code generation.  They differ primarily in the set up
     code, constructor code, etc.
     '''
-    
+
     def __init__(self, name, sprData):
         '''Construct an object holding information about the sprite,
         including code we are generating for it, its name, world
@@ -677,8 +721,9 @@ class SpriteOrStage:
                 root.focus_set()
                 gui.quit()
                 gui.destroy()
-            # Main method code
-            # Construct the GUI
+
+            # --------------- genVariablesDefnCodeGui main ------------------------------------
+
             gui = tkinter.Toplevel(root)
             #gui.bind("<Any-KeyPress>", keypress)
             
@@ -801,6 +846,17 @@ class SpriteOrStage:
                 raise ValueError("deriveType cannot figure out type of -->" + \
                                  str(val) + "<--")
 
+        # -------------------------- genVariablesDefnCode main starts here -----------------------------
+
+        # create an object for each variable and store in a list.
+        # Each variable definition block looks like this:
+        # "jd59I%YWo]3`[L`d?tD[": [         <-- unique id
+        # "vic",                          <-- name
+        # "44"                            <-- initial value
+        # ]
+        theseVars = [Variable(varId, listOfVars[varId]) for varId in listOfVars]
+
+
         #
         # Initialization goes into the method addedToWorld() for Sprites, but
         # into the ctor for World.
@@ -816,14 +872,15 @@ class SpriteOrStage:
             genVariablesDefnCodeGui(listOfVars, listOfLists, allChildren, cloudVars)
             return
 
-        for var in listOfVars:  # var is a dictionary.
-            name = var['name']  # unsanitized Scratch name
-            value = var['value']
-            cloud = var['isPersistent']
+        for var in theseVars:
+            name = var.getName()  # unsanitized Scratch name
+            value = var.getInitValue()
+            cloud = False  # TODO var['isPersistent']
+
             # return the varType and the value converted to a java equivalent
             # for that type. (e.g., False --> false)
             # varType is one of 'Boolean', 'Double', 'Int', 'String'
-            if cloud:
+            if cloud:   # TODO: this is always False for now.
                 value = cloudVars
                 cloudVars += 1
                 varType = 'Cloud'
@@ -832,6 +889,8 @@ class SpriteOrStage:
                 name = name[2:]   
             else:
                 value, varType = chooseType(name, value)
+
+            var.setType(varType)
 
             # Sanitize the name: make it a legal Java identifier.
             try:
@@ -845,16 +904,13 @@ class SpriteOrStage:
                 print("Error converting variable to java id")
                 sys.exit(0)
 
-            # We need this so we can generate code that calls the correct
-            # functions to generate the correct type of results.
-            # E.g., if a variable is boolean, we'll call boolExpr()
-            # from setVariables(), not mathExpr().
-            # Record a mapping from unsanitized name --> (sanitized name, type)
-            self.varInfo[name] = (sanname, varType)
-            if True:
-                print("Adding varInfo entry for", self._name, ":", name,
-                      "--> (" + sanname + ", " + varType + ")")
-            
+            var.setGfName(sanname)
+
+            # TODO: fix this!!!  Don't always assume local
+            var.setLocal()
+            var.setOwner(self)
+
+            '''
             for aDict in allChildren:
                 if aDict.get('cmd') == 'getVar:' and \
                    aDict.get('param') == name and \
@@ -882,20 +938,26 @@ class SpriteOrStage:
                     y = 0
                     visible = False
                     print("No variable definition dictionary found in script json:", name)
+            '''
 
 
             # TODO: FIX THIS: move code into subclass!!!
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
+            '''
             if self.getNameTypeAndLocalGlobal(name)[2]:
                 self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, sanname)
             else:
                 self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
-                
+            '''
+            # TODO: assume we are dealing with local variables now.
+            self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
+
             # Something like "score = createIntVariable((MyWorld) world, "score", 0);
             self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                (genIndent(2), sanname, varType, worldClassName, label, str(value))
-            if not visible:
-                self._addedToWorldCode += genIndent(2) + sanname + ".hide();\n"
+                (genIndent(2), sanname, varType, worldClassName, name, str(value))
+            # if not visible:
+            #     self._addedToWorldCode += genIndent(2) + sanname + ".hide();\n"
+
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
         self._addedToWorldCode += genIndent(2) + "// List initializations.\n"
@@ -1151,7 +1213,7 @@ class SpriteOrStage:
             'pen_changePenSizeBy': self.changePenSizeBy,
 
             # Data commands
-            'setVar:to:': self.setVariable,
+            'data_setvariableto': self.setVariable,
             'hideVariable:': self.hideVariable,
             'showVariable:': self.showVariable,
             'changeVar:by:': self.changeVarBy,
@@ -1276,6 +1338,9 @@ class SpriteOrStage:
 
         if not block.hasChild(exprKey):
             expr = block.getInputs(exprKey)
+            # if expr[1][0] is 12, then we are referencing a variable (guess).
+            if expr[1][0] == 12:  # TOTAL GUESS!
+                return self.handleVariableReference(expr[1])
             return '"' + expr[1][1] + '"'
 
         # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
@@ -1314,6 +1379,14 @@ class SpriteOrStage:
             # too.
             return "String.valueOf(" + str(self.mathExpr(child, 'MESSAGE')) + ")"
 
+    def handleVariableReference(self, expr):
+        # Handle variable references here.
+        # The item at index 1 is the name, and the item at index 2 is the uniqueId
+        # of the block where the variable was defined.
+        # The first thing in expr is always a number and I can't figure out what that means.
+        assert len(expr) == 3
+        var = getVariableByUniqueId(expr[2])
+        return var.getGfName() + ".get()"
 
     def mathExpr(self, block, exprKey):
         '''Evaluate the expression in block[exprKey] and its children, as a math expression,
@@ -1322,8 +1395,14 @@ class SpriteOrStage:
         expr = block.getInput(exprKey)
         assert isinstance(expr, list)
 
+        print('mathExpr: Evaluating block', block, ' and expr ', expr)
+
         if not block.hasChild(exprKey):
             expr = block.getInput(exprKey)
+
+            # if expr[1][0] is 12, then we are referencing a variable (guess).
+            if expr[1][0] == 12:                   # TOTAL GUESS!
+                return self.handleVariableReference(expr[1])
             val = expr[1][1]
             return '0' if val == '' else val
 
@@ -2112,29 +2191,31 @@ class SpriteOrStage:
             return (name, True)
         raise ValueError("Sprite " + self._name + " list " + listTok + " unknown.")
 
-    def setVariable(self, level, tokens, deferYield = False):
+    def setVariable(self, level, block, deferYield = False):
         """Set a variable's value from within the code.
         Generate code like this:
         var.set(value)
-        tokens is: ["setVar:to:", "varName", [expression]]
 
         The variable may be sprite-specific or global.  We have to check
         both dictionaries to figure it out.
         """
-        varName, varType, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
-        if varType == 'Boolean':
-            val = self.boolExpr(tokens[2])
-        elif varType in ('Int', 'Double'):
-            val = self.oldMathExpr(tokens[2])
-        else:
-            val = self.strExpr(tokens[2])
 
-        if isGlobal:
-            # Something like: world.counter.set(0);
-            return genIndent(level) + "Stage.%s.set(%s);\n" % \
-                   (varName, val)
+        var = getVariableBySpriteAndName(self, block.getField('VARIABLE'))
+        if var == None:
+            raise ValueError('No Variable object found for', block.getField('VARIABLE'))
+
+        if var.getType() == 'Boolean':
+            val = self.boolExpr(block)
+        elif var.getType() in ('Int', 'Double'):
+            val = self.mathExpr(block, 'VALUE')
         else:
-            return genIndent(level) + varName + ".set(" + val + ");\n"
+            val = self.strExpr(block, 'VALUE')
+
+        if var.isLocal():
+            return genIndent(level) + var.getGfName() + ".set(" + val + ");\n"
+        else:
+            # Something like: world.counter.set(0);
+            return genIndent(level) + "Stage.%s.set(%s);\n" % (var.getGfName(), val)
 
 
     def readVariable(self, varname):
@@ -2149,10 +2230,10 @@ class SpriteOrStage:
 
         varName, _, isGlobal = self.getNameTypeAndLocalGlobal(varname)
         if isGlobal:
+            return varName + ".get()"
+        else:
             # Something like: world.counter.get();
             return "Stage.%s.get()" % varName
-        else:
-            return varName + ".get()"
 
 
     def hideVariable(self, level, tokens, deferYield = False):
@@ -2932,13 +3013,14 @@ def convert():
 
     # Make a directory into which to unzip the scratch zip file.
     scratch_dir = os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR)
-    try:
-        os.mkdir(scratch_dir)
-    except FileExistsError as e:
-        pass  # If the directory exists already, no problem.
 
     if not onlyDecode:
         print ("------------ Processing " + SCRATCH_FILE + ' ---------------\n')
+
+        try:
+            os.mkdir(scratch_dir)
+        except FileExistsError as e:
+            pass  # If the directory exists already, no problem.
 
         if not os.path.exists(SCRATCH_FILE):
             print("Scratch download file " + SCRATCH_FILE + " not found.")
@@ -3074,7 +3156,8 @@ def convert():
             break
 
     stage = Stage(stageData)
-    
+
+    # TODO: clean this up!
     if 'variables' in data and 'lists' in data:
         stage.genVariablesDefnCode(data['variables'], data['lists'], data['children'], cloudVars)
     elif 'variables' in data:
@@ -3084,7 +3167,6 @@ def convert():
     
     # Code to be written into the World.java file.
     worldCtorCode = ""
-    
     
     # ---------------------------------------------------------------------------
     # Start processing each sprite's info: scripts, costumes, variables, etc.
