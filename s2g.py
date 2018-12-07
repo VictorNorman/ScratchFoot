@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-    
+
 import glob
 import json
 import os, os.path
@@ -50,16 +50,17 @@ worldClassName = ""
 # A list of all variables, some local, some global
 allVars = []
 
-
 # Set up arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 parser.add_argument("-d", "--dotypeinference", action="store_true", help="Automatically infer variable types")
-parser.add_argument("-r", "--resolvevariablenames", action = "store_true", help="Automatically convert to java ids")
+parser.add_argument("-r", "--resolvevariablenames", action="store_true", help="Automatically convert to java ids")
 parser.add_argument("-g", "--gui", action="store_true", help="Use GUI converter (Experimental)")
-parser.add_argument('-o', "--onlydecode", action="store_true", help="Only decode the project.json, don't move files, etc.")
-parser.add_argument("--scratch_file", help="Location of scratch sb2/sb3 file", default = os.getcwd(), required=False)
-parser.add_argument("--greenfoot_dir", help="Location of greenfoot project directory", default = os.getcwd(), required=False)
+parser.add_argument('-o', "--onlydecode", action="store_true",
+                    help="Only decode the project.json, don't move files, etc.")
+parser.add_argument("--scratch_file", help="Location of scratch sb2/sb3 file", default=os.getcwd(), required=False)
+parser.add_argument("--greenfoot_dir", help="Location of greenfoot project directory", default=os.getcwd(),
+                    required=False)
 args = parser.parse_args()
 
 # Apply arguments
@@ -73,7 +74,6 @@ if args.gui:
     useGui = True
 onlyDecode = args.onlydecode
 
-
 SCRATCH_FILE = args.scratch_file.strip()
 # Take off spaces and a possible trailing "/"
 PROJECT_DIR = args.greenfoot_dir.strip().rstrip("/")
@@ -85,12 +85,13 @@ if SCRATCH_FILE.endswith('.sb2'):
 # Initialize stage globally
 stage = None
 
-JAVA_KEYWORDS = ('abstract', 'continue', 'for', 'new', 'switch', 'assert', 'default', 'goto',\
-                 'package', 'synchronized', 'boolean', 'do', 'if', 'private', 'this', 'break',\
-                 'double', 'implements', 'protected', 'throw', 'byte', 'else', 'import', 'public',\
-                 'throws', 'case', 'enum', 'instanceof', 'return', 'transient', 'catch', 'extends',\
-                 'int', 'short', 'try', 'char', 'final', 'interface', 'static', 'void', 'class', 'finally',\
+JAVA_KEYWORDS = ('abstract', 'continue', 'for', 'new', 'switch', 'assert', 'default', 'goto', \
+                 'package', 'synchronized', 'boolean', 'do', 'if', 'private', 'this', 'break', \
+                 'double', 'implements', 'protected', 'throw', 'byte', 'else', 'import', 'public', \
+                 'throws', 'case', 'enum', 'instanceof', 'return', 'transient', 'catch', 'extends', \
+                 'int', 'short', 'try', 'char', 'final', 'interface', 'static', 'void', 'class', 'finally', \
                  'long', 'strictfp', 'volatile', 'const', 'float', 'native', 'super', 'while')
+
 
 class CodeAndCb:
     """This class binds together code, and possibly code that that code
@@ -103,14 +104,18 @@ class CodeAndCb:
         self.code = ""
         self.cbCode = ""
         # self.varInitCode = ""
+
     def addToCbCode(self, code):
         self.cbCode += code
+
     def getNextScriptId(self):
         ret = CodeAndCb.cbScriptId
         CodeAndCb.cbScriptId += 1
         return ret
+
     def addToCode(self, code):
         self.code += code
+
 
 def execOrDie(cmd, descr):
     try:
@@ -173,10 +178,9 @@ def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
             lastWasSpace = True
         elif ch.isalpha() or ch.isdigit():
             if lastWasSpace:
-                ch = ch.upper()		# does nothing if isdigit.
+                ch = ch.upper()  # does nothing if isdigit.
                 lastWasSpace = False
             res += ch
-                
 
     # Look to see if res starts with a digit.
     if noLeadingNumber and res[0].isdigit():
@@ -186,26 +190,28 @@ def convertToJavaId(id, noLeadingNumber=True, capitalizeFirst=False):
 
     if capitalizeFirst and not res[0].isdigit():
         res = res[0].upper() + res[1:]
-    
+
     # Ensure that the resulting name is not a java keyword
     if res in JAVA_KEYWORDS:
         res += '_'
     return res
 
+
 class Variable:
-    '''Represents a single variable defined in Scratch, and
+    """Represents a single variable defined in Scratch, and
     includes properties of it: its name, type, what sprite
     it belongs to, whether it is a cloud variable or not, its
-    uniqueId defined in Scratch, etc.'''
+    uniqueId defined in Scratch, etc."""
+
     # NOTE NOTE NOTE: there does not seem to be any information in the project.json
     # file now about persistence, whether it is shown or not, slider, etc...
     def __init__(self, uniqId, json):
-        '''json is of this format (now):
+        """json is of this format (now):
            [
               "vic",                          <-- unsanitized scratch name
               "44"                            <-- initial value
            ]
-        '''
+        """
         self._json = json
         self._uniqId = uniqId
         self._type = None
@@ -225,51 +231,67 @@ class Variable:
 
     def setGfName(self, name):
         self._gfName = name
+
     def setType(self, type):
         self._type = type
+
     def setOwner(self, owner):
         self._owner = owner
+
     def setGlobal(self):
         self._local_or_global = 'global'
+
     def setLocal(self):
         self._local_or_global = 'local'
+
     def getName(self): return self._scratchName
+
     def getInitValue(self): return self._initValue
+
     def getOwner(self): return self._owner
+
     def getType(self): return self._type
+
     def getGfName(self): return self._gfName
+
     def getUniqueId(self): return self._uniqId
+
     def isLocal(self):
         assert self._local_or_global is not None
         return self._local_or_global == 'local'
+
     def isGlobal(self):
         assert self._local_or_global is not None
         return self._local_or_global == 'global'
+
     def setNameEntry(self, ent):
         self._ent = ent
+
     def setTypeStringVar(self, svar):
         self._svar = svar
+
     def setInitialValueEntry(self, ive):
         self._initValueEntry = ive
 
 
 def getVariableBySpriteAndName(sprite, name):
-    '''
+    """
     :param sprite: the sprite object
     :param name: the name of the variable
     :return: var found in allVars list
-    '''
+    """
 
     for v in allVars:
         if v.getOwner() == sprite and v.getName() == name:
             return v
     return None
 
+
 def getVariableByUniqueId(id):
-    '''
+    """
     :param id: unique block id
     :return: var found in allVars list
-    '''
+    """
 
     print('looking up var with id', id)
 
@@ -280,10 +302,11 @@ def getVariableByUniqueId(id):
 
 
 class Block:
-    '''
+    """
     This represents a Scratch Block, with its opcode, parent,
     children, inputs, etc.
-    '''
+    """
+
     def __init__(self, id, opcode):
         self._id = id
         self._opcode = opcode
@@ -297,13 +320,13 @@ class Block:
         self._procCode = None
         self._procArgIds = []
         self._procDefnParamNames = []
-    
+
     def setInputs(self, inputs):
-        '''inputs are a json object (for now)'''
+        """inputs are a json object (for now)"""
         self._inputs = inputs
 
     def setFields(self, fields):
-        '''fields are a json object (for now)'''
+        """fields are a json object (for now)"""
         self._fields = fields
 
     def setTopLevel(self, val):
@@ -326,24 +349,46 @@ class Block:
     def setProcDefnParamNames(self, j):
         self._procDefnParamNames = json.loads(j)
 
-    def isTopLevel(self): return self._topLevel
+    def isTopLevel(self):
+        return self._topLevel
 
     def hasChild(self, key):
         return key in self._children
 
-    def getId(self): return self._id
-    def getOpcode(self): return self._opcode
-    def getNext(self): return self._next
-    def getInputs(self): return self._inputs
-    def getInput(self, key): return self._inputs[key]
-    def getFields(self): return self._fields
-    def getField(self, key, index=0): return self.getFields()[key][index]
-    def getChild(self, key): return self._children[key]
-    def getProcCode(self): return self._procCode
-    def getProcCallArgIds(self): return self._procArgIds
-    def getProcDefnParamNames(self): return self._procDefnParamNames
+    def getId(self):
+        return self._id
 
-    def strWithIndent(self, indentLevel = 0):
+    def getOpcode(self):
+        return self._opcode
+
+    def getNext(self):
+        return self._next
+
+    def getInputs(self):
+        return self._inputs
+
+    def getInput(self, key):
+        return self._inputs[key]
+
+    def getFields(self):
+        return self._fields
+
+    def getField(self, key, index=0):
+        return self.getFields()[key][index]
+
+    def getChild(self, key):
+        return self._children[key]
+
+    def getProcCode(self):
+        return self._procCode
+
+    def getProcCallArgIds(self):
+        return self._procArgIds
+
+    def getProcDefnParamNames(self):
+        return self._procDefnParamNames
+
+    def strWithIndent(self, indentLevel=0):
         res = ("  " * indentLevel) + str(self)
         n = self._next
         while n:
@@ -354,18 +399,19 @@ class Block:
     def __str__(self):
         return "BLOCK: " + self._opcode
 
+
 class SpriteOrStage:
-    '''This is an abstract class that represents either a Stage class or
+    """This is an abstract class that represents either a Stage class or
     Sprite class to be generated in Java.  The two are the same for
     most/all script code generation.  They differ primarily in the set up
     code, constructor code, etc.
-    '''
+    """
 
     def __init__(self, name, sprData):
-        '''Construct an object holding information about the sprite,
+        """Construct an object holding information about the sprite,
         including code we are generating for it, its name, world
         constructor code for it, etc.
-        '''
+        """
 
         # The parsed json structure.
         self._sprData = sprData
@@ -379,7 +425,7 @@ class SpriteOrStage:
         self._regCallbacksCode = ""
         self._costumeCode = ""
         self._initSettingsCode = ""
-        
+
         self._varDefnCode = ""
         self._cbCode = []
         self._addedToWorldCode = ""
@@ -397,9 +443,8 @@ class SpriteOrStage:
         self.varInfo = {}
         self.listInfo = {}
 
-
         print("\n----------- Sprite: %s ----------------" % self._name)
-    
+
     def copySounds(self, soundsDir):
         # Move all of this sprites sounds to project/sounds/[spritename]
         if 'sounds' in self._sprData:
@@ -417,13 +462,13 @@ class SpriteOrStage:
         return self._name
 
     def getVarInfo(self, name):
-        '''Might return None if name not found in the mapping.
-        Otherwise, returns a tuple: (clean name, varType)'''
+        """Might return None if name not found in the mapping.
+        Otherwise, returns a tuple: (clean name, varType)"""
         return self.varInfo.get(name)
-    
+
     def getListInfo(self, name):
-        '''Might return None if name not found in the mapping.
-        Otherwise, returns a tuple: (clean name, varType)'''
+        """Might return None if name not found in the mapping.
+        Otherwise, returns a tuple: (clean name, varType)"""
         return self.listInfo.get(name)
 
     def whenClicked(self, codeObj, block):
@@ -431,7 +476,7 @@ class SpriteOrStage:
 
     def genAddSpriteCall(self):
         self._worldCtorCode += '%saddSprite("%s", %d, %d);\n' % \
-                              (genIndent(2), self._name, self._sprData['x'], self._sprData['y'])
+                               (genIndent(2), self._name, self._sprData['x'], self._sprData['y'])
 
     def getWorldCtorCode(self):
         return self._worldCtorCode
@@ -454,7 +499,7 @@ class SpriteOrStage:
         whenKeyPressed, etc.
         """
         self._ctorCode = genIndent(1) + "public " + self._name + "()\n"
-        
+
         self._ctorCode += genIndent(1) + "{\n"
         self._ctorCode += self._costumeCode
         self._ctorCode += self._initSettingsCode
@@ -520,6 +565,7 @@ class SpriteOrStage:
             typeList = []
             valueList = []
             self.ready = False
+
             # Whenever the user presses a key, check validity of all fields
             def keypress():
                 # Turns the text green if it's a valid name, red otherwise
@@ -551,7 +597,6 @@ class SpriteOrStage:
                 for e in typeList:
                     # Ensure the type is valid
                     if not e.get().lower() in ('int', 'string', 'double'):
-                        
                         self.ready = False
                 for i in range(0, len(valueList)):
                     # Check if the current value is valid for the type specified
@@ -596,21 +641,23 @@ class SpriteOrStage:
 
             # Display a help message informing the user how to use the namer
             def helpCB():
-                tkinter.messagebox.showinfo("Help", "If a name is red, that means it is not valid in Java. Java variable names must " + \
-                                    "start with a letter, and contain only letters, numbers and _. (No spaces!) There are also " + \
-                                    "some words that can't be variable names because they mean something special in java: \n" + \
-                                    str(JAVA_KEYWORDS) + ". \n\nIf a type " + \
-                                    "is red, that means it is not a valid type. The types that work with this " + \
-                                    "converter are:\n\tInt: a number that will never be a decimal\n\tDouble: a number " + \
-                                    "that can be a decimal\n\tString: symbols, letters, and text\n\nIf a value is red, " + \
-                                    "that means that the variable cannot store that value. For example, an Int " + \
-                                    "cannot store the value 1.5, since it has to store whole numbers.")
+                tkinter.messagebox.showinfo("Help",
+                                            "If a name is red, that means it is not valid in Java. Java variable names must " +
+                                            "start with a letter, and contain only letters, numbers and _. (No spaces!) There are also " +
+                                            "some words that can't be variable names because they mean something special in java: \n" +
+                                            str(JAVA_KEYWORDS) + ". \n\nIf a type " +
+                                            "is red, that means it is not a valid type. The types that work with this " +
+                                            "converter are:\n\tInt: a number that will never be a decimal\n\tDouble: a number " +
+                                            "that can be a decimal\n\tString: symbols, letters, and text\n\nIf a value is red, " +
+                                            "that means that the variable cannot store that value. For example, an Int " +
+                                            "cannot store the value 1.5, since it has to store whole numbers.")
+
             # Write out the results to the file
             def confirmCB():
                 global cloudVars
                 if not self.ready:
                     tkinter.messagebox.showerror("Error", "Some of the inputs are still invalid. Click help for more " + \
-                                         "details on how to fix them.")
+                                                 "details on how to fix them.")
                     gui.focus_set()
                     return
                 for i in range(len(listOfVars)):  # var is a dictionary.
@@ -618,7 +665,7 @@ class SpriteOrStage:
                     name = var['name']  # unsanitized Scratch name
                     value = var['value']
                     cloud = var['isPersistent']
-                    print(("Proceesing var: " + name).encode('utf-8'))
+                    print(("Processing var: " + name).encode('utf-8'))
                     # return the varType and the value converted to a java equivalent
                     # for that type. (e.g., False --> false)
                     # varType is one of 'Boolean', 'Double', 'Int', 'String'
@@ -630,10 +677,10 @@ class SpriteOrStage:
                         # The first character is a weird Unicode cloud glyph and the
                         # second is a space.  Get rid of them.
                         name = name[2:]
-        
+
                     # Sanitize the name: make it a legal Java identifier.
                     sanname = nameList[i].get()
-        
+
                     # We need this so we can generate code that calls the correct
                     # functions to generate the correct type of results.
                     # E.g., if a variable is boolean, we'll call boolExpr()
@@ -643,16 +690,16 @@ class SpriteOrStage:
                     if True:
                         print("Adding varInfo entry for", self._name, ":", name,
                               "--> (" + sanname + ", " + varType + ")")
-                    
+
                     for aDict in allChildren:
                         if aDict.get('cmd') == 'getVar:' and \
-                           aDict.get('param') == name and \
-                           aDict.get('target') == self._name:
+                                aDict.get('param') == name and \
+                                aDict.get('target') == self._name:
                             varInfo = aDict
                             # If variable definition dictionary found, use it
                             label = varInfo['label']
-                            x = varInfo['x']    # Not used at this time.
-                            y = varInfo['y']    # Not used at this time.
+                            x = varInfo['x']  # Not used at this time.
+                            y = varInfo['y']  # Not used at this time.
                             visible = varInfo['visible']
                             break
                     else:
@@ -671,8 +718,7 @@ class SpriteOrStage:
                             y = 0
                             visible = False
                             print("No variable definition dictionary found in script json:", name)
-        
-        
+
                     # TODO: FIX THIS: move code into subclass!!!
                     # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
                     if self.getNameTypeAndLocalGlobal(name)[2]:
@@ -684,10 +730,10 @@ class SpriteOrStage:
                     if (varType.lower() == "string"):
                         # Escape any quotes, and add make it a string literal
                         value = '"' + re.sub('"', '\\"', value) + '"'
-                        
+
                     # Something like "score = createIntVariable((MyWorld) world, "score", 0);
                     self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                        (genIndent(2), sanname, varType, worldClassName, label, str(value))
+                                              (genIndent(2), sanname, varType, worldClassName, label, str(value))
                     if not visible:
                         self._addedToWorldCode += genIndent(2) + sanname + ".hide();\n"
                 # Add blank line after variable definitions.
@@ -702,16 +748,16 @@ class SpriteOrStage:
                     except:
                         print("Error converting list to java id")
                         sys.exit(0)
-                    
-                    self.listInfo[name]  = sanname
-                    
+
+                    self.listInfo[name] = sanname
+
                     # I know this is bad style, but at the moment it's necessary
                     # Later down the line we can move all this code to subclasses instead
                     if type(self) == Stage:
                         self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % (sanname)
                     else:
                         self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % (sanname)
-                    
+
                     self._addedToWorldCode += '%s%s = createList(world, "%s"' % (genIndent(2), sanname, name)
                     for obj in contents:
                         disp = deriveType(name, obj)
@@ -719,7 +765,7 @@ class SpriteOrStage:
                     self._addedToWorldCode += ');\n'
                     if not visible:
                         self._addedToWorldCode += '%s%s.hide();\n' % (genIndent(2), sanname)
-        
+
                 # Close the addedToWorld() method definition.
                 self._addedToWorldCode += genIndent(1) + "}\n"
                 # Return focus and execution back to the main window
@@ -730,26 +776,25 @@ class SpriteOrStage:
             # --------------- genVariablesDefnCodeGui main ------------------------------------
 
             gui = tkinter.Toplevel(root)
-            #gui.bind("<Any-KeyPress>", keypress)
-            
+            # gui.bind("<Any-KeyPress>", keypress)
+
             gui.title("Variable Namer")
             gui.grab_set()
-
 
             table = tkinter.Frame(gui)
             table.pack()
             buttons = tkinter.Frame(gui)
-            buttons.pack(side = tkinter.BOTTOM)
-            auto = tkinter.Button(buttons, text = "Auto-Convert", command = autoCB)
-            auto.pack(side = tkinter.LEFT)
-            confirm = tkinter.Button(buttons, text = "Confirm", command = confirmCB)
-            confirm.pack(side = tkinter.LEFT)
-            help = tkinter.Button(buttons, text = "Help", command = helpCB)
-            help.pack(side = tkinter.LEFT)
-            tkinter.Label(table, text = "  Scratch Name  ").grid(row=0, column=0)
-            tkinter.Label(table, text = "Java Name").grid(row=0, column=1)
-            tkinter.Label(table, text = "Java Type").grid(row=0, column=2)
-            tkinter.Label(table, text = "Starting Value").grid(row=0, column=3)
+            buttons.pack(side=tkinter.BOTTOM)
+            auto = tkinter.Button(buttons, text="Auto-Convert", command=autoCB)
+            auto.pack(side=tkinter.LEFT)
+            confirm = tkinter.Button(buttons, text="Confirm", command=confirmCB)
+            confirm.pack(side=tkinter.LEFT)
+            help = tkinter.Button(buttons, text="Help", command=helpCB)
+            help.pack(side=tkinter.LEFT)
+            tkinter.Label(table, text="  Scratch Name  ").grid(row=0, column=0)
+            tkinter.Label(table, text="Java Name").grid(row=0, column=1)
+            tkinter.Label(table, text="Java Type").grid(row=0, column=2)
+            tkinter.Label(table, text="Starting Value").grid(row=0, column=3)
 
             # Populate lists
             row = 1
@@ -759,7 +804,7 @@ class SpriteOrStage:
                 cloud = var['isPersistent']
                 lbl = tkinter.Entry(table)
                 lbl.insert(tkinter.END, name)
-                lbl.configure(state = "readonly")
+                lbl.configure(state="readonly")
                 lbl.grid(row=row, column=0, sticky=tkinter.W + tkinter.E)
 
                 ent = tkinter.Entry(table)
@@ -770,7 +815,7 @@ class SpriteOrStage:
                 svar = tkinter.StringVar(gui)
                 ent2 = tkinter.OptionMenu(table, svar, "Int", "Double", "String")
                 ent2.grid(row=row, column=2, sticky=tkinter.W + tkinter.E)
-                #ent2.bind("<Button-1>", keypress)
+                # ent2.bind("<Button-1>", keypress)
 
                 typeList.append(svar)
                 ent3 = tkinter.Entry(table)
@@ -788,10 +833,10 @@ class SpriteOrStage:
             while not inference:
                 try:
                     print("\n\nWhat type of variable should \"" + name + "\": " + str(val) + " be?")
-                    theType = input("\tInt: A number that won't have decimals\n\tDouble:" + \
-                                 " A number that can have decimals\n\tString: Text or letters\n" + \
-                                 "This variable looks like: " + typechosen +\
-                                 "\nPress enter without typing anything to use suggested type\n> ").capitalize()
+                    theType = input("\tInt: A number that won't have decimals\n\tDouble:" +
+                                    " A number that can have decimals\n\tString: Text or letters\n" +
+                                    "This variable looks like: " + typechosen +
+                                    "\nPress enter without typing anything to use suggested type\n> ").capitalize()
                     # Try to convert the value to the chosen type, only the first character needs to be entered
                     if theType[0] == 'I':
                         return int(val), 'Int'
@@ -809,7 +854,7 @@ class SpriteOrStage:
                 except:
                     # If val is not able to be converted to type, it will be set to default, or the user may choose
                     # a different type.
-                    if input("Could not convert " + str(val) + " to " + theType +\
+                    if input("Could not convert " + str(val) + " to " + theType +
                              " Set to default value? (y/n)\n> ") == "y":
                         if theType[0] == 'I':
                             return (0, 'Int')
@@ -819,7 +864,7 @@ class SpriteOrStage:
                             return '""', "String"
             return deriveType(name, val)
 
-        def deriveType(name, val):  
+        def deriveType(name, val):
             if isinstance(val, str):
                 #
                 # See if the string value is a legal integer or floating point number.
@@ -848,7 +893,7 @@ class SpriteOrStage:
             elif isinstance(val, float):
                 return val, 'Double'
             else:
-                raise ValueError("deriveType cannot figure out type of -->" + \
+                raise ValueError("deriveType cannot figure out type of -->" +
                                  str(val) + "<--")
 
         # -------------------------- genVariablesDefnCode main starts here -----------------------------
@@ -860,7 +905,6 @@ class SpriteOrStage:
         # "44"                            <-- initial value
         # ]
         theseVars = [Variable(varId, listOfVars[varId]) for varId in listOfVars]
-
 
         #
         # Initialization goes into the method addedToWorld() for Sprites, but
@@ -885,13 +929,13 @@ class SpriteOrStage:
             # return the varType and the value converted to a java equivalent
             # for that type. (e.g., False --> false)
             # varType is one of 'Boolean', 'Double', 'Int', 'String'
-            if cloud:   # TODO: this is always False for now.
+            if cloud:  # TODO: this is always False for now.
                 value = cloudVars
                 cloudVars += 1
                 varType = 'Cloud'
                 # The first character is a weird Unicode cloud glyph and the
                 # second is a space.  Get rid of them.
-                name = name[2:]   
+                name = name[2:]
             else:
                 value, varType = chooseType(name, value)
 
@@ -944,13 +988,12 @@ class SpriteOrStage:
                     print("No variable definition dictionary found in script json:", name)
             '''
 
-
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
             self._varDefnCode += self.genVarDefnCode(1, var)
 
             # Something like "score = createIntVariable((MyWorld) world, "score", 0);
             self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
-                (genIndent(2), sanname, varType, worldClassName, name, str(value))
+                                      (genIndent(2), sanname, varType, worldClassName, name, str(value))
             # if not visible:
             #     self._addedToWorldCode += genIndent(2) + sanname + ".hide();\n"
 
@@ -966,16 +1009,16 @@ class SpriteOrStage:
             except:
                 print("Error converting list to java id")
                 sys.exit(0)
-            
-            self.listInfo[name]  = sanname
-            
+
+            self.listInfo[name] = sanname
+
             # I know this is bad style, but at the moment it's necessary
             # Later down the line we can move all this code to subclasses instead
             if type(self) == Stage:
-                self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % (sanname)
+                self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % sanname
             else:
-                self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % (sanname)
-            
+                self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % sanname
+
             self._addedToWorldCode += '%s%s = createList(world, "%s"' % (genIndent(2), sanname, name)
             for obj in contents:
                 disp = deriveType(name, obj)
@@ -986,11 +1029,10 @@ class SpriteOrStage:
 
         # Close the addedToWorld() method definition.
         self._addedToWorldCode += genIndent(1) + "}\n"
-            
-    
 
     def getVarDefnCode(self):
         return self._varDefnCode
+
     def getAddedToWorldCode(self):
         return self._addedToWorldCode
 
@@ -1009,7 +1051,7 @@ class SpriteOrStage:
         for b in blocks:
             print(b.strWithIndent())
             print()
-        
+
         for topBlock in blocks:
             codeObj = self.genScriptCode(topBlock)
             self._regCallbacksCode += codeObj.code
@@ -1055,7 +1097,7 @@ class SpriteOrStage:
         #     },
         #     ... etc ...
 
-        allBlocks = {}   # Map of blockId to Block object.
+        allBlocks = {}  # Map of blockId to Block object.
 
         # Create all the block objects first
         for blockId in blocksJson:
@@ -1063,7 +1105,7 @@ class SpriteOrStage:
             block = Block(blockId, vals['opcode'])
             allBlocks[blockId] = block
             # print('adding block with id to collection', blockId, vals['opcode'])
-            if vals['inputs']: 
+            if vals['inputs']:
                 block.setInputs(vals['inputs'])
             if vals['fields']:
                 block.setFields(vals['fields'])
@@ -1076,7 +1118,6 @@ class SpriteOrStage:
                     block.setProcCallArgIds(vals['mutation']['argumentids'])
                 if 'argumentnames' in vals['mutation']:
                     block.setProcDefnParamNames(vals['mutation']['argumentnames'])
-
 
         # Link the blocks together.
         for blockId in blocksJson:
@@ -1107,14 +1148,14 @@ class SpriteOrStage:
                 if isinstance(inputs[inputKey][1], str) and inputs[inputKey][1] in allBlocks:
                     block.setChild(inputKey, allBlocks[inputs[inputKey][1]])
                     print('setting child block of %s with key %s to %s' %
-                        (str(block), inputKey, str(allBlocks[inputs[inputKey][1]])))
-        
+                          (str(block), inputKey, str(allBlocks[inputs[inputKey][1]])))
+
         listOfTopLevelBlocks = [block for block in allBlocks.values() if block.isTopLevel()]
         return listOfTopLevelBlocks
 
     def writeCodeToFile(self):
 
-	    # Open file with correct name and generate code into there.
+        # Open file with correct name and generate code into there.
         filename = os.path.join(PROJECT_DIR, convertSpriteToFileName(self._name))
         print("Writing code to " + filename + ".")
         outFile = open(filename, "w")
@@ -1134,18 +1175,17 @@ class SpriteOrStage:
         outFile.write("}\n")
         outFile.close()
 
-
-    def topBlock(self, level, topBlock, deferYield = False):
-        """Handle a topblock containing a list of statements wrapped in { }."""
-        return genIndent(level) + "{\n" + self.stmts(level, topBlock.getNext(), deferYield) + \
+    def topBlock(self, level, topBlock, deferYield=False):
+        """Handle a top block containing a list of statements wrapped in { }."""
+        return genIndent(level) + "{\n" + self.statements(level, topBlock.getNext(), deferYield) + \
                genIndent(level) + "}\n"
 
-    def block(self, level, block, deferYield = False):
+    def block(self, level, block, deferYield=False):
         """Handle a block that is the first in a list of statements wrapped in { }."""
-        return genIndent(level) + "{\n" + self.stmts(level, block, deferYield) + \
+        return genIndent(level) + "{\n" + self.statements(level, block, deferYield) + \
                genIndent(level) + "}\n"
 
-    def stmts(self, level, firstBlock, deferYield = False):
+    def statements(self, level, firstBlock, deferYield=False):
         """Generate code for the list of statements, by repeatedly calling stmt(), 
         following the chain of next pointers from the firstBlock."""
         if firstBlock is None:
@@ -1159,8 +1199,7 @@ class SpriteOrStage:
             aBlock = aBlock.getNext()
         return retStr
 
-
-    def stmt(self, level, block, deferYield = False):
+    def stmt(self, level, block, deferYield=False):
         """Handle a statement, which is a block object
         """
 
@@ -1183,7 +1222,7 @@ class SpriteOrStage:
 
             'looks_sayforsecs': self.sayForSecs,
             'looks_say': self.say,
-            'looks_thinkforsecs':self.thinkForSecs,
+            'looks_thinkforsecs': self.thinkForSecs,
             'looks_think': self.think,
             'looks_show': self.show,
             'looks_hide': self.hide,
@@ -1266,7 +1305,6 @@ class SpriteOrStage:
         else:
             return genIndent(level) + 'System.out.println("Unimplemented stmt: ' + cmd + '");\n'
 
-
     def boolExpr(self, block):
         """Generate code for a boolean expression.
         """
@@ -1275,21 +1313,21 @@ class SpriteOrStage:
         if opcode == 'operator_lt':
             # TODO: assume numbers for less than... bad idea?
             return '(' + self.mathExpr(block, 'OPERAND1') + ' < ' + \
-                self.mathExpr(block, 'OPERAND2') + ')'
+                   self.mathExpr(block, 'OPERAND2') + ')'
         elif opcode == 'operator_gt':
             # TODO: assume numbers for less than... bad idea?
             return '(' + self.mathExpr(block, 'OPERAND1') + ' > ' + \
-                self.mathExpr(block, 'OPERAND2') + ')'
+                   self.mathExpr(block, 'OPERAND2') + ')'
         elif opcode == 'operator_equals':
             # TODO: assume numbers for equals... bad idea?
             return '(' + self.mathExpr(block, 'OPERAND1') + ' == ' + \
-                self.mathExpr(block, 'OPERAND2') + ')'
+                   self.mathExpr(block, 'OPERAND2') + ')'
         elif opcode == 'operator_and':
             return '(' + self.boolExpr(block.getChild('OPERAND1')) + ' && ' + \
-                self.boolExpr(block.getChild('OPERAND2')) + ')'
+                   self.boolExpr(block.getChild('OPERAND2')) + ')'
         elif opcode == 'operator_or':
             return '(' + self.boolExpr(block.getChild('OPERAND1')) + ' || ' + \
-                self.boolExpr(block.getChild('OPERAND2')) + ')'
+                   self.boolExpr(block.getChild('OPERAND2')) + ')'
         elif opcode == 'operator_not':
             return '( !' + self.boolExpr(block.getChild('OPERAND')) + ')'
         elif opcode == 'sensing_touchingobject':
@@ -1298,11 +1336,11 @@ class SpriteOrStage:
                 return "(isTouchingMouse())"
             elif arg == "_edge_":
                 return "(isTouchingEdge())"
-            else:   # touching another sprite
+            else:  # touching another sprite
                 return '(isTouching("' + arg + '"))'
         elif opcode == 'sensing_touchingcolor':
             # TODO: does not support expressions that evaluate to a color
-            color = block.getInputs()['COLOR'][1][1][1:]   # remove the leading #-sign
+            color = block.getInputs()['COLOR'][1][1][1:]  # remove the leading #-sign
             return "(isTouchingColor(new java.awt.Color(0x" + color + ")))"
         elif opcode == 'sensing_coloristouchingcolor':
             return 'Unsupported boolean expression: ' + opcode
@@ -1315,8 +1353,6 @@ class SpriteOrStage:
             raise ValueError('unsupported op', opcode)
 
         '''
-        elif firstOp == 'readVariable':
-            resStr += self.readVariable(tokenList[1])
         elif firstOp == 'list:contains:':
             resStr += self.listContains(tokenList[1], tokenList[2])
         elif firstOp == False:
@@ -1391,8 +1427,8 @@ class SpriteOrStage:
             return 'Stage.%s.get()' % var.getGfName()
 
     def mathExpr(self, block, exprKey):
-        '''Evaluate the expression in block[exprKey] and its children, as a math expression,
-        returning a string equivalent.'''
+        """Evaluate the expression in block[exprKey] and its children, as a math expression,
+        returning a string equivalent."""
 
         expr = block.getInput(exprKey)
         assert isinstance(expr, list)
@@ -1403,7 +1439,7 @@ class SpriteOrStage:
             expr = block.getInput(exprKey)
 
             # if expr[1][0] is 12, then we are referencing a variable (guess).
-            if expr[1][0] == 12:                   # TOTAL GUESS!
+            if expr[1][0] == 12:  # TOTAL GUESS!
                 return self.handleVariableReference(expr[1])
             val = expr[1][1]
             return '0' if val == '' else val
@@ -1441,7 +1477,7 @@ class SpriteOrStage:
                 "log": "Math.log10(",
                 "e ^": "Math.exp(",
                 "10 ^": "Math.pow(10, "
-                }
+            }
             return '(' + op2Func[mathop] + self.mathExpr(child, 'NUM') + "))"
         elif opcode == 'operator_length':
             arg = child.getInputs()['STRING'][1][1]
@@ -1470,7 +1506,7 @@ class SpriteOrStage:
         elif opcode == "sensing_mousedown":
             # this will produce uncompileable Java code... but if you try this kind of
             # thing, you are kind of asking for it...
-            return " (int) isMouseDown()"   
+            return " (int) isMouseDown()"
         elif opcode == "sensing_mousex":
             return "getMouseX()"
         elif opcode == 'sensing_mousey':
@@ -1486,7 +1522,7 @@ class SpriteOrStage:
             arg = grandchild.getField('DISTANCETOMENU')
             if arg == '_mouse_':
                 return "distanceToMouse()"
-            else:   # must be distance to a sprite
+            else:  # must be distance to a sprite
                 return 'distanceTo("' + arg + '")'
         elif opcode == 'sensing_of':
             return self.getAttributeOf(child)
@@ -1529,11 +1565,11 @@ class SpriteOrStage:
                 return "getY()"
             elif op == "heading":
                 return "getDirection()"
-            elif op == "costumeIndex":	# Looks menu's costume # block
+            elif op == "costumeIndex":  # Looks menu's costume # block
                 return "costumeNumber()"
             elif op == 'backgroundIndex':
                 return 'getBackdropNumber()'
-            elif op == "scale": 		# Look menu's size block
+            elif op == "scale":  # Look menu's size block
                 return "size()"
             elif op == "mousePressed":
                 return "isMouseDown()"
@@ -1558,7 +1594,7 @@ class SpriteOrStage:
             elif op == "distanceTo:":
                 if tok1 == "_mouse_":
                     return "distanceToMouse()"
-                else:   # must be distance to a sprite
+                else:  # must be distance to a sprite
                     return 'distanceTo("' + tok1 + '")'
             elif op == "getTimeAndDate":
                 if tok1 == "minute":
@@ -1584,8 +1620,8 @@ class SpriteOrStage:
             else:
                 raise ValueError("Unknown operation " + op)
 
-        assert len(tokenOrList) == 3	# Bad assumption?
-        op, tok1, tok2 = tokenOrList	
+        assert len(tokenOrList) == 3  # Bad assumption?
+        op, tok1, tok2 = tokenOrList
 
         # Handle special cases before doing the basic ones which are inorder
         # ops (value op value).
@@ -1595,10 +1631,10 @@ class SpriteOrStage:
         elif op == 'getParam':
             # getting a parameter value in a custom block.
             # format is ["getParam", "varname", 'r'] -- not sure what the 'r' is for.
-            return tok1	# it is already a str
+            return tok1  # it is already a str
         elif op == "computeFunction:of:":
             assert tok1 in ("abs", "floor", "ceiling", "sqrt", "sin", "cos", "tan",
-                          "asin", "acos", "atan", "ln", "log", "e ^", "10 ^")
+                            "asin", "acos", "atan", "ln", "log", "e ^", "10 ^")
             op2Func = {
                 "abs": "Math.abs(",
                 "floor": "Math.floor(",
@@ -1614,15 +1650,15 @@ class SpriteOrStage:
                 "log": "Math.log10(",
                 "e ^": "Math.exp(",
                 "10 ^": "Math.pow(10, "
-                }
+            }
             return op2Func[tok1] + self.oldMathExpr(tok2) + ")"
         elif op == "getAttribute:of:":
             return self.getAttributeOf(tok1, tok2)
         elif op == 'getLine:ofList:':
-                return self.listElement(tok1, tok2)
+            return self.listElement(tok1, tok2)
         else:
             assert op in ('+', '-', '*', '/', '%'), "Unknown op: " + op
-        
+
         if op == '%':
             resStr = "Math.floorMod(" + self.oldMathExpr(tok1) + ", " + self.oldMathExpr(tok2) + ")"
             return resStr
@@ -1680,23 +1716,22 @@ class SpriteOrStage:
                 return 'Unknown property: ' + prop
 
         # object is a sprite name
-        mapping = { 'x position': 'xPositionOf',
-                    'y position': 'yPositionOf',
-                    'direction': 'directionOf',
-                    'costume #': 'costumeNumberOf',
-                    'costume name': 'costumeNameOf',
-                    'size': 'sizeOf',
-                    }
+        mapping = {'x position': 'xPositionOf',
+                   'y position': 'yPositionOf',
+                   'direction': 'directionOf',
+                   'costume #': 'costumeNumberOf',
+                   'costume name': 'costumeNameOf',
+                   'size': 'sizeOf',
+                   }
         if prop in mapping:
             return mapping[prop] + '("' + objChild + '")'
         elif prop in ('backdrop #', 'backdrop name', 'volume'):
-            return 0        # bogus in Scratch and here too
+            return 0  # bogus in Scratch and here too
         else:
             # TODO: We must assume that this is a variable, as not all variable have necessarily
             # been parsed yet. Note that because of this, we cannot look up the actual name
             # of the variable, we must use the unsanitized name. TODO fix this 
-            return '((' + prop + ')world.getActorByName("' + objChild + '")).' + tok1 + '.get()'            
-        
+            return '((' + prop + ')world.getActorByName("' + objChild + '")).' + tok1 + '.get()'
 
     def whenFlagClicked(self, codeObj, block):
         """Generate code to handle the whenFlagClicked block.
@@ -1709,15 +1744,14 @@ class SpriteOrStage:
         # Code in the constructor is always level 2.
         codeObj.addToCode(genIndent(2) + 'whenFlagClicked("' + cbName + '");\n')
 
-        level = 1    # all callbacks are at level 1.
+        level = 1  # all callbacks are at level 1.
 
         # Generate callback code, into the codeObj's cbCode string.
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
-                        "(Sequence s)\n"
+                "(Sequence s)\n"
         cbStr += self.topBlock(level, block) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
-
 
     def whenSpriteCloned(self, codeObj, topBlock):
         """Generate code to handle the whenCloned block.
@@ -1732,7 +1766,7 @@ class SpriteOrStage:
         # Generate callback code, into the codeObj's cbCode string.
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
-                        "(Sequence s)\n"
+                "(Sequence s)\n"
         cbStr += self.topBlock(1, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
@@ -1747,7 +1781,6 @@ class SpriteOrStage:
             cbStr += genIndent(1) + "}\n\n"
             codeObj.addToCbCode(cbStr)
             self._copyConstructorMade = True
-
 
     def whenKeyPressed(self, codeObj, topBlock):
         """Generate code to handle the whenKeyPressed block.
@@ -1765,7 +1798,7 @@ class SpriteOrStage:
         codeObj.addToCode(genIndent(2) + 'whenKeyPressed("' +
                           key + '", "' + cbName + '");\n')
 
-        level = 1    # all callbacks are at level 1.
+        level = 1  # all callbacks are at level 1.
 
         # Generate callback code, into the codeObj's cbCode string.
         # Add two blank lines before each method definition.
@@ -1775,10 +1808,9 @@ class SpriteOrStage:
 
         codeObj.addToCbCode(cbStr)
 
-
     def whenIReceive(self, codeObj, topBlock):
         """Generate code to handle the whenIReceive block.  
-        topBlock contains the message and the list of stmts to be put
+        topBlock contains the message and the list of statements to be put
         into a callback to be called when that message is received.
         """
         scriptNum = codeObj.getNextScriptId()
@@ -1797,11 +1829,11 @@ class SpriteOrStage:
         # All cb code is at level 1
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + "(Sequence s)\n"
         cbStr += self.topBlock(1, topBlock) + "\n"  # add blank line after defn.
-        codeObj.addToCbCode(cbStr) 
-        
+        codeObj.addToCbCode(cbStr)
+
     def whenSwitchToBackdrop(self, codeObj, backdrop, tokens):
         """Generate code to handle the whenSwitchToBackdrop block.  key is
-        the key to wait for, and tokens is the list of stmts to be put
+        the key to wait for, and tokens is the list of statements to be put
         into a callback to be called when that key is pressed.
         """
         scriptNum = codeObj.getNextScriptId()
@@ -1813,7 +1845,7 @@ class SpriteOrStage:
         codeObj.addToCode(genIndent(2) + 'whenSwitchToBackdrop("' +
                           backdrop + '", "' + cbName + '");\n')
 
-        level = 1    # all callbacks are at level 1.
+        level = 1  # all callbacks are at level 1.
 
         # Generate callback code, into the codeObj's cbCode string.
         # Add two blank lines before each method definition.
@@ -1823,8 +1855,7 @@ class SpriteOrStage:
 
         codeObj.addToCbCode(cbStr)
 
-
-    def doForever(self, level, block, deferYield = False):
+    def doForever(self, level, block, deferYield=False):
         """Generate doForever code.  block is the topblock with 
         children hanging off of it.
         forever loop is turned into a while (true) loop, with the last
@@ -1832,30 +1863,28 @@ class SpriteOrStage:
         """
         retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, block.getChild('SUBSTACK'))
+        retStr += self.statements(level, block.getChild('SUBSTACK'))
         if (deferYield):
             retStr += genIndent(level + 1) + \
-                        "deferredYield(s);   // allow other sequences to run occasionally\n"
+                      "deferredYield(s);   // allow other sequences to run occasionally\n"
         else:
             retStr += genIndent(level + 1) + \
-                        "yield(s);   // allow other sequences to run\n"
+                      "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
-
-    def doIf(self, level, block, deferYield = False):
+    def doIf(self, level, block, deferYield=False):
         """Generate code for if <test> : <block>.
         """
         # Handle the boolean expression
         # We don't generate parens around the boolExpr as it will put them there.
-        
+
         resStr = genIndent(level) + "if "
         resStr += self.boolExpr(block.getChild('CONDITION'))
         resStr += "\n"
         resStr += self.block(level, block.getChild('SUBSTACK'))
         return resStr
 
-
-    def doIfElse(self, level, block, deferYield = False):
+    def doIfElse(self, level, block, deferYield=False):
         """Generate code for if <test> : <block> else: <block>.
         """
 
@@ -1867,8 +1896,7 @@ class SpriteOrStage:
         resStr += self.block(level, block.getChild('SUBSTACK2'))
         return resStr
 
-
-    def ifOnEdgeBounce(self, level, block, deferYield = False):
+    def ifOnEdgeBounce(self, level, block, deferYield=False):
         """Generate code to handle Motion blocks with 0 arguments"""
         return genIndent(level) + "ifOnEdgeBounce();\n"
 
@@ -1877,39 +1905,39 @@ class SpriteOrStage:
             return s[1:-1]
         return s
 
-    def moveSteps(self, level, block, deferYield = False):
+    def moveSteps(self, level, block, deferYield=False):
         #     "inputs": {
         #       "STEPS": [  1,  [ 4, "10" ] ]
         #     },
         arg = self.stripOutsideParens(self.mathExpr(block, 'STEPS'))
         return genIndent(level) + "move(" + arg + ");\n"
 
-    def turnRight(self, level, block, deferYield = False):
+    def turnRight(self, level, block, deferYield=False):
         # inputs is similar to moveSteps, but with DEGREES
         return genIndent(level) + "turnRightDegrees(" + self.mathExpr(block, 'DEGREES') + ");\n"
 
-    def turnLeft(self, level, block, deferYield = False):
+    def turnLeft(self, level, block, deferYield=False):
         return genIndent(level) + "turnLeftDegrees(" + self.mathExpr(block, 'DEGREES') + ");\n"
 
-    def pointInDirection(self, level, block, deferYield = False):
+    def pointInDirection(self, level, block, deferYield=False):
         return genIndent(level) + "pointInDirection(" + self.mathExpr(block, 'DIRECTION') + ");\n"
 
-    def goto(self, level, block, deferYield = False):
+    def goto(self, level, block, deferYield=False):
         return self.genGoto(level, block)
 
-    def changeXBy(self, level, block, deferYield = False):
+    def changeXBy(self, level, block, deferYield=False):
         return genIndent(level) + "changeXBy(" + self.mathExpr(block, 'DX') + ");\n"
 
-    def changeYBy(self, level, block, deferYield = False):
+    def changeYBy(self, level, block, deferYield=False):
         return genIndent(level) + "changeYBy(" + self.mathExpr(block, 'DY') + ");\n"
 
-    def setX(self, level, block, deferYield = False):
+    def setX(self, level, block, deferYield=False):
         return genIndent(level) + "setXTo(" + self.mathExpr(block, 'X') + ");\n"
 
-    def setY(self, level, block, deferYield = False):
+    def setY(self, level, block, deferYield=False):
         return genIndent(level) + "setYTo(" + self.mathExpr(block, 'Y') + ");\n"
 
-    def setRotationStyle(self, level, block, deferYield = False):
+    def setRotationStyle(self, level, block, deferYield=False):
         arg = block.getField('STYLE')
         return self.genRotationStyle(level, arg)
 
@@ -1920,7 +1948,7 @@ class SpriteOrStage:
             return genIndent(level) + "goToMouse();\n"
         elif argVal == "_random_":
             return genIndent(level) + "goToRandomPosition();\n"
-        else:           
+        else:
             return genIndent(level) + 'goTo("%s");\n' % argVal
 
     def genRotationStyle(self, level, arg):
@@ -1934,7 +1962,7 @@ class SpriteOrStage:
         else:
             raise ValueError('setRotationStyle')
 
-    def gotoXY(self, level, block, deferYield = False):
+    def gotoXY(self, level, block, deferYield=False):
         """Generate code to handle Motion blocks with 2 arguments:
         gotoxy, etc."""
         #  "inputs": {
@@ -1942,20 +1970,19 @@ class SpriteOrStage:
         #     "Y": [ 1,  [ 4, "0" ]  ]
         #  },
         return genIndent(level) + "goTo(" + self.mathExpr(block, 'X') + \
-                ", " + self.mathExpr(block, 'Y') + ");\n"
+               ", " + self.mathExpr(block, 'Y') + ");\n"
 
-    def pointTowards(self, level, block, deferYield = False):
+    def pointTowards(self, level, block, deferYield=False):
         """Generate code to turn the sprite to point to something.
         """
         child = block.getChild('TOWARDS')
         argVal = child.getField('TOWARDS')
         if argVal == '_mouse_':
             return genIndent(level) + "pointTowardMouse();\n"
-        else:   # pointing toward a sprite
+        else:  # pointing toward a sprite
             return genIndent(level) + 'pointToward("' + argVal + '");\n'
 
-
-    def glideTo(self, level, block, deferYield = False):
+    def glideTo(self, level, block, deferYield=False):
         """Generate code to make the sprite glide to a certain x,y position
         in a certain amount of time.
         The block contains the time, and a child block that specifies if
@@ -1967,11 +1994,11 @@ class SpriteOrStage:
             return genIndent(level) + "glideToMouse(s, " + self.mathExpr(block, 'SECS') + ");\n"
         elif argVal == "_random_":
             return genIndent(level) + "glideToRandomPosition(s, " + self.mathExpr(block, 'SECS') + ");\n"
-        else:       # gliding to another sprite
+        else:  # gliding to another sprite
             return genIndent(level) + 'glideToSprite(s, "%s", %s);\n' % \
-                        (argVal, self.mathExpr(block, 'DURATION'))
+                   (argVal, self.mathExpr(block, 'DURATION'))
 
-    def sayForSecs(self, level, block, deferYield = False):
+    def sayForSecs(self, level, block, deferYield=False):
         """Generate code to handle say <str> for <n> seconds.
         """
         # inputs contains (for the basic case):
@@ -1981,33 +2008,33 @@ class SpriteOrStage:
         return genIndent(level) + "sayForNSeconds(s, " + message + ", " + \
                self.mathExpr(block, 'SECS') + ");\n"
 
-    def say(self, level, block, deferYield = False):
+    def say(self, level, block, deferYield=False):
         """Generate code to handle say <str>.
         """
         return genIndent(level) + "say(" + self.strExpr(block, 'MESSAGE') + ");\n"
-    
-    def thinkForSecs(self, level, block, deferYield = False):
+
+    def thinkForSecs(self, level, block, deferYield=False):
         """Generate code to handle think <str> for <n> seconds.
         """
         return genIndent(level) + "thinkForNSeconds(s, " + self.strExpr(block, 'MESSAGE') + ", " + \
                self.mathExpr(block, 'SECS') + ");\n"
-    
-    def think(self, level, block, deferYield = False):
+
+    def think(self, level, block, deferYield=False):
         """Generate code to handle think <str>.
         """
         return genIndent(level) + "think(" + self.strExpr(block, 'MESSAGE') + ");\n"
 
-    def show(self, level, block, deferYield = False):
+    def show(self, level, block, deferYield=False):
         """Generate code for the show block.
         """
         return genIndent(level) + "show();\n"
 
-    def hide(self, level, block, deferYield = False):
+    def hide(self, level, block, deferYield=False):
         """Generate code for the show block.
         """
         return genIndent(level) + "hide();\n"
 
-    def switchCostumeTo(self, level, block, deferYield = False):
+    def switchCostumeTo(self, level, block, deferYield=False):
         """Generate code for the switch costume block.
         """
         try:
@@ -2016,13 +2043,13 @@ class SpriteOrStage:
             # if strExpr is unable to resolve arg, use mathExpr instead
             return genIndent(level) + "switchToCostume(" + self.mathExpr(block, 'COSTUME') + ");\n"
 
-    def nextCostume(self, level, block, deferYield = False):
+    def nextCostume(self, level, block, deferYield=False):
         """Generate code for the next costume block.
         """
         assert block.getOpcode() == "looks_nextcostume"
         return genIndent(level) + "nextCostume();\n"
 
-    def switchBackdropTo(self, level, block, deferYield = False):
+    def switchBackdropTo(self, level, block, deferYield=False):
         """Generate code to switch the backdrop.
         """
         try:
@@ -2031,23 +2058,23 @@ class SpriteOrStage:
             # if strExpr is unable to resolve arg, use mathExpr instead
             return genIndent(level) + "switchBackdropTo(" + self.mathExpr(block, 'BACKDROP') + ");\n"
 
-    def nextBackdrop(self, level, block, deferYield = False):
+    def nextBackdrop(self, level, block, deferYield=False):
         """Generate code to switch to the next backdrop.
         """
         block.getOpcode()
         return genIndent(level) + "nextBackdrop();\n"
 
-    def changeSizeBy(self, level, block, deferYield = False):
+    def changeSizeBy(self, level, block, deferYield=False):
         """Generate code to change the size of the sprite
         """
         return genIndent(level) + "changeSizeBy(" + self.mathExpr(block, 'CHANGE') + ");\n"
 
-    def setSizeTo(self, level, block, deferYield = False):
+    def setSizeTo(self, level, block, deferYield=False):
         """Generate code to change the size of the sprite to a certain percentage
         """
         return genIndent(level) + "setSizeTo(" + self.mathExpr(block, 'SIZE') + ");\n"
 
-    def goToFrontBack(self, level, block, deferYield = False):
+    def goToFrontBack(self, level, block, deferYield=False):
         """Generate code to move the sprite to the front
         """
         option = block.getField('FRONT_BACK')
@@ -2056,7 +2083,7 @@ class SpriteOrStage:
         else:
             return genIndent(level) + "goToBack();\n"
 
-    def goForwBackNLayers(self, level, block, deferYield = False):
+    def goForwBackNLayers(self, level, block, deferYield=False):
         """Generate code to move the sprite back 1 layer in the paint order
         """
         option = block.getField('FORWARD_BACKWARD')
@@ -2065,8 +2092,8 @@ class SpriteOrStage:
         else:
             return genIndent(level) + "goBackwardNLayers(" + self.mathExpr(block, 'NUM') + ");\n"
 
-    def changeGraphicBy(self, level, block, deferYield = False):
-        '''Generate code to change the graphics effect on this sprite'''
+    def changeGraphicBy(self, level, block, deferYield=False):
+        """Generate code to change the graphics effect on this sprite"""
         effect = block.getField('EFFECT')
         value = self.mathExpr(block, 'CHANGE')
         if effect == "GHOST":
@@ -2084,9 +2111,9 @@ class SpriteOrStage:
         elif effect == "COLOR":
             return genIndent(level) + "changeColorEffectBy(" + value + ");\n"
         else:
-            return genIndent(level) + "// " + effect + " effect is not implemented\n" 
-        
-    def setGraphicTo(self, level, block, deferYield = False):
+            return genIndent(level) + "// " + effect + " effect is not implemented\n"
+
+    def setGraphicTo(self, level, block, deferYield=False):
         effect = block.getField('EFFECT')
         value = self.mathExpr(block, 'VALUE')
         if effect == "GHOST":
@@ -2104,44 +2131,43 @@ class SpriteOrStage:
         elif effect == "COLOR":
             return genIndent(level) + "setColorEffectTo(" + value + ");\n"
         else:
-            return genIndent(level) + "// " + effect + " effect is not implemented\n"  
+            return genIndent(level) + "// " + effect + " effect is not implemented\n"
 
-
-    def penClear(self, level, block, deferYield = False):
+    def penClear(self, level, block, deferYield=False):
         return genIndent(level) + "clear();\n"
 
-    def penDown(self, level, block, deferYield = False):
+    def penDown(self, level, block, deferYield=False):
         return genIndent(level) + "penDown();\n"
 
-    def penUp(self, level, block, deferYield = False):
+    def penUp(self, level, block, deferYield=False):
         return genIndent(level) + "penDown();\n"
 
-    def penStamp(self, level, block, deferYield = False):
+    def penStamp(self, level, block, deferYield=False):
         return genIndent(level) + "stamp();\n"
 
-    def setPenColor(self, level, block, deferYield = False):
+    def setPenColor(self, level, block, deferYield=False):
         # color is a string like "#a249e8"
         # TODO: TEST!
         color = block.getInputs()['COLOR'][1][1]
-        color = color[1:]       # lose the first # sign
+        color = color[1:]  # lose the first # sign
         return genIndent(level) + 'setPenColor(new java.awt.Color(0x%s));\n' % color
 
-    def changePenSizeBy(self, level, block, deferYield = False):
+    def changePenSizeBy(self, level, block, deferYield=False):
         return genIndent(level) + "changePenSizeBy(" + self.mathExpr(block, 'SIZE') + ");\n"
 
-    def setPenSizeTo(self, level, block, deferYield = False):
+    def setPenSizeTo(self, level, block, deferYield=False):
         return genIndent(level) + "setPenSize(" + self.mathExpr(block, 'SIZE') + ");\n"
 
-    def setPenColorParamBy(self, level, block, deferYield = False):
-        '''Change color or saturation, etc., by an amount'''
+    def setPenColorParamBy(self, level, block, deferYield=False):
+        """Change color or saturation, etc., by an amount"""
         thingToChange = block.getChild('COLOR_PARAM').getField('colorParam')
         if thingToChange == 'color':
             return genIndent(level) + "changePenColorBy(" + self.mathExpr(block, 'VALUE') + ");\n"
         else:
             raise ValueError('Cannot change pen %s now' % thingToChange)
 
-    def setPenColorParamTo(self, level, block, deferYield = False):
-        '''Set color or saturation, etc., to an amount'''
+    def setPenColorParamTo(self, level, block, deferYield=False):
+        """Set color or saturation, etc., to an amount"""
         thingToChange = block.getChild('COLOR_PARAM').getField('colorParam')
         if thingToChange == 'color':
             return genIndent(level) + "setPenColor(" + self.mathExpr(block, 'VALUE') + ");\n"
@@ -2181,10 +2207,10 @@ class SpriteOrStage:
     #         return (nameAndVarType[0], nameAndVarType[1], True)
     #     raise ValueError("Sprite " + self._name + " variable " +
     #                      varTok + " unknown.")
-        
+
     def getListNameAndScope(self, listTok):
         global stage
-        
+
         name = self.listInfo.get(listTok)
         if name is not None:
             return (name, self == stage)
@@ -2193,7 +2219,7 @@ class SpriteOrStage:
             return (name, True)
         raise ValueError("Sprite " + self._name + " list " + listTok + " unknown.")
 
-    def setVariable(self, level, block, deferYield = False):
+    def setVariable(self, level, block, deferYield=False):
         """Set a variable's value from within the code.
         Generate code like this:
         var.set(value)
@@ -2216,7 +2242,6 @@ class SpriteOrStage:
             # Something like: Stage.counter.set(0);
             return genIndent(level) + "Stage.%s.set(%s);\n" % (var.getGfName(), val)
 
-
     # def readVariable(self, varname):
     #     """Get a variable's value from within the code.
     #     Generate code like this:
@@ -2234,11 +2259,10 @@ class SpriteOrStage:
     #         # Something like: world.counter.get();
     #         return "Stage.%s.get()" % varName
 
-
-    def hideVariable(self, level, block, deferYield = False):
+    def hideVariable(self, level, block, deferYield=False):
         """Generate code to hide a variable.
         """
-        id = block.getField('VARIABLE', 1)   # 0 is name, 1 is id
+        id = block.getField('VARIABLE', 1)  # 0 is name, 1 is id
         var = getVariableByUniqueId(id)
         if var.isGlobal():
             # Something like: Stage.counter.hide();
@@ -2246,24 +2270,22 @@ class SpriteOrStage:
         else:
             return genIndent(level) + var.getGfName() + ".hide();\n"
 
-
-    def showVariable(self, level, block, deferYield = False):
+    def showVariable(self, level, block, deferYield=False):
         """Generate code to hide a variable.
         """
-        id = block.getField('VARIABLE', 1)   # 0 is name, 1 is id
+        id = block.getField('VARIABLE', 1)  # 0 is name, 1 is id
         var = getVariableByUniqueId(id)
         if var.isGlobal():
             return genIndent(level) + "Stage.%s.show();\n" % var.getGfName()
         else:
             return genIndent(level) + var.getGfName() + ".show();\n"
 
-
-    def changeVarBy(self, level, block, deferYield = False):
+    def changeVarBy(self, level, block, deferYield=False):
         """Generate code to change the value of a variable.
         Code will be like this:
         aVar.set(aVar.get() + 3);
         """
-        id = block.getField('VARIABLE', 1)   # 0 is name, 1 is id
+        id = block.getField('VARIABLE', 1)  # 0 is name, 1 is id
         var = getVariableByUniqueId(id)
         varName = var.getGfName()
         if var.isGlobal():
@@ -2274,10 +2296,10 @@ class SpriteOrStage:
         else:
             return genIndent(level) + varName + ".set(" + \
                    varName + ".get() + " + self.mathExpr(block, 'VALUE') + ");\n"
-                   
+
     def listContains(self, listname, obj):
         disp, glob = self.getListNameAndScope(listname)
-        
+
         # If the argument is a int or double literal, use that, otherwise strExpr
         if isinstance(obj, int):
             obj = str(obj)
@@ -2290,10 +2312,10 @@ class SpriteOrStage:
             return '(Stage.%s.contains(%s))' % (disp, obj)
         else:
             return '(%s.contains(%s))' % (disp, obj)
-        
+
     def listElement(self, index, listname):
         disp, glob = self.getListNameAndScope(listname)
-        
+
         # If the argument is a int or double literal, use that, otherwise strExpr
         if isinstance(index, int):
             index = str(index)
@@ -2310,19 +2332,19 @@ class SpriteOrStage:
             return "Stage.%s.numberAt(%s)" % (disp, index)
         else:
             return "%s.numberAt(%s)" % (disp, index)
-        
+
     def listLength(self, listname):
         disp, glob = self.getListNameAndScope(listname)
         if glob:
             return "Stage.%s.length()" % (disp)
         else:
             return "%s.length()" % (disp)
-        
-    def listAppend(self, level, tokens, deferYield = False):
+
+    def listAppend(self, level, tokens, deferYield=False):
         cmd, obj, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'append:toList:'
-        
+
         # If the argument is a int or double literal, use that, otherwise strExpr
         if isinstance(obj, int):
             obj = str(obj)
@@ -2330,38 +2352,38 @@ class SpriteOrStage:
             obj = str(obj)
         else:
             obj = self.strExpr(obj)
-        
+
         if glob:
             return '%sStage.%s.add(%s);\n' % (genIndent(level), disp, obj)
         else:
             return '%s%s.add(%s);\n' % (genIndent(level), disp, obj)
-        
-    def listRemove(self, level, tokens, deferYield = False):
+
+    def listRemove(self, level, tokens, deferYield=False):
         cmd, index, name = tokens
         disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'deleteLine:ofList:'        
+        assert cmd == 'deleteLine:ofList:'
         # If the argument is a int or double literal, use that, otherwise mathExpr
         if isinstance(index, int):
             index = str(index)
         elif isinstance(index, float):
-            index = str(index)           
+            index = str(index)
         elif index == 'last':
             index = '"last"'
         elif index == 'all':
             index = '"all"'
         else:
             index = self.oldMathExpr(index)
-            
+
         if glob:
             return "%sStage.%s.delete(%s);\n" % (genIndent(level), disp, index)
         else:
             return "%s%s.delete(%s);\n" % (genIndent(level), disp, index)
-    
-    def listInsert(self, level, tokens, deferYield = False):
+
+    def listInsert(self, level, tokens, deferYield=False):
         cmd, obj, index, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'insert:at:ofList:'
-        
+
         # If the argument is a int or double literal, use that, otherwise strExpr
         if isinstance(obj, int):
             obj = str(obj)
@@ -2385,12 +2407,12 @@ class SpriteOrStage:
             return '%sStage.%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
         else:
             return '%s%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
-                
-    def listSet(self, level, tokens, deferYield = False):
+
+    def listSet(self, level, tokens, deferYield=False):
         cmd, index, name, obj = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'setLine:ofList:to:'
-        
+
         # If the argument is a int or double literal, use that, otherwise strExpr
         if isinstance(obj, int):
             obj = str(obj)
@@ -2414,8 +2436,8 @@ class SpriteOrStage:
             return '%sStage.%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
         else:
             return '%s%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
-                    
-    def hideList(self, level, tokens, deferYield = False):
+
+    def hideList(self, level, tokens, deferYield=False):
         cmd, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'hideList:'
@@ -2423,8 +2445,8 @@ class SpriteOrStage:
             return "%sStage.%s.hide();\n" % (genIndent(level), disp)
         else:
             return "%s%s.hide();\n" % (genIndent(level), disp)
-        
-    def showList(self, level, tokens, deferYield = False):
+
+    def showList(self, level, tokens, deferYield=False):
         cmd, name = tokens
         disp, glob = self.getListNameAndScope(name)
         assert cmd == 'showList:'
@@ -2433,51 +2455,46 @@ class SpriteOrStage:
         else:
             return "%s%s.show();\n" % (genIndent(level), disp)
 
-    def broadcast(self, level, block, deferYield = False):
+    def broadcast(self, level, block, deferYield=False):
         """Generate code to handle sending a broacast message.
         """
         return genIndent(level) + "broadcast(" + self.strExpr(block, 'BROADCAST_INPUT') + ");\n"
 
-
-    def broadcastAndWait(self, level, block, deferYield = False):
+    def broadcastAndWait(self, level, block, deferYield=False):
         """Generate code to handle sending a broacast message and
         waiting until all the handlers have completed.
         """
         return genIndent(level) + "broadcastAndWait(s, " + self.strExpr(block, 'BROADCAST_INPUT') + ");\n"
 
-
-    def doAsk(self, level, block, deferYield = False):
+    def doAsk(self, level, block, deferYield=False):
         """Generate code to ask the user for input.  Returns the resulting string."""
 
         question = self.strExpr(block, 'QUESTION')
         return genIndent(level) + 'String answer = askStringAndWait(' + \
                question + ');\t\t// may want to replace answer with a better name\n'
 
-
-    def doWait(self, level, block, deferYield = False):
+    def doWait(self, level, block, deferYield=False):
         """Generate a wait call."""
         assert block.getOpcode() == "control_wait"
         # inputs: "DURATION": [ 1,  [  5,  "1" ] ]
         return genIndent(level) + "wait(s, " + self.mathExpr(block, 'DURATION') + ");\n"
 
-
-    def doRepeat(self, level, block, deferYield = False):
+    def doRepeat(self, level, block, deferYield=False):
         """Generate a repeat <n> times loop.
         """
         retStr = genIndent(level) + "for (int i" + str(level) + " = 0; i" + str(level) + " < " + \
                  self.mathExpr(block, 'TIMES') + "; i" + str(level) + "++)\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, block.getChild('SUBSTACK'))
-        if (deferYield):
+        retStr += self.statements(level, block.getChild('SUBSTACK'))
+        if deferYield:
             retStr += genIndent(level + 1) + \
-                        "deferredYield(s);   // allow other sequences to run occasionally\n"
+                      "deferredYield(s);   // allow other sequences to run occasionally\n"
         else:
             retStr += genIndent(level + 1) + \
-                        "yield(s);   // allow other sequences to run\n"
+                      "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
-
-    def doWaitUntil(self, level, block, deferYield = False):
+    def doWaitUntil(self, level, block, deferYield=False):
         """Generate doWaitUtil code: in java we'll do this:
            while (true) {
                if (condition)
@@ -2486,37 +2503,35 @@ class SpriteOrStage:
            }
         """
         condition = self.boolExpr(block.getChild('CONDITION'))
-        retStr =  genIndent(level) + "// wait until code\n"
+        retStr = genIndent(level) + "// wait until code\n"
         retStr += genIndent(level) + "while (true) {\n"
         retStr += genIndent(level + 1) + "if (" + condition + ")\n"
         retStr += genIndent(level + 2) + "break;\n"
         retStr += genIndent(level + 1) + "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
-
-    def repeatUntil(self, level, block, deferYield = False):
+    def repeatUntil(self, level, block, deferYield=False):
         """Generate doUntil code, which translates to this:
            while (! condition)
            {
-               stmts
+               statements
                yield(s);
            }
         """
         condition = self.boolExpr(block.getChild('CONDITION'))
-        retStr =  genIndent(level) + "// repeat until code\n"
+        retStr = genIndent(level) + "// repeat until code\n"
         retStr += genIndent(level) + "while (! " + condition + ")\n"
         retStr += genIndent(level) + "{\n"
-        retStr += self.stmts(level, block.getChild('SUBSTACK'))
-        if (deferYield):
+        retStr += self.statements(level, block.getChild('SUBSTACK'))
+        if deferYield:
             retStr += genIndent(level + 1) + \
-                        "deferredYield(s);   // allow other sequences to run occasionally\n"
+                      "deferredYield(s);   // allow other sequences to run occasionally\n"
         else:
             retStr += genIndent(level + 1) + \
-                        "yield(s);   // allow other sequences to run\n"
+                      "yield(s);   // allow other sequences to run\n"
         return retStr + genIndent(level) + "}\n"
 
-
-    def stopScripts(self, level, block, deferYield = False):
+    def stopScripts(self, level, block, deferYield=False):
         """Generate code to stop scripts: all, other, etc.
         """
         option = block.getField('STOP_OPTION')
@@ -2529,8 +2544,7 @@ class SpriteOrStage:
         else:
             raise ValueError("stopScripts: unknown option", option)
 
-
-    def createCloneOf(self, level, block, deferYield = False):
+    def createCloneOf(self, level, block, deferYield=False):
         """Create a clone of the sprite itself or of the given sprite.
         """
         child = block.getChild('CLONE_OPTION')
@@ -2540,16 +2554,13 @@ class SpriteOrStage:
         else:
             return genIndent(level) + 'createCloneOf("' + argVal + '");\n'
 
-
-    def deleteThisClone(self, level, block, deferYield = False):
+    def deleteThisClone(self, level, block, deferYield=False):
         """Delete this sprite.
         """
         return genIndent(level) + "deleteThisClone();\n"
 
-
-    def resetTimer(self, level, block, deferYield = False):
+    def resetTimer(self, level, block, deferYield=False):
         return genIndent(level) + "resetTimer();\n"
-
 
     def genProcDefCode(self, codeObj, topBlock):
         """Generate code for a custom block definition in Scratch.
@@ -2580,7 +2591,7 @@ class SpriteOrStage:
         paramNames = list(map(convertToJavaId, block.getProcDefnParamNames()))
 
         assert len(paramTypes) == len(paramNames)
-        
+
         if len(paramTypes) == 0:
             codeObj.addToCbCode(genIndent(1) + "private void " + funcname + "(Sequence s")
         else:
@@ -2588,7 +2599,7 @@ class SpriteOrStage:
 
         for i in range(len(paramTypes)):
             if paramTypes[i] == 'stringOrNumber':
-                t = 'String'        # Assuming everything is a string now... nasty.
+                t = 'String'  # Assuming everything is a string now... nasty.
             else:
                 t = 'boolean'
             codeObj.addToCbCode(t + " " + paramNames[i])
@@ -2598,14 +2609,14 @@ class SpriteOrStage:
 
         codeObj.addToCbCode(")\n")
         codeObj.addToCbCode(self.block(1, topBlock.getNext()))
-        codeObj.addToCbCode("\n")	# add blank line after function defn.
+        codeObj.addToCbCode("\n")  # add blank line after function defn.
         return codeObj
 
     def extractInfoFromProcCode(self, block):
-        '''extract the function to call and list of argument types from
+        """extract the function to call and list of argument types from
         the proccode string.  return tuple: (funcname, listOfArgType),
         where arg types are 'stringOrNumber', 'boolean'
-        '''
+        """
 
         # proccode is a string like this: nameOfFunc %s %b someword %s
         # We could parse this to get some type info from it, although numbers and strings
@@ -2619,9 +2630,9 @@ class SpriteOrStage:
             # No percent sign, so no parameters.
             return proccode.strip(), argsList
 
-        func2Call = proccode[0:firstPercent].strip()   # remove trailing blanks.
+        func2Call = proccode[0:firstPercent].strip()  # remove trailing blanks.
 
-        proccode = proccode[firstPercent:]      # remove func2call name
+        proccode = proccode[firstPercent:]  # remove func2call name
 
         # split on spaces to get each word.
         paramsEtc = proccode.split()
@@ -2638,8 +2649,7 @@ class SpriteOrStage:
             # ignore those (for now)
         return func2Call, argsList
 
-
-    def callABlock(self, level, block, deferYield = False):
+    def callABlock(self, level, block, deferYield=False):
         """Generate a call to a custom-defined block.
         inputs in the block look like this:
         "inputs": {
@@ -2684,61 +2694,63 @@ class SpriteOrStage:
 
         # each argId is in inputs.
         resStrs = []
-        for argIdx in range(len(argIdList)):   # skip last one.
+        for argIdx in range(len(argIdList)):  # skip last one.
             argId = argIdList[argIdx]
             if argTypes[argIdx] == 'stringOrNumber':
                 try:
                     resStrs.append(self.mathExpr(block, argId))
                 except:
                     resStrs.append(self.strExpr(block, argId))
-            else:       # boolean
+            else:  # boolean
                 boolExprBlock = block.getChild(argId)
                 resStrs.append(self.boolExpr(boolExprBlock))
 
         resStr += ', '.join(resStrs) + ');\n'
         return resStr
 
-    def playSound(self, level, block, deferYield = False):
+    def playSound(self, level, block, deferYield=False):
         """ Play the given sound
         """
         arg = block.getChild('SOUND_MENU').getField('SOUND_MENU')
         return genIndent(level) + 'playSound("' + arg + '");\n'
 
-    def playSoundUntilDone(self, level, block, deferYield = False):
+    def playSoundUntilDone(self, level, block, deferYield=False):
         """ Play the given sound without interrupting it.
         """
         arg = block.getChild('SOUND_MENU').getField('SOUND_MENU')
         return genIndent(level) + 'playSoundUntilDone("' + arg + '");\n'
-    
-    def playNote(self, level, block, deferYield = False):
+
+    def playNote(self, level, block, deferYield=False):
         """ Play the given note for a given number of beats
         """
         note = block.getChild('NOTE').getField('NOTE')
-        return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
-    
-    def instrument(self, level, block, deferYield = False):
+        return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + \
+               self.mathExpr(block, 'BEATS') + ");\n"
+
+    def instrument(self, level, block, deferYield=False):
         """ Play the given instrument
         """
         arg = block.getChild('INSTRUMENT').getField('INSTRUMENT')
         return genIndent(level) + "changeInstrument(" + self.oldMathExpr(arg) + ");\n"
-    
-    def playDrum(self, level, block, deferYield = False):
+
+    def playDrum(self, level, block, deferYield=False):
         """ Play the given drum
         """
         drum = block.getChild('DRUM').getField('DRUM')
-        return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + self.mathExpr(block, 'BEATS') + ");\n"
-    
-    def rest(self, level, block, deferYield = False):
+        return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + \
+               self.mathExpr(block, 'BEATS') + ");\n"
+
+    def rest(self, level, block, deferYield=False):
         """ Play a rest for the given number of beats.
         """
         return genIndent(level) + "rest(s, " + self.mathExpr(block, 'BEATS') + ");\n"
-    
-    def changeTempoBy(self, level, block, deferYield = False):
+
+    def changeTempoBy(self, level, block, deferYield=False):
         """ Change the tempo.
         """
         return genIndent(level) + "changeTempoBy(" + self.mathExpr(block, 'TEMPO') + ");\n"
-    
-    def setTempoTo(self, level, block, deferYield = False):
+
+    def setTempoTo(self, level, block, deferYield=False):
         """ Set the tempo
         """
         return genIndent(level) + "setTempo(" + self.mathExpr(block, 'TEMPO') + ");\n"
@@ -2750,8 +2762,8 @@ class SpriteOrStage:
         while True:
             try:
                 print("\"" + name + "\" is not a valid java variable name.")
-                n = input("Java variables must start with a letter and contain only letters and numbers.\n" +\
-                      "Enter a new name, or type nothing to use \"" + convertToJavaId(name) + "\"\n> ")
+                n = input("Java variables must start with a letter and contain only letters and numbers.\n" + \
+                          "Enter a new name, or type nothing to use \"" + convertToJavaId(name) + "\"\n> ")
                 if n == "":
                     return convertToJavaId(name)
                 name = n
@@ -2761,15 +2773,13 @@ class SpriteOrStage:
                 # The variable name has no valid characters
                 print("\"" + name + "\" must have some alphanumeric character in order to suggest a name")
                 name = "variable:" + name
-            
 
-              
     def genScriptCode(self, topBlock):
         """Generate code (and callback code) for the given topBlock, which may be
         associated with either a sprite or the main stage.
         """
 
-        codeObj = CodeAndCb()	# Holds all the code that is generated.
+        codeObj = CodeAndCb()  # Holds all the code that is generated.
 
         opcode = topBlock.getOpcode()
         if opcode == 'event_whenflagclicked':
@@ -2796,13 +2806,15 @@ class SpriteOrStage:
 
         return codeObj
 
+
 # ---------------------------------------------------------------------------
 # End of SpriteOrStage class definition.
 # ---------------------------------------------------------------------------
 
 
 class Sprite(SpriteOrStage):
-    '''This class represents a Sprite for code generation.'''
+    """This class represents a Sprite for code generation."""
+
     def __init__(self, sprData):
 
         # Handle sprites with names that are illegal Java identifiers.
@@ -2812,7 +2824,7 @@ class Sprite(SpriteOrStage):
         super().__init__(name, sprData)
 
     def setVariableIsLocalOrGlobal(self, var):
-        '''All variables defined in a sprite are local'''
+        """All variables defined in a sprite are local"""
         var.setLocal()
 
     def genVarDefnCode(self, level, var):
@@ -2863,25 +2875,26 @@ class Sprite(SpriteOrStage):
         # Generate callback code, into the codeObj's cbCode string.
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
-                        "(Sequence s)\n"
+                "(Sequence s)\n"
         cbStr += self.topBlock(1, block) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
 
 class Stage(SpriteOrStage):
-    '''This class represents the Stage class.'''
+    """This class represents the Stage class."""
+
     def __init__(self, sprData):
         super().__init__("Stage", sprData)
 
         self._bgCode = ""
 
     def setVariableIsLocalOrGlobal(self, var):
-        '''All stage variables are global.'''
+        """All stage variables are global."""
         var.setGlobal()
 
     def genVarDefnCode(self, level, var):
         return genIndent(level) + 'static %sVar %s;\n' % (var.getType(), var.getGfName())
-    
+
     def genConstructorCode(self):
         """Generate code for the constructor.
         This code will include calls to initialize data, etc., followed by code
@@ -2891,7 +2904,7 @@ class Stage(SpriteOrStage):
         for Stage.
         """
         self._ctorCode = genIndent(1) + "public " + self._name + "()\n"
-        
+
         self._ctorCode += genIndent(1) + "{\n"
         self._ctorCode += self._initSettingsCode
         self._ctorCode += self._regCallbacksCode
@@ -2919,7 +2932,7 @@ class Stage(SpriteOrStage):
         # Generate callback code, into the codeObj's cbCode string.
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(1) + "public void " + cbName + \
-                        "(Sequence s)\n"
+                "(Sequence s)\n"
         cbStr += self.block(1, tokens) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
@@ -2941,8 +2954,8 @@ class Stage(SpriteOrStage):
         # like in Scratch.
         #
         self._bgCode = genIndent(1) + \
-                    "static GreenfootImage bgImg = new GreenfootImage(ScratchWorld.SCRATCH_WIDTH,\n" + genIndent(1) + \
-                    "                                                 ScratchWorld.SCRATCH_HEIGHT);\n"
+                       "static GreenfootImage bgImg = new GreenfootImage(ScratchWorld.SCRATCH_WIDTH,\n" + genIndent(1) + \
+                       "                                                 ScratchWorld.SCRATCH_HEIGHT);\n"
         # Generate the accessor for the static background image.
         self._bgCode += genIndent(1) + "// The background image here is a transparent image\n"
         self._bgCode += genIndent(1) + "// that Scratch draws on to, instead of drawing on \n"
@@ -2952,7 +2965,7 @@ class Stage(SpriteOrStage):
 
     def writeCodeToFile(self):
 
-	# Open file with correct name and generate code into there.
+        # Open file with correct name and generate code into there.
         filename = os.path.join(PROJECT_DIR, convertSpriteToFileName(self._name))
         print("Writing code to " + filename + ".")
         outFile = open(filename, "w")
@@ -2972,6 +2985,7 @@ class Stage(SpriteOrStage):
         outFile.write("}\n")
         outFile.close()
 
+
 # End of Stage class definition
 # ---------------------------------------------------------------------------
 
@@ -2980,7 +2994,6 @@ def convertSpriteToFileName(sprite):
     joined, with no spaces between."""
     words = sprite.split()
     return ''.join(words) + ".java"
-
 
 
 def genWorldHeaderCode(classname):
@@ -3019,9 +3032,9 @@ def convert():
     global SCRATCH_FILE
     global PROJECT_DIR
     global SCRATCH_PROJ_DIR
-    
-    global imagesDir 
-    global soundsDir 
+
+    global imagesDir
+    global soundsDir
     global worldClassName
     global stage
     global onlyDecode
@@ -3030,14 +3043,16 @@ def convert():
     scratch_dir = os.path.join(PROJECT_DIR, SCRATCH_PROJ_DIR)
 
     if not onlyDecode:
-        print ("------------ Processing " + SCRATCH_FILE + ' ---------------\n')
+        print("------------ Processing " + SCRATCH_FILE + ' ---------------\n')
 
         if not os.path.exists(SCRATCH_FILE):
             print("Scratch download file " + SCRATCH_FILE + " not found.")
             sys.exit(1)
         if not os.path.exists(PROJECT_DIR):
             if useGui:
-                if (tkinter.messagebox.askokcancel("Make New Directory", "Greenfoot directory not found, generate it?")):
+                if (
+                        tkinter.messagebox.askokcancel("Make New Directory",
+                                                       "Greenfoot directory not found, generate it?")):
                     print("Generating new project directory...")
                     os.makedirs(PROJECT_DIR)
                 else:
@@ -3081,19 +3096,19 @@ def convert():
                 sys.exit(1)
             # Output from identify is like this:
             # 3.png PNG 960x720 960x720+0+0 8-bit sRGB 428KB 0.000u 0:00.000
-            size = res[1].split()[2]     # got the geometry.
-            width, height = size.split("x")	 # got the width and height, as strings
+            size = res[1].split()[2]  # got the geometry.
+            width, height = size.split("x")  # got the width and height, as strings
             width = int(width)
             height = int(height)
             if width >= 480:
                 # For now, just make 480x360.  This may not be correct in all cases.
                 dest = os.path.join(imagesDir, os.path.basename(f))
                 execOrDie("convert -resize 480x360 " + f + " " + dest,
-                      "copy and resize png file")
+                          "copy and resize png file")
             else:
                 dest = os.path.join(imagesDir, os.path.basename(f))
                 execOrDie("convert -resize 50% " + f + " " + dest,
-                      "copy and resize png file")
+                          "copy and resize png file")
 
         # Convert svg images files to png files in the images dir.
         files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
@@ -3141,18 +3156,17 @@ def convert():
 
         # End of preparing directories, copying files, etc,
         # ---------------------------------------------------------------------------
-    
-    
+
     # Now, (finally!), open the project.json file and start processing it.
-    with open(os.path.join(scratch_dir, "project.json"), encoding = "utf_8") as data_file:
+    with open(os.path.join(scratch_dir, "project.json"), encoding="utf_8") as data_file:
         data = json.load(data_file)
 
     spritesData = data['targets']
-    
+
     # We'll need to write configuration "code" to the greenfoot.project file.  Store
     # the lines to write out in this variable.
     projectFileCode = []
-    
+
     # Determine the name of the ScratchWorld subclass.  This variable below
     # is used in some code above to generate casts.  I know this is a very bad
     # idea, but hey, what are you going to do...
@@ -3164,7 +3178,7 @@ def convert():
     # with "target": "Stage" in 'childen'.
     # These need to be processed before we process any Sprite-specific code
     # which may reference these global variables.
-    
+
     # stage information is in targets where isStage is set to true.
     for stageData in spritesData:
         if stageData['isStage']:
@@ -3176,20 +3190,19 @@ def convert():
 
     # Code to be written into the World.java file.
     worldCtorCode = ""
-    
+
     # ---------------------------------------------------------------------------
     # Start processing each sprite's info: scripts, costumes, variables, etc.
     # ---------------------------------------------------------------------------
     for sprData in spritesData:
         if sprData['isStage']:
-            continue                # skip the stage for now.
+            continue  # skip the stage for now.
 
-    
         sprite = Sprite(sprData)
-        
+
         # Copy the sounds associated with this sprite to the appropriate directory
         sprite.copySounds(soundsDir)
-        
+
         # Generate world construct code that adds the sprite to the world.
         sprite.genAddSpriteCall()
         sprite.genLoadCostumesCode(sprData['costumes'])
@@ -3214,68 +3227,65 @@ def convert():
         # file, like this: 
         #     class.Sprite1.image=1.png
         projectFileCode.append("class." + sprite.getName() + ".image=" + \
-                            str(sprData['costumes'][0]['assetId']) + ".png\n")
-    
-    
+                               str(sprData['costumes'][0]['assetId']) + ".png\n")
+
     # --------- handle the Stage stuff --------------
-    
+
     # Because the stage can have script in it much like any sprite,
     # we have to process it similarly.  So, lots of repeated code here
     # from above -- although small parts are different enough.
 
     costumes = stageData['costumes']
-        
+
     # Write out a line to the project.greenfoot file to indicate that this
     # sprite is a subclass of the Scratch class.
     projectFileCode.append("class." + stage.getName() + ".superclass=Scratch\n")
-    
+
     # Create the special Stage sprite.
     worldCtorCode += genIndent(2) + 'addSprite("' + stage.getName() + '", 0, 0);\n'
-    
+
     stage.genInitSettingsCode()
     stage.genLoadCostumesCode(costumes)
     stage.genBackgroundHandlingCode()
     stage.genCodeForScripts()
     stage.writeCodeToFile()
-    
+
     # ----------------------- Create subclass of World ------------------------------
-    
-    
+
     #
     # Now, to make the *World file -- a subclass of ScratchWorld.
     #
     filename = os.path.join(PROJECT_DIR, worldClassName + ".java")
     outFile = open(filename, "w")
     print("Writing code to " + filename + ".")
-    
+
     worldCode = genWorldHeaderCode(worldClassName)
     worldCode += genWorldCtorHeader(worldClassName)
-    
+
     worldCode += stage.getWorldCtorCode()
-    
+
     # Adding the backdrops will be done in the World constructor, not
     # the stage constructor because backdrops (backgrounds) are a property
     # of the World in Greenfoot.
     addBackdropsCode = stage.getCostumesCode()
     if debug:
         print("CostumeCode is ", addBackdropsCode)
-    
+
     costumeIdx = stageData['currentCostume']
     costumeName = stageData['costumes'][costumeIdx]['name']
     addBackdropsCode += genIndent(2) + 'switchBackdropTo("' + costumeName + '");\n'
-    
+
     worldCode += worldCtorCode
     worldCode += addBackdropsCode
     worldCode += genIndent(1) + "}\n"
     worldCode += "}\n"
-    
+
     outFile.write(worldCode)
     outFile.close()
-    
+
     projectFileCode.append("class." + worldClassName + ".superclass=ScratchWorld\n")
     projectFileCode.append("world.lastInstantiated=" + worldClassName + "\n")
-    
-    
+
     # ---------------------------------------------------------------------------
     # Now, update the project.greenfoot file with this new
     # configuration information.  If we have run this script before, then
@@ -3284,7 +3294,7 @@ def convert():
     # updating/adding it.
     projectFileCode.append("class.Scratch.superclass=greenfoot.Actor\n")
     projectFileCode.append("class.ScratchWorld.superclass=greenfoot.World\n")
-    
+
     # If there's no project.greenfoot in the project directory, create one with
     # default values.
     if not os.path.isfile(os.path.join(PROJECT_DIR, "project.greenfoot")):
@@ -3297,7 +3307,7 @@ def convert():
             projF.write("package.numTargets=0\n")
             projF.write("project.charset=UTF-8\n")
             projF.write("version=3.1.0\n")
-        
+
     # Read all lines into variable lines.
     lines = []
     with open(os.path.join(os.path.join(PROJECT_DIR, "project.greenfoot")), "r") as projF:
@@ -3318,7 +3328,6 @@ def convert():
             projF.write(p)
 
 
-
 if not useGui:  # Everything provided on command line.
     imagesDir = os.path.join(PROJECT_DIR, "images")
     soundsDir = os.path.join(PROJECT_DIR, "sounds")
@@ -3326,63 +3335,68 @@ if not useGui:  # Everything provided on command line.
 else:
     def findScratchFile():
         global scrEntryVar, SCRATCH_FILE
-        SCRATCH_FILE = tkinter.filedialog.askopenfilename(initialdir = SCRATCH_FILE,
-                                                  filetypes = [('Scratch3 files', '.sb3'), 
-                                                               ('All files', '.*')])
+        SCRATCH_FILE = tkinter.filedialog.askopenfilename(initialdir=SCRATCH_FILE,
+                                                          filetypes=[('Scratch3 files', '.sb3'),
+                                                                     ('All files', '.*')])
         scrEntryVar.set(SCRATCH_FILE)
-            
+
+
     def findGfDir():
         global gfEntryVar, PROJECT_DIR
         PROJECT_DIR = tkinter.filedialog.askdirectory(initialdir=PROJECT_DIR)
         gfEntryVar.set(PROJECT_DIR)
-    
+
+
     def exitTk():
         sys.exit(0)
+
+
     root = tkinter.Tk()
     root.title("Convert Scratch to Greenfoot")
     root.protocol('WM_DELETE_WINDOW', exitTk)
-    
+
     entryFrame = tkinter.Frame(root)
-    entryFrame.pack(side = tkinter.TOP)
+    entryFrame.pack(side=tkinter.TOP)
     scratchFrame = tkinter.Frame(entryFrame)
-    scratchFrame.pack(side = tkinter.LEFT)
+    scratchFrame.pack(side=tkinter.LEFT)
     scratchLabel = tkinter.Label(scratchFrame, text="Scratch File")
-    scratchLabel.pack(side = tkinter.TOP)
+    scratchLabel.pack(side=tkinter.TOP)
     scrEntryVar = tkinter.StringVar()
     scrEntryVar.set(SCRATCH_FILE)
     scratchEntry = tkinter.Entry(scratchFrame, textvariable=scrEntryVar, width=len(SCRATCH_FILE))
-    scratchEntry.pack(side = tkinter.TOP)
+    scratchEntry.pack(side=tkinter.TOP)
     tkinter.Button(scratchFrame, text="Find file", command=findScratchFile).pack(side=tkinter.TOP)
-    
-    
+
     gfFrame = tkinter.Frame(entryFrame)
-    gfFrame.pack(side = tkinter.RIGHT)
-    gfLabel = tkinter.Label(gfFrame, text = "Greenfoot Project Directory")
-    gfLabel.pack(side = tkinter.TOP)
+    gfFrame.pack(side=tkinter.RIGHT)
+    gfLabel = tkinter.Label(gfFrame, text="Greenfoot Project Directory")
+    gfLabel.pack(side=tkinter.TOP)
     gfEntryVar = tkinter.StringVar()
     gfEntryVar.set(PROJECT_DIR)
     gfEntry = tkinter.Entry(gfFrame, textvariable=gfEntryVar, width=len(PROJECT_DIR))
-    gfEntry.pack(side = tkinter.TOP)
+    gfEntry.pack(side=tkinter.TOP)
     tkinter.Button(gfFrame, text="Find directory", command=findGfDir).pack(side=tkinter.TOP)
+
 
     def convertButtonCb():
         global SCRATCH_FILE
         global PROJECT_DIR
         global SCRATCH_PROJ_DIR
-        
-        global imagesDir 
-        global soundsDir 
-        
+
+        global imagesDir
+        global soundsDir
+
         # Take off spaces and a possible trailing "/"
         PROJECT_DIR = gfEntryVar.get().strip().rstrip("/")
-        
+
         print("--------" + SCRATCH_FILE)
         SCRATCH_PROJ_DIR = "scratch_code"
-    
+
         imagesDir = os.path.join(PROJECT_DIR, "images")
         soundsDir = os.path.join(PROJECT_DIR, "sounds")
         convert()
-        
-    convertButton = tkinter.Button(root, text = "Convert", command = convertButtonCb)
-    convertButton.pack(side = tkinter.BOTTOM)
+
+
+    convertButton = tkinter.Button(root, text="Convert", command=convertButtonCb)
+    convertButton.pack(side=tkinter.BOTTOM)
     root.mainloop()
