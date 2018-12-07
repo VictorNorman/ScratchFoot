@@ -242,6 +242,9 @@ class Variable:
     def isLocal(self):
         assert self._local_or_global is not None
         return self._local_or_global == 'local'
+    def isGlobal(self):
+        assert self._local_or_global is not None
+        return self._local_or_global == 'global'
     def setNameEntry(self, ent):
         self._ent = ent
     def setTypeStringVar(self, svar):
@@ -468,6 +471,8 @@ class SpriteOrStage:
         need info from both the listOfVars and each of those other
         variable-specific dictionaries.
         """
+
+        # TODO: fix all this documentation.
 
         # The listOfVars has this format:
         #  [{ "name": "xloc",
@@ -906,8 +911,7 @@ class SpriteOrStage:
 
             var.setGfName(sanname)
 
-            # TODO: fix this!!!  Don't always assume local
-            var.setLocal()
+            self.setVariableIsLocalOrGlobal(var)
             var.setOwner(self)
 
             '''
@@ -941,16 +945,8 @@ class SpriteOrStage:
             '''
 
 
-            # TODO: FIX THIS: move code into subclass!!!
             # Something like "Scratch.IntVar score; or ScratchWorld.IntVar score;"
-            '''
-            if self.getNameTypeAndLocalGlobal(name)[2]:
-                self._varDefnCode += genIndent(1) + 'static %sVar %s;\n' % (varType, sanname)
-            else:
-                self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
-            '''
-            # TODO: assume we are dealing with local variables now.
-            self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
+            self._varDefnCode += self.genVarDefnCode(1, var)
 
             # Something like "score = createIntVariable((MyWorld) world, "score", 0);
             self._addedToWorldCode += '%s%s = create%sVariable((%s) world, "%s", %s);\n' % \
@@ -1214,9 +1210,9 @@ class SpriteOrStage:
 
             # Data commands
             'data_setvariableto': self.setVariable,
-            'hideVariable:': self.hideVariable,
-            'showVariable:': self.showVariable,
-            'changeVar:by:': self.changeVarBy,
+            'data_hidevariable': self.hideVariable,
+            'data_showvariable': self.showVariable,
+            'data_changevariableby': self.changeVarBy,
 
             'append:toList:': self.listAppend,
             'deleteLine:ofList:': self.listRemove,
@@ -1336,8 +1332,11 @@ class SpriteOrStage:
         expr = block.getInput(exprKey)
         assert isinstance(expr, list)
 
+        if debug:
+            print('strExpr: ', block, exprKey, expr)
+
         if not block.hasChild(exprKey):
-            expr = block.getInputs(exprKey)
+            expr = block.getInput(exprKey)
             # if expr[1][0] is 12, then we are referencing a variable (guess).
             if expr[1][0] == 12:  # TOTAL GUESS!
                 return self.handleVariableReference(expr[1])
@@ -1386,7 +1385,10 @@ class SpriteOrStage:
         # The first thing in expr is always a number and I can't figure out what that means.
         assert len(expr) == 3
         var = getVariableByUniqueId(expr[2])
-        return var.getGfName() + ".get()"
+        if var.isLocal():
+            return var.getGfName() + ".get()"
+        else:
+            return 'Stage.%s.get()' % var.getGfName()
 
     def mathExpr(self, block, exprKey):
         '''Evaluate the expression in block[exprKey] and its children, as a math expression,
@@ -2159,26 +2161,26 @@ class SpriteOrStage:
     #     else:
     #         raise ValueError(cmd)
 
-    def getNameTypeAndLocalGlobal(self, varTok):
-        """Look up the token representing a variable name in the varInfo
-        dictionaries.  If it is found, return the type and whether it
-        is a local variable or global.  Global is known if it is found
-        in the stage object.  Raise ValueError if it isn't found
-        in the dictionaries.
-        """
-
-        global stage
-
-        nameAndVarType = self.varInfo.get(varTok)
-        if nameAndVarType is not None:
-            # if self is the stage object, then finding it means it
-            # is global, else not.
-            return (nameAndVarType[0], nameAndVarType[1], self == stage)
-        nameAndVarType = stage.getVarInfo(varTok)
-        if nameAndVarType is not None:
-            return (nameAndVarType[0], nameAndVarType[1], True)
-        raise ValueError("Sprite " + self._name + " variable " +
-                         varTok + " unknown.")
+    # def getNameTypeAndLocalGlobal(self, varTok):
+    #     """Look up the token representing a variable name in the varInfo
+    #     dictionaries.  If it is found, return the type and whether it
+    #     is a local variable or global.  Global is known if it is found
+    #     in the stage object.  Raise ValueError if it isn't found
+    #     in the dictionaries.
+    #     """
+    #
+    #     global stage
+    #
+    #     nameAndVarType = self.varInfo.get(varTok)
+    #     if nameAndVarType is not None:
+    #         # if self is the stage object, then finding it means it
+    #         # is global, else not.
+    #         return (nameAndVarType[0], nameAndVarType[1], self == stage)
+    #     nameAndVarType = stage.getVarInfo(varTok)
+    #     if nameAndVarType is not None:
+    #         return (nameAndVarType[0], nameAndVarType[1], True)
+    #     raise ValueError("Sprite " + self._name + " variable " +
+    #                      varTok + " unknown.")
         
     def getListNameAndScope(self, listTok):
         global stage
@@ -2195,9 +2197,6 @@ class SpriteOrStage:
         """Set a variable's value from within the code.
         Generate code like this:
         var.set(value)
-
-        The variable may be sprite-specific or global.  We have to check
-        both dictionaries to figure it out.
         """
 
         var = getVariableBySpriteAndName(self, block.getField('VARIABLE'))
@@ -2214,65 +2213,67 @@ class SpriteOrStage:
         if var.isLocal():
             return genIndent(level) + var.getGfName() + ".set(" + val + ");\n"
         else:
-            # Something like: world.counter.set(0);
+            # Something like: Stage.counter.set(0);
             return genIndent(level) + "Stage.%s.set(%s);\n" % (var.getGfName(), val)
 
 
-    def readVariable(self, varname):
-        """Get a variable's value from within the code.
-        Generate code like this:
-        var.get() or
-        world.varname.get()
+    # def readVariable(self, varname):
+    #     """Get a variable's value from within the code.
+    #     Generate code like this:
+    #     var.get() or
+    #     world.varname.get()
+    #
+    #     The variable may be sprite-specific or global.  We have to check
+    #     both dictionaries to figure it out.
+    #     """
+    #
+    #     varName, _, isGlobal = self.getNameTypeAndLocalGlobal(varname)
+    #     if isGlobal:
+    #         return varName + ".get()"
+    #     else:
+    #         # Something like: world.counter.get();
+    #         return "Stage.%s.get()" % varName
 
-        The variable may be sprite-specific or global.  We have to check
-        both dictionaries to figure it out.
-        """
 
-        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(varname)
-        if isGlobal:
-            return varName + ".get()"
-        else:
-            # Something like: world.counter.get();
-            return "Stage.%s.get()" % varName
-
-
-    def hideVariable(self, level, tokens, deferYield = False):
+    def hideVariable(self, level, block, deferYield = False):
         """Generate code to hide a variable.
         """
-        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
-        if isGlobal:
-            # Something like: world.counter.hide();
-            return genIndent(level) + "Stage.%s.hide();\n" % varName
+        id = block.getField('VARIABLE', 1)   # 0 is name, 1 is id
+        var = getVariableByUniqueId(id)
+        if var.isGlobal():
+            # Something like: Stage.counter.hide();
+            return genIndent(level) + "Stage.%s.hide();\n" % var.getGfName()
         else:
-            return genIndent(level) + varName + ".hide();\n"
+            return genIndent(level) + var.getGfName() + ".hide();\n"
 
 
-    def showVariable(self, level, tokens, deferYield = False):
+    def showVariable(self, level, block, deferYield = False):
         """Generate code to hide a variable.
         """
-        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
-        if isGlobal:
-            # Something like: world.counter.show();
-            return genIndent(level) + "Stage.%s.show();\n" % varName
+        id = block.getField('VARIABLE', 1)   # 0 is name, 1 is id
+        var = getVariableByUniqueId(id)
+        if var.isGlobal():
+            return genIndent(level) + "Stage.%s.show();\n" % var.getGfName()
         else:
-            return genIndent(level) + varName + ".show();\n"
+            return genIndent(level) + var.getGfName() + ".show();\n"
 
 
-    def changeVarBy(self, level, tokens, deferYield = False):
+    def changeVarBy(self, level, block, deferYield = False):
         """Generate code to change the value of a variable.
         Code will be like this:
         aVar.set(aVar.get() + 3);
         """
-        varName, _, isGlobal = self.getNameTypeAndLocalGlobal(tokens[1])
-        if isGlobal:
-            # Something like:
-            # world.counter.set(world.counter.get() + 1);
+        id = block.getField('VARIABLE', 1)   # 0 is name, 1 is id
+        var = getVariableByUniqueId(id)
+        varName = var.getGfName()
+        if var.isGlobal():
+            # Something like: Stage.counter.set(world.counter.get() + 1);
             return genIndent(level) + \
                    "Stage.%s.set(Stage.%s.get() + %s);\n" % \
-                   (varName, varName, self.oldMathExpr(tokens[2]))
+                   (varName, varName, self.mathExpr(block, 'VALUE'))
         else:
             return genIndent(level) + varName + ".set(" + \
-                   varName + ".get() + " + self.oldMathExpr(tokens[2]) + ");\n"
+                   varName + ".get() + " + self.mathExpr(block, 'VALUE') + ");\n"
                    
     def listContains(self, listname, obj):
         disp, glob = self.getListNameAndScope(listname)
@@ -2810,6 +2811,13 @@ class Sprite(SpriteOrStage):
 
         super().__init__(name, sprData)
 
+    def setVariableIsLocalOrGlobal(self, var):
+        '''All variables defined in a sprite are local'''
+        var.setLocal()
+
+    def genVarDefnCode(self, level, var):
+        return genIndent(level) + '%sVar %s;\n' % (var.getType(), var.getGfName())
+
     def genLoadCostumesCode(self, costumes):
         """Generate code to load costumes from files for a sprite.
         """
@@ -2866,6 +2874,13 @@ class Stage(SpriteOrStage):
         super().__init__("Stage", sprData)
 
         self._bgCode = ""
+
+    def setVariableIsLocalOrGlobal(self, var):
+        '''All stage variables are global.'''
+        var.setGlobal()
+
+    def genVarDefnCode(self, level, var):
+        return genIndent(level) + 'static %sVar %s;\n' % (var.getType(), var.getGfName())
     
     def genConstructorCode(self):
         """Generate code for the constructor.
@@ -3043,7 +3058,6 @@ def convert():
         except FileExistsError as e:
             pass  # If the directory exists already, no problem.
 
-
         # Unzip the .sb3 file into the project/scratch_code directory.
         print("Unpacking Scratch download file.")
         shutil.unpack_archive(SCRATCH_FILE, scratch_dir, "zip")
@@ -3158,14 +3172,8 @@ def convert():
 
     stage = Stage(stageData)
 
-    # TODO: clean this up!
-    if 'variables' in data and 'lists' in data:
-        stage.genVariablesDefnCode(data['variables'], data['lists'], data['children'], cloudVars)
-    elif 'variables' in data:
-        stage.genVariablesDefnCode(data['variables'], (), data['children'], cloudVars)
-    elif 'lists' in data:
-        stage.genVariablesDefnCode((), data['lists'], data['children'], cloudVars)
-    
+    stage.genVariablesDefnCode(stageData['variables'], stageData['lists'], data['targets'], cloudVars)
+
     # Code to be written into the World.java file.
     worldCtorCode = ""
     
