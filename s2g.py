@@ -1596,10 +1596,11 @@ class SpriteOrStage:
         """Return code to handle the various sensing_of calls
         from the sensing block.
         """
+
         objChild = block.getChild('OBJECT').getField('OBJECT')
         prop = block.getField('PROPERTY')
 
-        if objChild == 'Stage':
+        if objChild == '_stage_':
             # most of the attributes -- direction, x position, etc. --
             # return 0 in Scratch.  We'll do the same, obviously.
             if prop in ('direction', 'x position', 'y position', 'costume name', 'costume #', 'size', 'volume'):
@@ -1620,6 +1621,7 @@ class SpriteOrStage:
                    'size': 'sizeOf',
                    }
         if prop in mapping:
+            print('getAttributeOf returning', mapping[prop] + '("' + objChild + '")')
             return mapping[prop] + '("' + objChild + '")'
         elif prop in ('backdrop #', 'backdrop name', 'volume'):
             return 0  # bogus in Scratch and here too
