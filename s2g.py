@@ -1563,6 +1563,8 @@ class SpriteOrStage:
             return self.getAttributeOf(child)
         elif opcode == 'argument_reporter_string_number':
             return self.procDefnUseParamName(child)
+        elif opcode == 'data_lengthoflist':
+            return self.listLength(block)
         else:
             raise ValueError("Unsupported operator %s" % opcode)
 
@@ -2211,12 +2213,13 @@ class SpriteOrStage:
         else:
             return "%s.indexOf(%s)" % (theList.getGfName(), item)
 
-    def listLength(self, listname):
-        disp, glob = self.getListNameAndScope(listname)
-        if glob:
-            return "Stage.%s.length()" % (disp)
+    def listLength(self, block):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        if theList.isGlobal():
+            return "Stage.%s.length()" % theList.getGfName()
         else:
-            return "%s.length()" % (disp)
+            return "%s.length()" % theList.getGfName()
 
     def listAppend(self, level, block, deferYield=False):
         listId = block.getField('LIST', 1)   # index 1 is the list id.
