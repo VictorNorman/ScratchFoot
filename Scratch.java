@@ -1944,7 +1944,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
             } 
         }
         
-
         if (sayActor != null) {
             sayActorUpdateLocation();
         }
@@ -2864,6 +2863,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
         GreenfootImage mySprite = getCurrImage();
         boolean showBubble = true;
 
+        // if the Sprite is already saying something and another say() happens,
+        // just cancel the first one.
+        if (sayActor != null) {
+            getWorld().removeObject(sayActor);
+            sayActor = null;
+        }
+
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
@@ -2897,6 +2903,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
         String str = speech.toString();
         GreenfootImage mySprite = getCurrImage();
         boolean showBubble = true;
+
+        // if the Sprite is already saying something and another say() happens,
+        // just cancel the first one.
+        if (sayActor != null) {
+            getWorld().removeObject(sayActor);
+            sayActor = null;
+        }
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
@@ -2962,7 +2975,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public void nextCostume() 
     {
-        // System.out.println("nextCostume!");
         currCostume = (currCostume + 1) % costumes.size();
         updateImage = true;
     }
