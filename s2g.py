@@ -1726,19 +1726,20 @@ class SpriteOrStage:
         cbStr += self.topBlock(1, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
 
-    def whenSwitchToBackdrop(self, codeObj, backdrop, tokens):
+    def whenSwitchToBackdrop(self, codeObj, topBlock):
         """Generate code to handle the whenSwitchToBackdrop block.  key is
         the key to wait for, and tokens is the list of statements to be put
         into a callback to be called when that key is pressed.
         """
         scriptNum = codeObj.getNextScriptId()
+        backdropName = topBlock.getField('BACKDROP')
 
-        # Build a name like whenAPressedCb0 or whenLeftPressedCb0.
-        cbName = 'whenSwitchedToBackdropCb' + str(scriptNum)
+        # Build a name like whenSwitchToBackDropCanyonCb0
+        cbName = 'whenSwitchToBackdrop%sCb%d' % (backdropName, scriptNum)
 
         # Code in the constructor is always level 2.
         codeObj.addToCode(genIndent(2) + 'whenSwitchToBackdrop("' +
-                          backdrop + '", "' + cbName + '");\n')
+                          backdropName + '", "' + cbName + '");\n')
 
         level = 1  # all callbacks are at level 1.
 
@@ -1746,9 +1747,9 @@ class SpriteOrStage:
         # Add two blank lines before each method definition.
         cbStr = "\n\n" + genIndent(level) + "public void " + cbName + \
                 "(Sequence s)\n"
-        cbStr += self.topBlock(level, tokens) + "\n"  # add blank line after defn.
-
+        cbStr += self.topBlock(level, topBlock) + "\n"  # add blank line after defn.
         codeObj.addToCbCode(cbStr)
+
 
     def doForever(self, level, block, deferYield=False):
         """Generate doForever code.  block is the topblock with 
@@ -2630,15 +2631,12 @@ class SpriteOrStage:
             self.whenIReceive(codeObj, topBlock)
         elif opcode == 'procedures_definition':
             self.genProcDefCode(codeObj, topBlock)
-        elif isinstance(topBlock, list) and topBlock[0] == 'whenSceneStarts':
-            self.whenSwitchToBackdrop(codeObj, topBlock[1], blocks[1:])
+        elif opcode == 'event_whenbackdropswitchesto':
+            self.whenSwitchToBackdrop(codeObj, topBlock)
 
         # If not in one of the above "hat blocks", then it is an
         # orphaned bit of code that will not be run in either Scratch
         # or ScratchFoot.
-
-        # TODO: need to implement whenSwitchToBackdrop in
-        # Scratch.java and add code here to handle it.
 
         return codeObj
 
