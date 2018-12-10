@@ -1507,25 +1507,21 @@ public class Scratch extends Actor implements Comparable<Scratch>
             else if (o instanceof Boolean) contents.add(new BooleanVar(this, contents.size(), o));
             else throw new RuntimeException("Tried to create list element of invalid type");
         }
-        public void delete(int index)
+        public void deleteAt(int index)
         {
             index--;
+            if (index < 0 || index > length() - 1) {
+                return;    // Scratch does nothing if the index is bad.
+            }
             contents.remove(index);
             updateIndex();
         }
-        public void delete(String key)
+        public void deleteAll()
         {
-            int index = 0;
-            if (key.equals("last")) {
-                index = length();
-                delete(index);
-            } else if (key.equals("all")) {
-                contents.clear();
-                updateIndex(); 
-            }
-            
+            contents.clear();
+            updateIndex();
         }
-        public void insert(int index, Object o)
+        public void insertAt(int index, Object o)
         {
             index--;
             if (o instanceof Integer) contents.add(index, new IntVar(this, index + 1, o));
@@ -1533,24 +1529,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
             else if (o instanceof String) contents.add(index, new StringVar(this, index + 1, o));
             else if (o instanceof Boolean) contents.add(index, new BooleanVar(this, index + 1, o));
             else throw new RuntimeException("Tried to create list element of invalid type");
-            
         }
-        public void insert(String key, Object o)
-        {
-            int index = 0;
-            if (key.equals("last")) {
-                index = length();
-            } else if (key.equals("random")) {
-                index = pickRandom(1, length());
-            } else {
-                System.err.println("Unknow list key: " + key);
-            }
-            insert(index, o);
-        }
+
         public void replaceItem(int index, Object o)
         {
-            insert(index, o);
-            delete(index + 1);
+            insertAt(index, o);
+            deleteAt(index + 1);
         }
         public void replaceItem(String key, Object o)
         {
@@ -1573,6 +1557,17 @@ public class Scratch extends Actor implements Comparable<Scratch>
         public String itemAt(int index)
         {
             return get(index).toString();
+        }
+
+        public int indexOf(Object o)
+        {
+            for (int i = 0; i < contents.size(); i++) {
+                Variable v  = contents.get(i);
+                if (v.get().equals(o)) {
+                    return i + 1;       // Scratch indexes start at 1
+                }
+             }
+             return 0;    // 0 means not found
         }
         public String itemAt(String key)
         {

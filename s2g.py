@@ -206,10 +206,15 @@ class Variable:
     # NOTE NOTE NOTE: there does not seem to be any information in the project.json
     # file now about persistence, whether it is shown or not, slider, etc...
     def __init__(self, uniqId, json):
-        """json is of this format (now):
+        """json is of this format
            [
               "vic",                          <-- unsanitized scratch name
               "44"                            <-- initial value
+           ]
+           or for a list
+           [
+              "alist",
+              [  "firstitem", "seconditem" ]
            ]
         """
         self._json = json
@@ -226,7 +231,7 @@ class Variable:
         self._nameEntry = None
         self._typeStringVar = None
         self._initValueEntry = None
-        print('Variable with name %s, gfname %s, uniqId %s defined' % (self._scratchName, self._gfName, self._uniqId))
+        print('Variable with name %s, gfname %s, uniqId %s defined' % (self._scratchName, self._gfName, self._uniqId), self._initValue)
         allVars.append(self)
 
     def setGfName(self, name):
@@ -506,20 +511,20 @@ class SpriteOrStage:
         self._ctorCode += self._regCallbacksCode
         self._ctorCode += genIndent(1) + "}\n"
 
-    def genVariablesDefnCode(self, listOfVars, listOfLists, allChildren, cloudVars):
+    def genVariablesDefnCode(self, varsObjects, listsObjects, allChildren, cloudVars):
         """Generate code to define instance variables for this sprite.
-        The listOfVars is a list of dictionaries, one per variable (see below).
+        The varsObjects is a list of dictionaries, one per variable (see below).
         The allChildren is the list of dictionaries defined for this
         project. It is necessary because sprites and their scripts (in a
         dictionary with an "objName" key) are in children, also a dictionary
         exists for each variable, with a "cmd" --> "getVar:" entry.  We
-        need info from both the listOfVars and each of those other
+        need info from both the varsObjects and each of those other
         variable-specific dictionaries.
         """
 
         # TODO: fix all this documentation.
 
-        # The listOfVars has this format:
+        # The varsObjects has this format:
         #  [{ "name": "xloc",
         #     "value": false,
         #     "isPersistent": false
@@ -542,7 +547,7 @@ class SpriteOrStage:
         #  },
         #
         # Algorithm:
-        # for each variable in the listOfVars list:
+        # for each variable in the varsObjects list:
         #   o get the *name* and *value* out.
         #   o derive the *type* from the *value*.
         #   o find the variable's dictionary in allChildren, where
@@ -904,7 +909,7 @@ class SpriteOrStage:
         # "vic",                          <-- name
         # "44"                            <-- initial value
         # ]
-        theseVars = [Variable(varId, listOfVars[varId]) for varId in listOfVars]
+        theseVars = [Variable(varId, varsObjects[varId]) for varId in varsObjects]
 
         #
         # Initialization goes into the method addedToWorld() for Sprites, but
@@ -918,7 +923,7 @@ class SpriteOrStage:
         self._addedToWorldCode += genIndent(2) + "// Variable initializations.\n"
         # If running in gui mode, call the gui method instead
         if useGui:
-            genVariablesDefnCodeGui(listOfVars, listOfLists, allChildren, cloudVars)
+            genVariablesDefnCodeGui(varsObjects, listsObjects, allChildren, cloudVars)
             return
 
         for var in theseVars:
@@ -954,7 +959,6 @@ class SpriteOrStage:
                 sys.exit(0)
 
             var.setGfName(sanname)
-
             self.setVariableIsLocalOrGlobal(var)
             var.setOwner(self)
 
@@ -1000,32 +1004,34 @@ class SpriteOrStage:
         # Add blank line after variable definitions.
         self._varDefnCode += "\n"
         self._addedToWorldCode += genIndent(2) + "// List initializations.\n"
-        for l in listOfLists:
-            name = l['listName']
-            contents = l['contents']
-            visible = l['visible']
+
+        theseVars = [Variable(varId, listsObjects[varId]) for varId in listsObjects]
+
+        for alist in theseVars:
+            name = alist.getName()  # unsanitized Scratch name
+            contents = alist.getInitValue()
+            print('contents is -->', contents)
             try:
                 sanname = convertToJavaId(name)
             except:
                 print("Error converting list to java id")
                 sys.exit(0)
+            alist.setGfName(sanname)
+            self.setVariableIsLocalOrGlobal(alist)
+            alist.setOwner(self)
 
-            self.listInfo[name] = sanname
-
-            # I know this is bad style, but at the moment it's necessary
-            # Later down the line we can move all this code to subclasses instead
-            if type(self) == Stage:
-                self._varDefnCode += genIndent(1) + 'static ScratchList %s;\n' % sanname
-            else:
-                self._varDefnCode += genIndent(1) + "ScratchList %s;\n" % sanname
+            self._varDefnCode += self.genListDefnCode(1, alist)
 
             self._addedToWorldCode += '%s%s = createList(world, "%s"' % (genIndent(2), sanname, name)
             for obj in contents:
-                disp = deriveType(name, obj)
-                self._addedToWorldCode += ', %s' % (str(disp[0]))
+                # use deriveType to convert to an Int or Double or Boolean, etc.
+                convertedVal, valType = deriveType(name, obj)
+                self._addedToWorldCode += ', %s' % str(convertedVal)
             self._addedToWorldCode += ');\n'
-            if not visible:
-                self._addedToWorldCode += '%s%s.hide();\n' % (genIndent(2), sanname)
+
+            # TODO: not supported in scratch 3.0 downloaded file yet.
+            # if not visible:
+            #     self._addedToWorldCode += '%s%s.hide();\n' % (genIndent(2), sanname)
 
         # Close the addedToWorld() method definition.
         self._addedToWorldCode += genIndent(1) + "}\n"
@@ -1253,10 +1259,11 @@ class SpriteOrStage:
             'data_showvariable': self.showVariable,
             'data_changevariableby': self.changeVarBy,
 
-            'append:toList:': self.listAppend,
-            'deleteLine:ofList:': self.listRemove,
-            'insert:at:ofList:': self.listInsert,
-            'setLine:ofList:to:': self.listSet,
+            'data_addtolist': self.listAppend,
+            'data_deleteoflist': self.listDeleteAt,
+            'data_deletealloflist': self.listDeleteAll,
+            'data_insertatlist': self.listInsert,
+            'data_replaceitemoflist': self.listSet,
             'hideList:': self.hideList,
             'showList:': self.showList,
 
@@ -1349,6 +1356,8 @@ class SpriteOrStage:
         elif opcode == 'sensing_keypressed':
             keyoption = block.getChild('KEY_OPTION').getField('KEY_OPTION')
             return '(isKeyPressed("' + convertKeyPressName(keyoption) + '"))'
+        elif opcode == 'data_listcontainsitem':
+            return self.listContains(block)
         else:
             raise ValueError('unsupported op', opcode)
 
@@ -1408,11 +1417,13 @@ class SpriteOrStage:
             return 'String.valueOf(' + self.getAttributeOf(child) + ')'
         elif opcode == 'argument_reporter_string_number':
             return self.procDefnUseParamName(child)
+        elif opcode == 'data_itemnumoflist':
+            return self.listElement(child)
         else:
             # You can put math expression in where strings are expected
             # and they are automatically used.  So, we'll try that
             # too.
-            return "String.valueOf(" + str(self.mathExpr(child, 'MESSAGE')) + ")"
+            return "String.valueOf(" + str(self.mathExpr(block, 'MESSAGE')) + ")"
 
     def handleVariableReference(self, expr):
         # Handle variable references here.
@@ -1425,6 +1436,16 @@ class SpriteOrStage:
             return var.getGfName() + ".get()"
         else:
             return 'Stage.%s.get()' % var.getGfName()
+
+    def evalMathThenStrThenBool(self, block, key):
+        try:
+            resStr = self.mathExpr(block, key)
+        except:
+            try:
+                resStr = self.strExpr(block, key)
+            except:
+                resStr = self.boolExpr(block.getChild(key))
+        return resStr
 
     def mathExpr(self, block, exprKey):
         """Evaluate the expression in block[exprKey] and its children, as a math expression,
@@ -1442,7 +1463,21 @@ class SpriteOrStage:
             if expr[1][0] == 12:  # TOTAL GUESS!
                 return self.handleVariableReference(expr[1])
             val = expr[1][1]
-            return '0' if val == '' else val
+            if val == '':
+                # Scratch allows an empty placeholder and seems to use
+                # the value 0 in this case.
+                return '0'
+            try:
+                int(val)
+                return str(val)
+            except:
+                try:
+                    float(val)
+                    return str(val)
+                except:
+                    # the raw value does not convert to a number, so
+                    # raise an error
+                    raise
 
         # e.g., [  3,  'alongidhere', [ 4, "10" ] ]
         # the value after 'alongidhere' is the default value -- we don't care about this.
@@ -1534,148 +1569,6 @@ class SpriteOrStage:
     def procDefnUseParamName(self, block):
         paramName = block.getField('VALUE')
         return convertToJavaId(paramName)
-
-    def oldMathExpr(self, tokenOrList):
-
-        if isinstance(tokenOrList, str):
-            # We have a literal value that is a string.  We should convert it
-            # to an integer, if possible.
-            # This is to cover cases like if you have (in Scratch) x position <
-            # 0: Scratch give us "0" in the json.
-            # (Convert to str() because everything we return is a str.)
-            try:
-                return str(int(tokenOrList))
-            except ValueError:
-                # The literal value is not an integer, so it should be a float
-                return str(float(tokenOrList))
-
-        if not isinstance(tokenOrList, list):
-            # It is NOT an expression and not a string (handled above).
-            # make it a string because everything we return is a string.
-            return str(convertToNumber(tokenOrList))
-
-        # It is a list, so it is an expression.
-
-        if len(tokenOrList) == 1:
-            # Handle built-in variables.
-            op = tokenOrList[0]
-            if op == "xpos":
-                return "getX()"
-            elif op == "ypos":
-                return "getY()"
-            elif op == "heading":
-                return "getDirection()"
-            elif op == "costumeIndex":  # Looks menu's costume # block
-                return "costumeNumber()"
-            elif op == 'backgroundIndex':
-                return 'getBackdropNumber()'
-            elif op == "scale":  # Look menu's size block
-                return "size()"
-            elif op == "mousePressed":
-                return "isMouseDown()"
-            elif op == "mouseX":
-                return "getMouseX()"
-            elif op == "mouseY":
-                return "getMouseY()"
-            elif op == "timer":
-                return "getTimer()"
-            elif op == "timestamp":
-                return "daysSince2000()"
-            else:
-                raise ValueError("Unknown operation " + op)
-
-        if len(tokenOrList) == 2:
-            # Handle cases of operations that take 1 argument.
-            op, tok1 = tokenOrList
-            if op == "rounded":
-                return "Math.round((float) " + self.oldMathExpr(tok1) + ")"
-            elif op == "stringLength:":
-                return "lengthOf(" + self.strExpr(tok1) + ")"
-            elif op == "distanceTo:":
-                if tok1 == "_mouse_":
-                    return "distanceToMouse()"
-                else:  # must be distance to a sprite
-                    return 'distanceTo("' + tok1 + '")'
-            elif op == "getTimeAndDate":
-                if tok1 == "minute":
-                    return 'getCurrentMinute()'
-                elif tok1 == "month":
-                    return 'getCurrentMonth()'
-                elif tok1 == "second":
-                    return 'getCurrentSecond()'
-                elif tok1 == "hour":
-                    return 'getCurrentHour()'
-                elif tok1 == "year":
-                    return 'getCurrentYear()'
-                elif tok1 == 'day of week':
-                    return 'getCurrentDayOfWeek()'
-                elif tok1 == 'date':
-                    return 'getCurrentDate()'
-                else:
-                    raise ValueError(tokenOrList)
-            elif op == 'readVariable':
-                return self.readVariable(tok1)
-            elif op == 'lineCountOfList:':
-                return self.listLength(tok1)
-            else:
-                raise ValueError("Unknown operation " + op)
-
-        assert len(tokenOrList) == 3  # Bad assumption?
-        op, tok1, tok2 = tokenOrList
-
-        # Handle special cases before doing the basic ones which are inorder
-        # ops (value op value).
-        if op == 'randomFrom:to:':
-            # tok1 and tok2 may be math expressions.
-            return "pickRandom(" + self.oldMathExpr(tok1) + ", " + self.oldMathExpr(tok2) + ")"
-        elif op == 'getParam':
-            # getting a parameter value in a custom block.
-            # format is ["getParam", "varname", 'r'] -- not sure what the 'r' is for.
-            return tok1  # it is already a str
-        elif op == "computeFunction:of:":
-            assert tok1 in ("abs", "floor", "ceiling", "sqrt", "sin", "cos", "tan",
-                            "asin", "acos", "atan", "ln", "log", "e ^", "10 ^")
-            op2Func = {
-                "abs": "Math.abs(",
-                "floor": "Math.floor(",
-                "ceiling": "Math.ceil(",
-                "sqrt": "Math.sqrt(",
-                "sin": "Math.sin(",
-                "cos": "Math.cos(",
-                "tan": "Math.tan(",
-                "asin": "Math.asin(",
-                "acos": "Math.acos(",
-                "atan": "Math.atan(",
-                "ln": "Math.log(",
-                "log": "Math.log10(",
-                "e ^": "Math.exp(",
-                "10 ^": "Math.pow(10, "
-            }
-            return op2Func[tok1] + self.oldMathExpr(tok2) + ")"
-        elif op == "getAttribute:of:":
-            return self.getAttributeOf(tok1, tok2)
-        elif op == 'getLine:ofList:':
-            return self.listElement(tok1, tok2)
-        else:
-            assert op in ('+', '-', '*', '/', '%'), "Unknown op: " + op
-
-        if op == '%':
-            resStr = "Math.floorMod(" + self.oldMathExpr(tok1) + ", " + self.oldMathExpr(tok2) + ")"
-            return resStr
-
-        resStr = "(" + self.oldMathExpr(tok1)
-        if op == '+':
-            resStr += " + "
-        elif op == '-':
-            resStr += " - "
-        elif op == '*':
-            resStr += " * "
-        elif op == '/':
-            resStr += " / "
-        else:
-            raise ValueError(op)
-        resStr += self.oldMathExpr(tok2) + ")"
-        return resStr
 
     def genSensingCurrentDateEtc(self, block):
         option = block.getField('CURRENTMENU')
@@ -2284,6 +2177,7 @@ class SpriteOrStage:
         """Generate code to change the value of a variable.
         Code will be like this:
         aVar.set(aVar.get() + 3);
+        NOTE: only works for numeric expressions in Scratch, afaict.
         """
         id = block.getField('VARIABLE', 1)  # 0 is name, 1 is id
         var = getVariableByUniqueId(id)
@@ -2297,41 +2191,25 @@ class SpriteOrStage:
             return genIndent(level) + varName + ".set(" + \
                    varName + ".get() + " + self.mathExpr(block, 'VALUE') + ");\n"
 
-    def listContains(self, listname, obj):
-        disp, glob = self.getListNameAndScope(listname)
+    def listContains(self, block):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        item = self.evalMathThenStrThenBool(block, 'ITEM')
 
-        # If the argument is a int or double literal, use that, otherwise strExpr
-        if isinstance(obj, int):
-            obj = str(obj)
-        elif isinstance(obj, float):
-            obj = str(obj)
+        if theList.isGlobal():
+            return '(Stage.%s.contains(%s))' % (theList.getGfName(), item)
         else:
-            obj = self.strExpr(obj)
+            return '(%s.contains(%s))' % (theList.getGfName(), item)
 
-        if glob:
-            return '(Stage.%s.contains(%s))' % (disp, obj)
+    def listElement(self, block):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        item = self.mathExpr(block, 'ITEM')
+
+        if theList.isGlobal():
+            return "Stage.%s.indexOf(%s)" % (theList.getGfName(), item)
         else:
-            return '(%s.contains(%s))' % (disp, obj)
-
-    def listElement(self, index, listname):
-        disp, glob = self.getListNameAndScope(listname)
-
-        # If the argument is a int or double literal, use that, otherwise strExpr
-        if isinstance(index, int):
-            index = str(index)
-        elif isinstance(index, float):
-            index = str(index)
-        elif index == 'last':
-            index = '"last"'
-        elif index == 'random':
-            index = '"random"'
-        else:
-            index = self.strExpr(index)
-
-        if glob:
-            return "Stage.%s.numberAt(%s)" % (disp, index)
-        else:
-            return "%s.numberAt(%s)" % (disp, index)
+            return "%s.indexOf(%s)" % (theList.getGfName(), item)
 
     def listLength(self, listname):
         disp, glob = self.getListNameAndScope(listname)
@@ -2340,120 +2218,78 @@ class SpriteOrStage:
         else:
             return "%s.length()" % (disp)
 
-    def listAppend(self, level, tokens, deferYield=False):
-        cmd, obj, name = tokens
-        disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'append:toList:'
+    def listAppend(self, level, block, deferYield=False):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
 
-        # If the argument is a int or double literal, use that, otherwise strExpr
-        if isinstance(obj, int):
-            obj = str(obj)
-        elif isinstance(obj, float):
-            obj = str(obj)
-        else:
-            obj = self.strExpr(obj)
+        resStr = self.evalMathThenStrThenBool(block, 'ITEM')
 
-        if glob:
-            return '%sStage.%s.add(%s);\n' % (genIndent(level), disp, obj)
+        if theList.isGlobal():
+            return '%sStage.%s.add(%s);\n' % (genIndent(level), theList.getGfName(), resStr)
         else:
-            return '%s%s.add(%s);\n' % (genIndent(level), disp, obj)
+            return '%s%s.add(%s);\n' % (genIndent(level), theList.getGfName(), resStr)
 
-    def listRemove(self, level, tokens, deferYield=False):
-        cmd, index, name = tokens
-        disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'deleteLine:ofList:'
-        # If the argument is a int or double literal, use that, otherwise mathExpr
-        if isinstance(index, int):
-            index = str(index)
-        elif isinstance(index, float):
-            index = str(index)
-        elif index == 'last':
-            index = '"last"'
-        elif index == 'all':
-            index = '"all"'
-        else:
-            index = self.oldMathExpr(index)
+    def listDeleteAt(self, level, block, deferYield=False):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        index = self.mathExpr(block, 'INDEX')
 
-        if glob:
-            return "%sStage.%s.delete(%s);\n" % (genIndent(level), disp, index)
+        if theList.isGlobal():
+            return "%sStage.%s.deleteAt(%s);\n" % (genIndent(level), theList.getGfName(), index)
         else:
-            return "%s%s.delete(%s);\n" % (genIndent(level), disp, index)
+            return "%s%s.deleteAt(%s);\n" % (genIndent(level), theList.getGfName(), index)
 
-    def listInsert(self, level, tokens, deferYield=False):
-        cmd, obj, index, name = tokens
-        disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'insert:at:ofList:'
+    def listDeleteAll(self, level, block, deferYield=False):
+        """delete all the contents of the list"""
 
-        # If the argument is a int or double literal, use that, otherwise strExpr
-        if isinstance(obj, int):
-            obj = str(obj)
-        elif isinstance(obj, float):
-            obj = str(obj)
-        else:
-            obj = self.strExpr(obj)
-        # If the argument is a int or double literal, use that, otherwise mathExpr
-        if isinstance(index, int):
-            index = str(index)
-        elif isinstance(index, float):
-            index = str(index)
-        elif index == 'last':
-            index = '"last"'
-        elif index == 'random':
-            index = '"random"'
-        else:
-            index = self.oldMathExpr(index)
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
 
-        if glob:
-            return '%sStage.%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
+        if theList.isGlobal():
+            return '%sStage.%s.deleteAll();\n' % (genIndent(level), theList.getGfName())
         else:
-            return '%s%s.insert(%s, %s);\n' % (genIndent(level), disp, index, obj)
+            return '%s%s.deleteAll();\n' % (genIndent(level), theList.getGfName())
 
-    def listSet(self, level, tokens, deferYield=False):
-        cmd, index, name, obj = tokens
-        disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'setLine:ofList:to:'
 
-        # If the argument is a int or double literal, use that, otherwise strExpr
-        if isinstance(obj, int):
-            obj = str(obj)
-        elif isinstance(obj, float):
-            obj = str(obj)
-        else:
-            obj = self.strExpr(obj)
-        # If the argument is a int or double literal, use that, otherwise mathExpr
-        if isinstance(index, int):
-            index = str(index)
-        elif isinstance(index, float):
-            index = str(index)
-        elif index == 'last':
-            index = '"last"'
-        elif index == 'random':
-            index = '"random"'
-        else:
-            index = self.oldMathExpr(index)
+    def listInsert(self, level, block, deferYield=False):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        index = self.mathExpr(block, 'INDEX')
 
-        if glob:
-            return '%sStage.%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
-        else:
-            return '%s%s.replaceItem(%s, %s);\n' % (genIndent(level), disp, index, obj)
+        resStr = self.evalMathThenStrThenBool(block, 'ITEM')
 
-    def hideList(self, level, tokens, deferYield=False):
-        cmd, name = tokens
-        disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'hideList:'
-        if glob:
-            return "%sStage.%s.hide();\n" % (genIndent(level), disp)
+        if theList.isGlobal():
+            return '%sStage.%s.insertAt(%s, %s);\n' % (genIndent(level), theList.getGfName(), index, resStr)
         else:
-            return "%s%s.hide();\n" % (genIndent(level), disp)
+            return '%s%s.insertAt(%s, %s);\n' % (genIndent(level), theList.getGfName(), index, resStr)
 
-    def showList(self, level, tokens, deferYield=False):
-        cmd, name = tokens
-        disp, glob = self.getListNameAndScope(name)
-        assert cmd == 'showList:'
-        if glob:
-            return "%sStage.%s.show();\n" % (genIndent(level), disp)
+    def listSet(self, level, block, deferYield=False):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        index = self.mathExpr(block, 'INDEX')
+
+        resStr = self.evalMathThenStrThenBool(block, 'ITEM')
+
+        if theList.isGlobal():
+            return '%sStage.%s.replaceItem(%s, %s);\n' % (genIndent(level), theList.getGfName(), index, resStr)
         else:
-            return "%s%s.show();\n" % (genIndent(level), disp)
+            return '%s%s.replaceItem(%s, %s);\n' % (genIndent(level), theList.getGfName(), index, resStr)
+
+    def hideList(self, level, block, deferYield=False):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        if theList.isGlobal():
+            return "%sStage.%s.hide();\n" % (genIndent(level), theList.getGfName())
+        else:
+            return "%s%s.hide();\n" % (genIndent(level), theList.getGfName())
+
+    def showList(self, level, block, deferYield=False):
+        listId = block.getField('LIST', 1)   # index 1 is the list id.
+        theList = getVariableByUniqueId(listId)
+        if theList.isGlobal():
+            return "%sStage.%s.show();\n" % (genIndent(level), theList.getGfName())
+        else:
+            return "%s%s.show();\n" % (genIndent(level), theList.getGfName())
 
     def broadcast(self, level, block, deferYield=False):
         """Generate code to handle sending a broacast message.
@@ -2711,33 +2547,28 @@ class SpriteOrStage:
     def playSound(self, level, block, deferYield=False):
         """ Play the given sound
         """
-        arg = block.getChild('SOUND_MENU').getField('SOUND_MENU')
-        return genIndent(level) + 'playSound("' + arg + '");\n'
+        return genIndent(level) + 'playSound("' + self.mathExpr(block, 'SOUND_MENU') + '");\n'
 
     def playSoundUntilDone(self, level, block, deferYield=False):
         """ Play the given sound without interrupting it.
         """
-        arg = block.getChild('SOUND_MENU').getField('SOUND_MENU')
-        return genIndent(level) + 'playSoundUntilDone("' + arg + '");\n'
+        return genIndent(level) + 'playSoundUntilDone("' + self.mathExpr(block, 'SOUND_MENU') + '");\n'
 
     def playNote(self, level, block, deferYield=False):
         """ Play the given note for a given number of beats
         """
-        note = block.getChild('NOTE').getField('NOTE')
-        return genIndent(level) + "playNote(s, " + self.oldMathExpr(note) + ", " + \
+        return genIndent(level) + "playNote(s, " + self.mathExpr(block, 'NOTE') + ", " + \
                self.mathExpr(block, 'BEATS') + ");\n"
 
     def instrument(self, level, block, deferYield=False):
         """ Play the given instrument
         """
-        arg = block.getChild('INSTRUMENT').getField('INSTRUMENT')
-        return genIndent(level) + "changeInstrument(" + self.oldMathExpr(arg) + ");\n"
+        return genIndent(level) + "changeInstrument(" + self.mathExpr(block, 'INSTRUMENT') + ");\n"
 
     def playDrum(self, level, block, deferYield=False):
         """ Play the given drum
         """
-        drum = block.getChild('DRUM').getField('DRUM')
-        return genIndent(level) + "playDrum(s, " + self.oldMathExpr(drum) + ", " + \
+        return genIndent(level) + "playDrum(s, " + self.mathExpr(block, 'DRUM') + ", " + \
                self.mathExpr(block, 'BEATS') + ");\n"
 
     def rest(self, level, block, deferYield=False):
@@ -2754,6 +2585,8 @@ class SpriteOrStage:
         """ Set the tempo
         """
         return genIndent(level) + "setTempo(" + self.mathExpr(block, 'TEMPO') + ");\n"
+
+    # ----------------------------------------------------------
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a
@@ -2830,6 +2663,9 @@ class Sprite(SpriteOrStage):
     def genVarDefnCode(self, level, var):
         return genIndent(level) + '%sVar %s;\n' % (var.getType(), var.getGfName())
 
+    def genListDefnCode(self, level, var):
+        return genIndent(level) + 'ScratchList %s;\n' % var.getGfName()
+
     def genLoadCostumesCode(self, costumes):
         """Generate code to load costumes from files for a sprite.
         """
@@ -2894,6 +2730,9 @@ class Stage(SpriteOrStage):
 
     def genVarDefnCode(self, level, var):
         return genIndent(level) + 'static %sVar %s;\n' % (var.getType(), var.getGfName())
+
+    def genListDefnCode(self, level, var):
+        return genIndent(level) + 'static ScratchList %s;\n' % var.getGfName()
 
     def genConstructorCode(self):
         """Generate code for the constructor.
