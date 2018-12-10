@@ -1312,6 +1312,9 @@ class SpriteOrStage:
         else:
             return genIndent(level) + 'System.out.println("Unimplemented stmt: ' + cmd + '");\n'
 
+    def boolExprOrFalse(self, block, key):
+        return self.boolExpr(block.getChild(key)) if block.hasChild(key) else '(false)'
+
     def boolExpr(self, block):
         """Generate code for a boolean expression.
         """
@@ -1330,13 +1333,15 @@ class SpriteOrStage:
             return '(' + self.mathExpr(block, 'OPERAND1') + ' == ' + \
                    self.mathExpr(block, 'OPERAND2') + ')'
         elif opcode == 'operator_and':
-            return '(' + self.boolExpr(block.getChild('OPERAND1')) + ' && ' + \
-                   self.boolExpr(block.getChild('OPERAND2')) + ')'
+            return '(' + self.boolExprOrFalse(block, 'OPERAND1') + ' && ' + \
+                         self.boolExprOrFalse(block, 'OPERAND2') + ')'
         elif opcode == 'operator_or':
-            return '(' + self.boolExpr(block.getChild('OPERAND1')) + ' || ' + \
-                   self.boolExpr(block.getChild('OPERAND2')) + ')'
+            return '(' + self.boolExprOrFalse(block, 'OPERAND1') + ' || ' + \
+                         self.boolExprOrFalse(block, 'OPERAND2') + ')'
         elif opcode == 'operator_not':
-            return '( !' + self.boolExpr(block.getChild('OPERAND')) + ')'
+            return '( !' + self.boolExprOrFalse(block, 'OPERAND') + ')'
+        elif opcode == 'operator_contains':
+            return self.stringContains(block)
         elif opcode == 'sensing_touchingobject':
             arg = block.getChild('TOUCHINGOBJECTMENU').getField('TOUCHINGOBJECTMENU')
             if arg == '_mouse_':
@@ -1360,16 +1365,6 @@ class SpriteOrStage:
             return self.listContains(block)
         else:
             raise ValueError('unsupported op', opcode)
-
-        '''
-        elif firstOp == 'list:contains:':
-            resStr += self.listContains(tokenList[1], tokenList[2])
-        elif firstOp == False:
-            resStr += "false"
-        else:
-            raise ValueError(firstOp)
-        return resStr
-        '''
 
     def strExpr(self, block, exprKey):
         """Evaluate a string-producing expression (or literal).
@@ -1567,6 +1562,12 @@ class SpriteOrStage:
             return self.listLength(block)
         else:
             raise ValueError("Unsupported operator %s" % opcode)
+
+    def stringContains(self, block):
+        '''Handle operator_contains'''
+        bigStr = self.strExpr(block, 'STRING1')
+        subStr = self.strExpr(block, 'STRING2')
+        return '(%s.contains(%s))' % (bigStr, subStr)
 
     def procDefnUseParamName(self, block):
         paramName = block.getField('VALUE')
@@ -1775,7 +1776,7 @@ class SpriteOrStage:
         # We don't generate parens around the boolExpr as it will put them there.
 
         resStr = genIndent(level) + "if "
-        resStr += self.boolExpr(block.getChild('CONDITION'))
+        resStr += self.boolExprOrFalse(block, 'CONDITION')
         resStr += "\n"
         resStr += self.block(level, block.getChild('SUBSTACK'))
         return resStr
@@ -1785,7 +1786,7 @@ class SpriteOrStage:
         """
 
         resStr = genIndent(level) + "if "
-        resStr += self.boolExpr(block.getChild('CONDITION'))
+        resStr += self.boolExprOrFalse(block, 'CONDITION')
         resStr += "\n"
         resStr += self.block(level, block.getChild('SUBSTACK'))
         resStr += genIndent(level) + "else\n"
@@ -2342,7 +2343,7 @@ class SpriteOrStage:
                yield(s);
            }
         """
-        condition = self.boolExpr(block.getChild('CONDITION'))
+        condition = self.boolExprOrFalse(block, 'CONDITION')
         retStr = genIndent(level) + "// wait until code\n"
         retStr += genIndent(level) + "while (true) {\n"
         retStr += genIndent(level + 1) + "if (" + condition + ")\n"
@@ -2358,7 +2359,7 @@ class SpriteOrStage:
                yield(s);
            }
         """
-        condition = self.boolExpr(block.getChild('CONDITION'))
+        condition = self.boolExprOrFalse(block, 'CONDITION')
         retStr = genIndent(level) + "// repeat until code\n"
         retStr += genIndent(level) + "while (! " + condition + ")\n"
         retStr += genIndent(level) + "{\n"
