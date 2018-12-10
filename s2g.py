@@ -2962,8 +2962,11 @@ def convert():
             # background -None keeps the transparent part of the image transparent.
             # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
             # same size as you see on the screen with Scratch in the web browser.
-            execOrDie("convert -background None " + f + " " + dest,
-                      "convert svg file to png")
+            # TODO: on my Mac, convert is not converting the Ball svg images correctly, but
+            # rsvg-convert does.  So, let's try that:
+            execOrDie("rsvg-convert " + f + " -o " + dest, "convert svg file to png")
+            # execOrDie("convert -background None " + f + " " + dest,
+            #          "convert svg file to png")
         # Copy Scratch.java and ScratchWorld.java to GF project directory
         # They must be in the same directory as s2g.py
         try:
