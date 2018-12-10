@@ -2882,13 +2882,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
             getWorld().moveClassToFront(sayActor.getClass());
         }
-        wait(s, duration.doubleValue());
+        wait(s, duration);
         if (showBubble) {
             getWorld().removeObject(sayActor);
         }
         sayActor = null;
     }
-    
+
     /**
      * display the given string for <n> seconds next to the sprite.
      */
@@ -2907,7 +2907,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
             showBubble = false;
         }
 
-
         if (showBubble) {
             sayActor = new Sayer(str);
             sayActor.think = true;
@@ -2920,7 +2919,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             getWorld().moveClassToFront(sayActor.getClass());
         }
 
-        wait(s, duration.doubleValue());
+        wait(s, duration);
 
         if (showBubble) {
             getWorld().removeObject(sayActor);

@@ -1321,17 +1321,16 @@ class SpriteOrStage:
 
         opcode = block.getOpcode()
         if opcode == 'operator_lt':
-            # TODO: assume numbers for less than... bad idea?
-            return '(' + self.mathExpr(block, 'OPERAND1') + ' < ' + \
-                   self.mathExpr(block, 'OPERAND2') + ')'
+            return '(' + self.evalMathThenStrThenBool(block, 'OPERAND1') + ' < ' + \
+                   self.evalMathThenStrThenBool(block, 'OPERAND2') + ')'
         elif opcode == 'operator_gt':
-            # TODO: assume numbers for less than... bad idea?
-            return '(' + self.mathExpr(block, 'OPERAND1') + ' > ' + \
-                   self.mathExpr(block, 'OPERAND2') + ')'
+            return '(' + self.evalMathThenStrThenBool(block, 'OPERAND1') + ' > ' + \
+                   self.evalMathThenStrThenBool(block, 'OPERAND2') + ')'
         elif opcode == 'operator_equals':
-            # TODO: assume numbers for equals... bad idea?
-            return '(' + self.mathExpr(block, 'OPERAND1') + ' == ' + \
-                   self.mathExpr(block, 'OPERAND2') + ')'
+            # NOTE: Scratch seems to lowercase everything before comparing. "Hello" == "hello".
+            # We are not doing that...
+            return '(' + self.evalMathThenStrThenBool(block, 'OPERAND1') + ' == ' + \
+                   self.evalMathThenStrThenBool(block, 'OPERAND2') + ')'
         elif opcode == 'operator_and':
             return '(' + self.boolExprOrFalse(block, 'OPERAND1') + ' && ' + \
                          self.boolExprOrFalse(block, 'OPERAND2') + ')'
@@ -1449,7 +1448,7 @@ class SpriteOrStage:
         expr = block.getInput(exprKey)
         assert isinstance(expr, list)
 
-        print('mathExpr: Evaluating block', block, ' and expr ', expr)
+        # print('mathExpr: Evaluating block', block, ' and expr ', expr)
 
         if not block.hasChild(exprKey):
             expr = block.getInput(exprKey)
