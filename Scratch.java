@@ -2862,21 +2862,30 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         String str = speech.toString();
         GreenfootImage mySprite = getCurrImage();
+        boolean showBubble = true;
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
-        sayActor = new Sayer(str);
-        getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
-
-        if (!isShowing) {
-            sayActor.hide();
+        if (str.equals("")) {
+            // When the string is empty, in Scratch no speech bubble pops up
+            // but the operation does run for the duration time.
+            showBubble = false;
         }
-        getWorld().moveClassToFront(sayActor.getClass());
 
+        if (showBubble) {
+            sayActor = new Sayer(str);
+            getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+
+            if (!isShowing) {
+                sayActor.hide();
+            }
+            getWorld().moveClassToFront(sayActor.getClass());
+        }
         wait(s, duration.doubleValue());
-
-        getWorld().removeObject(sayActor);
+        if (showBubble) {
+            getWorld().removeObject(sayActor);
+        }
         sayActor = null;
     }
     
@@ -2887,23 +2896,35 @@ public class Scratch extends Actor implements Comparable<Scratch>
     {
         String str = speech.toString();
         GreenfootImage mySprite = getCurrImage();
+        boolean showBubble = true;
 
         int width = mySprite.getWidth();
         int height = mySprite.getHeight();
 
-        sayActor = new Sayer(str);
-        sayActor.think = true;
-        sayActor.update();
-        getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
-
-        if (!isShowing) {
-            sayActor.hide();
+        if (str.equals("")) {
+            // When the string is empty, in Scratch no speech bubble pops up
+            // but the operation does run for the duration time.
+            showBubble = false;
         }
-        getWorld().moveClassToFront(sayActor.getClass());
+
+
+        if (showBubble) {
+            sayActor = new Sayer(str);
+            sayActor.think = true;
+            sayActor.update();
+            getWorld().addObject(sayActor, super.getX() + width + 10, super.getY() - height - 5);
+
+            if (!isShowing) {
+                sayActor.hide();
+            }
+            getWorld().moveClassToFront(sayActor.getClass());
+        }
 
         wait(s, duration.doubleValue());
 
-        getWorld().removeObject(sayActor);
+        if (showBubble) {
+            getWorld().removeObject(sayActor);
+        }
         sayActor = null;
     }
 
