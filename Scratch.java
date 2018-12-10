@@ -1122,7 +1122,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         // This constructor is to be used when creating lists.
         public Variable(ScratchList container, int index, Object val)
         {
-            text = String.valueOf(index);
+            text = String.valueOf(index + 1);
             value = val;
             valChanged = true;
             display = true;
@@ -1223,7 +1223,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 image.fillRect(textLength + 4, 3, valLength + 2, 15);
 
                 image.setColor(textColor);
-                // System.out.println("Variable.updateImage: creating with value " + text + " " + value);
+                System.out.println("Variable.updateImage: creating with value -->" + text + "<--  -->" + value);
                 image.drawString(text + " " + v, 1, 15);
                 setImage(image);
 
@@ -1450,9 +1450,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 i++;
             }
         }
-        private void updateIndex() // Make sure all elements display text matches their index
-        {                          // TODO this currently does nothing as the variables
+        private void updateIndices()
+        {
             for (int i = 0; i < contents.size(); i++) {
+                // Add 1 to i because Scratch indices start at 1
                 contents.get(i).setText(String.valueOf(i + 1));
                 contents.get(i).act();
             }
@@ -1514,12 +1515,12 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 return;    // Scratch does nothing if the index is bad.
             }
             contents.remove(index);
-            updateIndex();
+            updateIndices();
         }
         public void deleteAll()
         {
             contents.clear();
-            updateIndex();
+            updateIndices();
         }
         public void insertAt(int index, Object o)
         {
@@ -1529,6 +1530,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             else if (o instanceof String) contents.add(index, new StringVar(this, index + 1, o));
             else if (o instanceof Boolean) contents.add(index, new BooleanVar(this, index + 1, o));
             else throw new RuntimeException("Tried to create list element of invalid type");
+            updateIndices();
         }
 
         public void replaceItem(int index, Object o)
