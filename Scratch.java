@@ -1223,7 +1223,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                 image.fillRect(textLength + 4, 3, valLength + 2, 15);
 
                 image.setColor(textColor);
-                System.out.println("Variable.updateImage: creating with value -->" + text + "<--  -->" + value);
+                // System.out.println("Variable.updateImage: creating with value -->" + text + "<--  -->" + value);
                 image.drawString(text + " " + v, 1, 15);
                 setImage(image);
 
@@ -3704,7 +3704,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public int xPositionOf(Scratch other)
     {
-        return translateGFtoScratchX(other.getX());
+        return other.getX();
     }
 
     /**
@@ -3720,7 +3720,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
      */
     public int yPositionOf(Scratch other)
     {
-        return translateGFtoScratchY(other.getY());
+        return other.getY();
     }
 
     /**
