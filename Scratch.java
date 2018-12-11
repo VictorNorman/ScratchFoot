@@ -905,7 +905,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
         // Called from act().
         public boolean isTriggered() {
-            if (Greenfoot.isKeyDown(this.key)) {
+            // special handling for the 'any' key which is not supported directly in Greenfoot.
+            if ((this.key == "any" && Greenfoot.getKey() != null) || Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
                     System.out.println("keySeq: for key " + this.key +
                         " changing from NOT triggered to triggered.");

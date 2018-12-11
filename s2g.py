@@ -231,7 +231,7 @@ class Variable:
         self._nameEntry = None
         self._typeStringVar = None
         self._initValueEntry = None
-        print('Variable with name %s, gfname %s, uniqId %s defined' % (self._scratchName, self._gfName, self._uniqId), self._initValue)
+        # print('Variable with name %s, gfname %s, uniqId %s defined' % (self._scratchName, self._gfName, self._uniqId), self._initValue)
         allVars.append(self)
 
     def setGfName(self, name):
@@ -280,12 +280,6 @@ class Variable:
 
 
 def getVariableBySpriteAndName(sprite, name):
-    """
-    :param sprite: the sprite object
-    :param name: the name of the variable
-    :return: var found in allVars list
-    """
-
     for v in allVars:
         if v.getOwner() == sprite and v.getName() == name:
             return v
@@ -293,13 +287,6 @@ def getVariableBySpriteAndName(sprite, name):
 
 
 def getVariableByUniqueId(id):
-    """
-    :param id: unique block id
-    :return: var found in allVars list
-    """
-
-    print('looking up var with id', id)
-
     for v in allVars:
         if v.getUniqueId() == id:
             return v
