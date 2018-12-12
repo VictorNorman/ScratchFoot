@@ -1432,14 +1432,13 @@ class SpriteOrStage:
         """Evaluate the expression in block[exprKey] and its children, as a math expression,
         returning a string equivalent."""
 
+        print('mathExpr: Evaluating block', block, 'and exprKey', exprKey)
         expr = block.getInput(exprKey)
         assert isinstance(expr, list)
 
-        # print('mathExpr: Evaluating block', block, ' and expr ', expr)
+        print('mathExpr:                expr ', expr)
 
         if not block.hasChild(exprKey):
-            expr = block.getInput(exprKey)
-
             # if expr[1][0] is 12, then we are referencing a variable (guess).
             if expr[1][0] == 12:  # TOTAL GUESS!
                 return self.handleVariableReference(expr[1])
@@ -2540,28 +2539,35 @@ class SpriteOrStage:
     def playSound(self, level, block, deferYield=False):
         """ Play the given sound
         """
-        return genIndent(level) + 'playSound("' + self.mathExpr(block, 'SOUND_MENU') + '");\n'
+        sound = block.getChild('SOUND_MENU').getField('SOUND_MENU')
+        return genIndent(level) + 'playSound("' + sound + '");\n'
 
     def playSoundUntilDone(self, level, block, deferYield=False):
         """ Play the given sound without interrupting it.
         """
-        return genIndent(level) + 'playSoundUntilDone("' + self.mathExpr(block, 'SOUND_MENU') + '");\n'
+        sound = block.getChild('SOUND_MENU').getField('SOUND_MENU')
+        return genIndent(level) + 'playSoundUntilDone("' + sound + '");\n'
 
     def playNote(self, level, block, deferYield=False):
         """ Play the given note for a given number of beats
         """
-        return genIndent(level) + "playNote(s, " + self.mathExpr(block, 'NOTE') + ", " + \
+        note = block.getChild('NOTE').getField('NOTE')
+        return genIndent(level) + "playNote(s, " + note + ", " + \
                self.mathExpr(block, 'BEATS') + ");\n"
 
     def instrument(self, level, block, deferYield=False):
         """ Play the given instrument
         """
-        return genIndent(level) + "changeInstrument(" + self.mathExpr(block, 'INSTRUMENT') + ");\n"
+        instr = block.getChild('INSTRUMENT').getField('INSTRUMENT')
+        return genIndent(level) + "changeInstrument(" + instr + ");\n"
 
     def playDrum(self, level, block, deferYield=False):
         """ Play the given drum
         """
-        return genIndent(level) + "playDrum(s, " + self.mathExpr(block, 'DRUM') + ", " + \
+        drum = self.mathExpr(block, 'DRUM')
+        print('playdrum: drum = ', drum)
+        # drum = block.getChild('DRUM').getField('DRUM')
+        return genIndent(level) + "playDrum(s, " + drum + ", " + \
                self.mathExpr(block, 'BEATS') + ");\n"
 
     def rest(self, level, block, deferYield=False):

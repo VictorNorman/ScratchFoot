@@ -107,14 +107,15 @@ public class Scratch extends Actor implements Comparable<Scratch>
     static final int[] scratchInstruments = {0, 0, 2, 19, 24, 27, 32, 45, 42, 57, 71, 64, 
                                              73, 75, 70, 91, 11, 10, 114, 12, 82, 90};
     static final int[] scratchDrums = {0, 38, 36, 37, 49, 46, 42, 54, 39, 75,
-                                       77, 56, 81, 61, 64, 69, 74, 58, 79};
+                                          77, 56, 81, 61, 64, 69, 74, 58, 79};
+    static final int PERCUSSION_CHANNEL = 9;
     private boolean isPenDown = false;
     private Color penColor = Color.BLUE;
-    private int penColorNumber = 133;         // an integer that is mod 200 -- 0 to 199.
+    private int penColorNumber = 133;       // an integer that is mod 200 -- 0 to 199.
     private float penSize = 1;
     private int currCostume = 0;
     private String name;                    // Sprite's class name, for sound lookup
-    private long deferredWait; // What time the next deferred yield should take place
+    private long deferredWait;              // What time the next deferred yield should take place
     
     /**
      * This class holds a Greenfoot 'baseImage' as well as several fields that dictate
@@ -908,8 +909,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
             // special handling for the 'any' key which is not supported directly in Greenfoot.
             if ((this.key == "any" && Greenfoot.getKey() != null) || Greenfoot.isKeyDown(this.key)) {
                 if (! triggered) {
-                    System.out.println("keySeq: for key " + this.key +
-                        " changing from NOT triggered to triggered.");
+                    // System.out.println("keySeq: for key " + this.key +
+                    //    " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             } else {
@@ -948,8 +949,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
         public boolean isTriggered() {
             if (Greenfoot.mouseClicked(this.getObj())) {
                 if (! triggered) {
-                    System.out.println("ActorClickedSeq: for actor " + this.getObj() +
-                        " changing from NOT triggered to triggered.");
+                    // System.out.println("ActorClickedSeq: for actor " + this.getObj() +
+                    //     " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -970,7 +971,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         public boolean isTriggered() {
             if (Greenfoot.mouseClicked(null)) {
                 if (! triggered) {
-                    System.out.println("stageClickedSeq: changing from NOT triggered to triggered.");
+                    // System.out.println("stageClickedSeq: changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -998,8 +999,8 @@ public class Scratch extends Actor implements Comparable<Scratch>
         public boolean isTriggered() {
             if (getWorld().bcastPending(mesg)) {
                 if (! triggered) {
-                    System.out.println("mesgRecvdSeq: for mesg " + mesg +
-                        " changing from NOT triggered to triggered.");
+                    // System.out.println("mesgRecvdSeq: for mesg " + mesg +
+                    //     " changing from NOT triggered to triggered.");
                 }
                 triggered = true;
             }
@@ -3943,7 +3944,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
         } else if (pitch < 1) {
             pitch = 1;
         }
-        //int volume = 255 * 
         while (!soundPlayer.playNote(pitch, 255, 0, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
@@ -3970,14 +3970,13 @@ public class Scratch extends Actor implements Comparable<Scratch>
      * one to finish first.
      */
     public void playDrum(Sequence s, int drum, double length) {
-        long start = System.currentTimeMillis();
         // Ensure the drum is valid
         if (drum > 18) {
             drum = 18;
         } else if (drum < 1) {
             drum = 1;
         }
-        while (!soundPlayer.playNote(scratchDrums[drum], 255, 9, length, name)) {
+        while (!soundPlayer.playNote(scratchDrums[drum], 255, PERCUSSION_CHANNEL, length, name)) {
             yield(s); // Yield until the note is successfully played
         }
     }
@@ -4042,7 +4041,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             }
             setTempo(tempo);
         }
-        
+
         public void run() {
             int p = 0;
             while (true) {
@@ -4057,7 +4056,6 @@ public class Scratch extends Actor implements Comparable<Scratch>
                     }
                     if (note != null) { // If a note was found
                         // Play the new note
-                        // TODO: System.out.println("note channel" + note.channel);
                         synth.getChannels()[note.channel].noteOn(note.pitch, note.vel);
                         // Set the note to active
                         activeNotes.push(note);
