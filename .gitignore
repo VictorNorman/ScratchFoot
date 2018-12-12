@@ -3,4 +3,6 @@
 !.gitignore
 !ScratchFoot.java
 !ScratchWorld.java
-!s2g-experimental.py
+!*.py
+!soundbank
+!soundbank/*
