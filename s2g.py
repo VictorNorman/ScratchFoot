@@ -368,6 +368,9 @@ class Block:
     def getField(self, key, index=0):
         return self.getFields()[key][index]
 
+    def hasField(self, key):
+        return key in self._fields
+
     def getChild(self, key):
         return self._children[key]
 
@@ -1329,7 +1332,7 @@ class SpriteOrStage:
         elif opcode == 'operator_contains':
             return self.stringContains(block)
         elif opcode == 'sensing_touchingobject':
-            arg = block.getChild('TOUCHINGOBJECTMENU').getField('TOUCHINGOBJECTMENU')
+            arg = self.evalExprOrMenuItem(block, 'TOUCHINGOBJECTMENU')
             if arg == '_mouse_':
                 return "(isTouchingMouse())"
             elif arg == "_edge_":
@@ -1345,7 +1348,7 @@ class SpriteOrStage:
         elif opcode == 'sensing_mousedown':
             return "(isMouseDown())"
         elif opcode == 'sensing_keypressed':
-            keyoption = block.getChild('KEY_OPTION').getField('KEY_OPTION')
+            keyoption = self.evalExprOrMenuItem(block, 'KEY_OPTION')
             return '(isKeyPressed("' + convertKeyPressName(keyoption) + '"))'
         elif opcode == 'data_listcontainsitem':
             return self.listContains(block)
@@ -1401,7 +1404,7 @@ class SpriteOrStage:
         elif opcode == 'data_itemnumoflist':
             return self.listElement(child)
         else:
-            # You can put math expression in where strings are expected
+            # You can put a math expression in where strings are expected
             # and they are automatically used.  So, we'll try that
             # too.
             return "String.valueOf(" + str(self.mathExpr(block, 'MESSAGE')) + ")"
@@ -1533,8 +1536,7 @@ class SpriteOrStage:
         elif opcode == 'sensing_current':
             return self.genSensingCurrentDateEtc(child)
         elif opcode == "sensing_distanceto":
-            grandchild = child.getChild('DISTANCETOMENU')
-            arg = grandchild.getField('DISTANCETOMENU')
+            arg = self.evalExprOrMenuItem(child, 'DISTANCETOMENU')
             if arg == '_mouse_':
                 return "distanceToMouse()"
             else:  # must be distance to a sprite
@@ -1582,14 +1584,14 @@ class SpriteOrStage:
         from the sensing block.
         """
 
-        objChild = block.getChild('OBJECT').getField('OBJECT')
+        objChild = self.evalExprOrMenuItem(block, 'OBJECT')
         prop = block.getField('PROPERTY')
 
         if objChild == '_stage_':
             # most of the attributes -- direction, x position, etc. --
             # return 0 in Scratch.  We'll do the same, obviously.
             if prop in ('direction', 'x position', 'y position', 'costume name', 'costume #', 'size', 'volume'):
-                return 0
+                return "0"
             if prop == 'backdrop #':
                 return "backdropNumber()"
             elif prop == 'backdrop name':
@@ -1609,7 +1611,7 @@ class SpriteOrStage:
             print('getAttributeOf returning', mapping[prop] + '("' + objChild + '")')
             return mapping[prop] + '("' + objChild + '")'
         elif prop in ('backdrop #', 'backdrop name', 'volume'):
-            return 0  # bogus in Scratch and here too
+            return "0"  # bogus in Scratch and here too
         else:
             # TODO: We must assume that this is a variable, as not all variable have necessarily
             # been parsed yet. Note that because of this, we cannot look up the actual name
@@ -1859,8 +1861,7 @@ class SpriteOrStage:
     def pointTowards(self, level, block, deferYield=False):
         """Generate code to turn the sprite to point to something.
         """
-        child = block.getChild('TOWARDS')
-        argVal = child.getField('TOWARDS')
+        argVal = self.evalExprOrMenuItem(block, 'TOWARDS')
         if argVal == '_mouse_':
             return genIndent(level) + "pointTowardMouse();\n"
         else:  # pointing toward a sprite
@@ -1872,8 +1873,7 @@ class SpriteOrStage:
         The block contains the time, and a child block that specifies if
         it is gliding to a random position, the mouse, or another sprite
         """
-        child = block.getChild('TO')
-        argVal = child.getField('TO')
+        argVal = self.evalExprOrMenuItem(block, 'TO')
         if argVal == "_mouse_":
             return genIndent(level) + "glideToMouse(s, " + self.mathExpr(block, 'SECS') + ");\n"
         elif argVal == "_random_":
@@ -2375,8 +2375,7 @@ class SpriteOrStage:
     def createCloneOf(self, level, block, deferYield=False):
         """Create a clone of the sprite itself or of the given sprite.
         """
-        child = block.getChild('CLONE_OPTION')
-        argVal = child.getField('CLONE_OPTION')
+        argVal = self.evalExprOrMenuItem(block, 'CLONE_OPTION')
         if argVal == "_myself_":
             return genIndent(level) + "createCloneOfMyself();\n"
         else:
@@ -2551,22 +2550,20 @@ class SpriteOrStage:
     def playNote(self, level, block, deferYield=False):
         """ Play the given note for a given number of beats
         """
-        note = block.getChild('NOTE').getField('NOTE')
+        note = self.evalExprOrMenuItem(block, 'NOTE')
         return genIndent(level) + "playNote(s, " + note + ", " + \
                self.mathExpr(block, 'BEATS') + ");\n"
 
     def instrument(self, level, block, deferYield=False):
         """ Play the given instrument
         """
-        instr = block.getChild('INSTRUMENT').getField('INSTRUMENT')
+        instr = self.evalExprOrMenuItem(block, 'INSTRUMENT')
         return genIndent(level) + "changeInstrument(" + instr + ");\n"
 
     def playDrum(self, level, block, deferYield=False):
         """ Play the given drum
         """
-        drum = self.mathExpr(block, 'DRUM')
-        print('playdrum: drum = ', drum)
-        # drum = block.getChild('DRUM').getField('DRUM')
+        drum = self.evalExprOrMenuItem(block, 'DRUM')
         return genIndent(level) + "playDrum(s, " + drum + ", " + \
                self.mathExpr(block, 'BEATS') + ");\n"
 
@@ -2585,7 +2582,18 @@ class SpriteOrStage:
         """
         return genIndent(level) + "setTempo(" + self.mathExpr(block, 'TEMPO') + ");\n"
 
+    def evalExprOrMenuItem(self, block, exprKey):
+        '''When a Scratch block has a drop-down list of options, the value
+        is in the child.  If the child has a field with the same key,
+        just use that value.  Otherwise, the child is an expression to be evaluated.'''
+        child = block.getChild(exprKey)
+        if child.hasField(exprKey):
+            return child.getField(exprKey)
+        return self.mathExpr(block, exprKey)
+
     # ----------------------------------------------------------
+
+
 
     def resolveName(self, name):
         """Ask the user what each variable should be named if it is not a
