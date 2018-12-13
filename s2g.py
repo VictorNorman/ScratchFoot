@@ -231,7 +231,7 @@ class Variable:
         self._nameEntry = None
         self._typeStringVar = None
         self._initValueEntry = None
-        # print('Variable with name %s, gfname %s, uniqId %s defined' % (self._scratchName, self._gfName, self._uniqId), self._initValue)
+        # print(str(self))
         allVars.append(self)
 
     def setGfName(self, name):
@@ -277,6 +277,9 @@ class Variable:
 
     def setInitialValueEntry(self, ive):
         self._initValueEntry = ive
+
+    def __str__(self):
+        return 'Variable with name %s, gfname %s, uniqId %s initValue %s owner %s' % (self._scratchName, self._gfName, self._uniqId, self._initValue, self._owner)
 
 
 def getVariableBySpriteAndName(sprite, name):
@@ -1505,7 +1508,7 @@ class SpriteOrStage:
             return "pickRandom(" + self.mathExpr(child, 'FROM') + ", " + self.mathExpr(child, 'TO') + ")"
         elif opcode == 'motion_xposition':
             return 'getX()'
-        elif opcode == 'motion_ypos':
+        elif opcode == 'motion_yposition':
             return "getY()"
         elif opcode == 'motion_direction':
             return "getDirection()"
@@ -2109,8 +2112,8 @@ class SpriteOrStage:
         var.set(value)
         """
 
-        var = getVariableBySpriteAndName(self, block.getField('VARIABLE'))
-        if var == None:
+        var = getVariableByUniqueId(block.getField('VARIABLE', 1))
+        if var is None:
             raise ValueError('No Variable object found for', block.getField('VARIABLE'))
 
         if var.getType() == 'Boolean':
