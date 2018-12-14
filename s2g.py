@@ -725,7 +725,7 @@ class SpriteOrStage:
                         self._varDefnCode += genIndent(1) + "%sVar %s;\n" % (varType, sanname)
                     # Escape any quotes in the label
                     label = re.sub('"', '\\"', label)
-                    if (varType.lower() == "string"):
+                    if varType.lower() == "string":
                         # Escape any quotes, and add make it a string literal
                         value = '"' + re.sub('"', '\\"', value) + '"'
 
@@ -1753,7 +1753,7 @@ class SpriteOrStage:
         retStr = genIndent(level) + "while (true)\t\t// forever loop\n"
         retStr += genIndent(level) + "{\n"
         retStr += self.statements(level, block.getChild('SUBSTACK'))
-        if (deferYield):
+        if deferYield:
             retStr += genIndent(level + 1) + \
                       "deferredYield(s);   // allow other sequences to run occasionally\n"
         else:
@@ -2676,12 +2676,15 @@ class Sprite(SpriteOrStage):
     def genLoadCostumesCode(self, costumes):
         """Generate code to load costumes from files for a sprite.
         """
-        # print("genLoadCC: costumes ->" + str(costumes) + "<-")
         resStr = ""
-        # imagesDir = os.path.join(PROJECT_DIR, "images")
+
+        sprName = self.getName()
         for cos in costumes:
             fname = cos['assetId'] + ".png"
-            resStr += genIndent(2) + 'addCostume("' + fname + \
+            readable_name = sprName + '-' + cos['name'] + ".png"
+            readable_fname = imagesDir + '/' + readable_name
+            os.rename(imagesDir + "/" + fname, readable_fname)
+            resStr += genIndent(2) + 'addCostume("' + readable_name + \
                       '", "' + cos['name'] + '");\n'
         self._costumeCode += resStr
 
@@ -2759,11 +2762,15 @@ class Stage(SpriteOrStage):
     def genLoadCostumesCode(self, costumes):
         """Generate code to load backdrops from files for the Stage.
         Note that this code is actually included in the World constructor.
+        This code also renames the backdrop names to be more readable.
         """
         resStr = ""
         for costume in costumes:
             fname = costume['assetId'] + ".png"
-            resStr += genIndent(2) + 'addBackdrop("' + fname + \
+            readable_name = 'stage-' + costume['name'] + ".png"
+            readable_fname = imagesDir + '/' + readable_name
+            os.rename(imagesDir + "/" + fname, readable_fname)
+            resStr += genIndent(2) + 'addBackdrop("' + readable_name + \
                       '", "' + costume['name'] + '");\n'
         self._costumeCode += resStr
 
@@ -2874,6 +2881,24 @@ def genWorldCtorHeader(classname):
 # ---------------------------------------------------------------------------
 #                ----------------- main -------------------
 # ---------------------------------------------------------------------------
+
+def convertSvgToPng(imagesDir, fullfname):
+    # fname is just the file name -- all directories removed.
+    fname = os.path.basename(fullfname)
+    dest = os.path.join(imagesDir, fname)
+    dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
+    # background -None keeps the transparent part of the image transparent.
+    # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
+    # same size as you see on the screen with Scratch in the web browser.
+    # TODO: on my Mac, convert is not converting the Ball svg images correctly, but
+    # rsvg-convert does.  So, let's try that:
+    execOrDie("rsvg-convert " + fullfname + " -o " + dest, "convert svg file to png")
+
+
+# execOrDie("convert -background None " + f + " " + dest,
+#          "convert svg file to png")
+
+
 def convert():
     global SCRATCH_FILE
     global PROJECT_DIR
@@ -2896,15 +2921,14 @@ def convert():
             sys.exit(1)
         if not os.path.exists(PROJECT_DIR):
             if useGui:
-                if (
-                        tkinter.messagebox.askokcancel("Make New Directory",
-                                                       "Greenfoot directory not found, generate it?")):
+                if (tkinter.messagebox.askokcancel("Make New Directory",
+                                                   "Greenfoot directory not found, generate it?")):
                     print("Generating new project directory...")
                     os.makedirs(PROJECT_DIR)
                 else:
                     sys.exit(1)
             else:
-                if (input("Project directory not found, generate it? (y/n)\n> ") == "y"):
+                if input("Project directory not found, generate it? (y/n)\n> ") == "y":
                     print("Generating new project directory...")
                     os.makedirs(PROJECT_DIR)
                 else:
@@ -2959,18 +2983,8 @@ def convert():
         # Convert svg images files to png files in the images dir.
         files2Copy = glob.glob(os.path.join(scratch_dir, "*.svg"))
         for f in files2Copy:
-            # fname is just the file name -- all directories removed.
-            fname = os.path.basename(f)
-            dest = os.path.join(imagesDir, fname)
-            dest = os.path.splitext(dest)[0] + ".png"  # remove extension and add .png
-            # background -None keeps the transparent part of the image transparent.
-            # -resize 50% shrinks the image by 50% in each dimension.  Then image is then
-            # same size as you see on the screen with Scratch in the web browser.
-            # TODO: on my Mac, convert is not converting the Ball svg images correctly, but
-            # rsvg-convert does.  So, let's try that:
-            execOrDie("rsvg-convert " + f + " -o " + dest, "convert svg file to png")
-            # execOrDie("convert -background None " + f + " " + dest,
-            #          "convert svg file to png")
+            convertSvgToPng(imagesDir, f)
+
         # Copy Scratch.java and ScratchWorld.java to GF project directory
         # They must be in the same directory as s2g.py
         try:
