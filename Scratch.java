@@ -1,6 +1,6 @@
 
 /*
- * Copyright (C) 2016  Victor T. Norman, Calvin College, Grand Rapids, MI, USA
+ * Copyright (C) 2016 - 2019  Victor T. Norman, Calvin College, Grand Rapids, MI, USA
  * 
  * ScratchFoot: a Scratch emulation layer for Greenfoot, along with a program
  * to convert a Scratch project to a Greenfoot scenario.
@@ -797,7 +797,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
 
                     java.lang.reflect.Method m = objToCall.getClass().getMethod(methodToCall, 
                             Class.forName("Scratch$Sequence"));
-                    System.out.println(methodToCall + ": run(): invoking callback");
+                    // System.out.println(methodToCall + ": run(): invoking callback");
                     inCbScript = true;
                     m.invoke(objToCall, this);
 
@@ -817,7 +817,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-            System.out.println(methodToCall + ": run(): done");
+            // System.out.println(methodToCall + ": run(): done");
             inCbScript = false;
 
             terminated = true;
@@ -855,7 +855,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
             try {
                 synchronized (sequenceLock) {
                     if (terminated) {
-                        System.out.println(methodToCall + ": terminated already.");
+                        // System.out.println(methodToCall + ": terminated already.");
 
                         return;
                     }
@@ -1757,7 +1757,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
         // Ensure all graphic effects are applied before it displays
         displayCostume();
         /*
-        // System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
+        System.out.println("Scratch: copy constructor finished for object " + System.identityHashCode(this));
         System.out.println("Copy constructor finished for object " + System.identityHashCode(this));
         System.out.println("cloneStartSeqs has this in it:");
         for (CloneStartSeq s: cloneStartSeqs) {
@@ -2199,10 +2199,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
     public void stopThisScript() throws StopScriptException
     {
         if (! inCbScript) {
-            System.out.println("stopThisScript: returning because not in callback script.");
+            // System.out.println("stopThisScript: returning because not in callback script.");
             return;
         }
-        System.out.println("stopThisScript: throwing StopScriptException");
+        // System.out.println("stopThisScript: throwing StopScriptException");
         throw new StopScriptException();
     }
 
@@ -2610,7 +2610,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
         }
         rotation %= 360;
         currDirection %= 360;
-        costumes.get(currCostume).image.setRotation(rotation - 90);
+        // costumes.get(currCostume).image.setRotation(rotation - 90);
+	for (Costume costume: costumes) {
+	    costume.image.setRotation(rotation - 90);
+	}
         updateImage = true;
     }
 
@@ -2715,7 +2718,10 @@ public class Scratch extends Actor implements Comparable<Scratch>
             return;    // no change
         }
         rotationStyle = rs;
-        costumes.get(currCostume).image.style = rs;
+        // costumes.get(currCostume).image.style = rs;
+	for (Costume costume: costumes) {
+	    costume.image.style = rs;
+	}
         updateImage = true;
     }
     
@@ -4152,7 +4158,7 @@ public class Scratch extends Actor implements Comparable<Scratch>
                         clip.open(aIn);
                         // Add the clip to the list of sounds
                         soundList.put(name + "/" + f.getName(), clip);
-                        System.out.println("Added sound clip: " + f.getName() + " for sprite: " + name);
+                        // System.out.println("Added sound clip: " + f.getName() + " for sprite: " + name);
                     } catch (UnsupportedAudioFileException e) {
                         System.err.println("Only pcm .wav filetypes are acceptable: " + f.getName());
                         //e.printStackTrace();
