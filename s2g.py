@@ -3090,7 +3090,7 @@ def convert():
         # file, like this: 
         #     class.Sprite1.image=1.png
         projectFileCode.append("class." + sprite.getName() + ".image=" + \
-                               str(sprData['costumes'][0]['assetId']) + ".png\n")
+                               sprite.getName() + '-' + sprData['costumes'][0]['name'] + ".png\n")
 
     # --------- handle the Stage stuff --------------
 
